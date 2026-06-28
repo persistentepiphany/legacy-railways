@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fares-cockpit"
+version = "0.1.0"
+description = "Deterministic fares-change cockpit for the UK rail fares feed (Conduct track, UK AI Agent Hackathon EP5)."
+readme = "CLAUDE.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi",
+  "uvicorn",
+  "pydantic",
+  "pandas",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
