@@ -27,3 +27,6 @@ packages = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+  "slow: BRFares oracle validation; requires data/RJFAF805.* and data/brfares_*.json",
+]

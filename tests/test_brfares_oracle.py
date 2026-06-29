@@ -3,18 +3,25 @@
 From CLAUDE.md: "Validate resolver output against BRFares (brfares.com) for the
 demo corridor before trusting it."
 
-This file is a SHAPE stub. The real resolver is not yet wired; the harness
-exists so that the moment we have one, plugging it into `diff_against_oracle`
-gives us a single-row-per-fare correctness diff. Expected fares are TODOs to be
-filled from brfares.com — see the comment on each row for the lookup.
+This harness lets the real resolver plug in via `diff_against_oracle`. Expected
+prices are still TODOs to be captured from brfares.com.
 
-Manchester Piccadilly NLC: 2960    London Euston NLC: 1444
-(Confirm both via .LOC when the feed is in place; treated as TODOs below.)
+NLCs (verified against RJFAF805.LOC):
+  - 0438 = MANCHESTER STNS  (group; member stations include Piccadilly/Victoria/
+    Oxford Rd/Deansgate). Long-distance flows are indexed on this group NLC.
+  - 1072 = LONDON TERMINALS (group; member terminals include Euston, Kings X,
+    Paddington, etc.). Same — flows go via the group.
+  - 1444 = LONDON EUSTON    (individual; GROUP_NLC field = 1072).
+
+The thin-slice resolver looks up exact-match group<->group flows (0438<->1072)
+because no direct 0438<->1444 flow exists in the feed; reaching the individual
+station NLC requires .FSC cluster fan-out, which is a deferred slice.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
 
 
@@ -27,38 +34,33 @@ class OracleRow:
     expected_pence: Optional[int]  # None = not yet captured from brfares.com
 
 
-# Capture date: TODO(fill from brfares.com, e.g. "2026-06-28"). Snapshot the
-# whole table on one day so we can re-pull cleanly if BRFares numbers shift.
+# Capture date: TODO(fill from brfares.com when prices are pulled). Snapshot
+# the whole table on one day so we can re-pull cleanly if BRFares numbers shift.
 MANCHESTER_LONDON_ORACLE: list[OracleRow] = [
     OracleRow(
-        origin_nlc="2960", dest_nlc="1444", ticket_code="SOR",
-        description="Off-Peak Return MAN<->EUS (regulated walk-up under §3 freeze)",
-        expected_pence=None,  # TODO: brfares.com MAN->EUS SOR
+        origin_nlc="0438", dest_nlc="1072", ticket_code="SOR",
+        description="Standard Off-Peak Return MAN<->LON (regulated walk-up under §3 freeze)",
+        expected_pence=None,  # TODO: brfares.com MAN->LON SOR
     ),
     OracleRow(
-        origin_nlc="2960", dest_nlc="1444", ticket_code="SVR",
-        description="Super Off-Peak Return MAN<->EUS",
-        expected_pence=None,  # TODO: brfares.com MAN->EUS SVR
+        origin_nlc="0438", dest_nlc="1072", ticket_code="SVR",
+        description="Super Off-Peak Return MAN<->LON",
+        expected_pence=None,  # TODO: brfares.com MAN->LON SVR
     ),
     OracleRow(
-        origin_nlc="2960", dest_nlc="1444", ticket_code="SDR",
-        description="Anytime Day Return MAN<->EUS (regulated for London-flow commuter cases)",
-        expected_pence=None,  # TODO: brfares.com MAN->EUS SDR
+        origin_nlc="0438", dest_nlc="1072", ticket_code="SOS",
+        description="Standard Off-Peak Single MAN<->LON",
+        expected_pence=None,  # TODO: brfares.com MAN->LON SOS
     ),
     OracleRow(
-        origin_nlc="2960", dest_nlc="1444", ticket_code="SDS",
-        description="Anytime Day Single MAN<->EUS",
-        expected_pence=None,  # TODO: brfares.com MAN->EUS SDS
+        origin_nlc="0438", dest_nlc="1072", ticket_code="SVS",
+        description="Super Off-Peak Single MAN<->LON",
+        expected_pence=None,  # TODO: brfares.com MAN->LON SVS
     ),
     OracleRow(
-        origin_nlc="2960", dest_nlc="1444", ticket_code="FOR",
-        description="First Open Return MAN<->EUS (NOT regulated)",
-        expected_pence=None,  # TODO: brfares.com MAN->EUS FOR
-    ),
-    OracleRow(
-        origin_nlc="2960", dest_nlc="1444", ticket_code="7DS",
-        description="Weekly Season MAN<->EUS Standard (regulated)",
-        expected_pence=None,  # TODO: brfares.com MAN->EUS 7DS
+        origin_nlc="0438", dest_nlc="1072", ticket_code="FOR",
+        description="First Open Return MAN<->LON (NOT regulated)",
+        expected_pence=None,  # TODO: brfares.com MAN->LON FOR
     ),
 ]
 
@@ -74,10 +76,26 @@ class Mismatch:
 
 
 # A resolver_fn takes (origin_nlc, dest_nlc, ticket_code) -> pence (or None
-# if the resolver can't price the fare). Signature matches what src/resolver/
-# is being built toward; the *return* type on the real resolver will be a
-# ResolvedFare-with-provenance, of which `.fare_pence` is one field.
+# if the resolver can't price the fare). The real resolver's return type is a
+# `ResolvedFare` with full provenance; `price_only_adapter` below collapses
+# that to the bare-int signature the oracle harness wants.
 ResolverFn = Callable[[str, str, str], Optional[int]]
+
+
+def price_only_adapter(feed_path: Path) -> ResolverFn:
+    """Wrap `src.resolver.resolve_fare(..., feed_path)` into a ResolverFn.
+
+    The oracle harness wants `(o, d, t) -> Optional[int]`. The real resolver
+    returns a `ResolvedFare` with provenance; this adapter discards everything
+    but the price. Provenance is still available via the underlying resolver
+    for any test that wants to assert on it directly."""
+    from src.resolver.resolve import resolve_fare
+
+    def _call(origin_nlc: str, dest_nlc: str, ticket_code: str) -> Optional[int]:
+        result = resolve_fare(origin_nlc, dest_nlc, ticket_code, feed_path)
+        return result.price_pence
+
+    return _call
 
 
 def diff_against_oracle(
