@@ -1,0 +1,31 @@
+.git/
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.claude/
+.vscode/
+.idea/
+.DS_Store
+
+# Tests, docs, frontend not needed in the API image.
+tests/
+docs/
+frontend/
+
+# Drop everything in data/ except the 9 RJFAF805 files the engine needs.
+data/*
+!data/RJFAF805.FFL
+!data/RJFAF805.LOC
+!data/RJFAF805.FSC
+!data/RJFAF805.NFO
+!data/RJFAF805.RLC
+!data/RJFAF805.DIS
+!data/RJFAF805.RCM
+!data/RJFAF805.FRR
+!data/RJFAF805.TTY
