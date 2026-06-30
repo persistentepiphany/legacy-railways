@@ -44,6 +44,7 @@ from src.impact.report import (
     AnomaliesBlock,
     ComplianceBlock,
     ImpactReport,
+    PerformanceBlock,
     RevenueBlock,
     compute_impact,
 )
@@ -76,6 +77,7 @@ __all__ = [
     "FeedPaths",
     "ImpactReport",
     "KNOWN_INCLUDE_KEYS",
+    "PerformanceBlock",
     "RevenueBlock",
     "SplitCandidate",
     "SplitOpportunityResult",

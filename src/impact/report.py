@@ -24,15 +24,28 @@ from src.impact.compliance import attach_compliance, build_corridor_regulation_m
 from src.impact.feed_paths import FeedPaths
 from src.impact.inversions import FareInversion, detect_inversions
 from src.impact.revenue import per_flow_exposure, per_pair_exposure
+from pathlib import Path
+from typing import Callable
+
 from src.impact.splits import SplitOpportunityResult, splits_for_change
+from src.ingest.inspect import load_loc_meta
+from src.perf import PerformanceResult, fetch_performance
 from src.regulation import RegulationMap
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_PERF_CACHE_DIR = REPO_ROOT / "data" / "perf_cache"
+DEFAULT_PERF_FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures" / "hsp"
+# Default HSP window when the API caller didn't pin one: most recent 30 days
+# (sliding); WEEKDAY day type matches the demo corridor's commuter use case.
+DEFAULT_PERF_DAYS = "WEEKDAY"
 
 
 # Known include keys. `compute_impact` raises ValueError on anything else
 # so the API layer surfaces typos as 400s rather than silently dropping
 # them. Adding a new module = add a key here + a block field + a branch.
 KNOWN_INCLUDE_KEYS: frozenset[str] = frozenset({
-    "compliance", "anomalies", "revenue", "splits",
+    "compliance", "anomalies", "revenue", "splits", "performance",
 })
 DEFAULT_INCLUDE: frozenset[str] = frozenset({
     "compliance", "anomalies", "revenue",
@@ -75,6 +88,17 @@ class RevenueBlock:
 
 
 @dataclass(frozen=True)
+class PerformanceBlock:
+    """Real-world punctuality overlay for the corridor (HSP serviceMetrics).
+
+    Carries one `PerformanceResult` whose `mode` field is the freshness signal
+    the UI must surface (live / cached / fixture) so callers cannot mistake
+    stale data for live. The block is opt-in (`?include=performance`) because
+    it touches outbound I/O; default callers never trigger a network call."""
+    result: PerformanceResult
+
+
+@dataclass(frozen=True)
 class ImpactReport:
     """Aggregate output of `compute_impact`.
 
@@ -91,6 +115,7 @@ class ImpactReport:
     anomalies: AnomaliesBlock | None = None
     revenue: RevenueBlock | None = None
     splits: SplitOpportunityResult | None = None
+    performance: PerformanceBlock | None = None
 
 
 def _normalise_include(include: frozenset[str] | set[str] | None) -> frozenset[str]:
@@ -112,6 +137,7 @@ def compute_impact(
     *,
     include: frozenset[str] | set[str] | None = None,
     regulation_map: RegulationMap | None = None,
+    performance_fetcher: Callable[..., PerformanceResult] | None = None,
 ) -> ImpactReport:
     """Orchestrate: validate → affected set → optional blocks → assemble.
 
@@ -188,6 +214,25 @@ def compute_impact(
         splits_block = splits_for_change(change, feed_paths)
         notes.extend(splits_block.notes)
 
+    performance_block: PerformanceBlock | None = None
+    if "performance" in requested:
+        from_crs, to_crs, perf_notes = _corridor_crses(change, feed_paths)
+        notes.extend(perf_notes)
+        if from_crs and to_crs:
+            today = _today_iso()
+            from_date = _iso_minus_days(today, 30)
+            fetcher = performance_fetcher or _default_performance_fetcher
+            perf = fetcher(
+                from_crs, to_crs, from_date, today, DEFAULT_PERF_DAYS,
+            )
+            performance_block = PerformanceBlock(result=perf)
+            notes.extend(perf.notes)
+        else:
+            notes.append(
+                "performance block skipped: corridor endpoints have no CRS in .LOC "
+                "(cluster NLCs with no member representative)."
+            )
+
     return ImpactReport(
         change=change,
         canonical_affected=affected_set.canonical,
@@ -198,7 +243,61 @@ def compute_impact(
         anomalies=anomalies_block,
         revenue=revenue_block,
         splits=splits_block,
+        performance=performance_block,
     )
+
+
+def _corridor_crses(
+    change: ChangeRequest, feed_paths: FeedPaths,
+) -> tuple[str | None, str | None, list[str]]:
+    """Resolve corridor endpoints to CRS codes via .LOC.
+
+    Cluster/group NLCs (e.g. London Terminals 1072) have no CRS of their own;
+    we fall back to a representative member station, mirroring the
+    splits._intermediates_from_timetable strategy."""
+    loc = load_loc_meta(feed_paths.loc)
+    notes: list[str] = []
+
+    def _crs_for(nlc: str) -> str | None:
+        meta = loc.get(nlc)
+        if meta and meta.crs:
+            return meta.crs
+        # Cluster fallback: first member with a CRS.
+        for member_nlc, m in loc.items():
+            if m.group_nlc == nlc and m.crs:
+                notes.append(
+                    f"corridor endpoint {nlc} is a cluster; using member "
+                    f"{member_nlc} ({m.crs}) as the CRS for HSP lookup."
+                )
+                return m.crs
+        return None
+
+    return (
+        _crs_for(change.corridor_origin_nlc),
+        _crs_for(change.corridor_dest_nlc),
+        notes,
+    )
+
+
+def _default_performance_fetcher(
+    from_crs: str, to_crs: str, from_date: str, to_date: str, days: str,
+) -> PerformanceResult:
+    return fetch_performance(
+        from_crs, to_crs, from_date, to_date, days,  # type: ignore[arg-type]
+        cache_dir=DEFAULT_PERF_CACHE_DIR,
+        fixture_dir=DEFAULT_PERF_FIXTURE_DIR,
+    )
+
+
+def _today_iso() -> str:
+    from datetime import date
+    return date.today().isoformat()
+
+
+def _iso_minus_days(iso_today: str, n: int) -> str:
+    from datetime import date, timedelta
+    y, m, d = (int(x) for x in iso_today.split("-"))
+    return (date(y, m, d) - timedelta(days=n)).isoformat()
 
 
 __all__ = [
@@ -207,6 +306,7 @@ __all__ = [
     "DEFAULT_INCLUDE",
     "ImpactReport",
     "KNOWN_INCLUDE_KEYS",
+    "PerformanceBlock",
     "RevenueBlock",
     "compute_impact",
 ]

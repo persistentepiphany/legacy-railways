@@ -38,6 +38,7 @@ from src.api.schemas import (
     ChangeRequestModel,
     EscalationModel,
     ImpactReportModel,
+    PerformanceResultModel,
     ProposalOutcomeModel,
     ResolvedFareModel,
     StagingLayerModel,
@@ -45,6 +46,7 @@ from src.api.schemas import (
     impact_to_model,
     layer_to_model,
     outcome_to_model,
+    perf_to_model,
     resolved_to_model,
 )
 from src.impact import (
@@ -54,6 +56,7 @@ from src.impact import (
     FeedPaths,
     compute_impact,
 )
+from src.perf import fetch_performance
 from src.resolver.resolve import resolve_fare
 from src.staging import (
     Accepted,
@@ -64,6 +67,37 @@ from src.staging import (
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+PERF_CACHE_DIR = REPO_ROOT / "data" / "perf_cache"
+PERF_FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures" / "hsp"
+
+
+def _load_dotenv() -> None:
+    """Minimal `.env` loader. Parses `KEY=VALUE` lines from `REPO_ROOT/.env`
+    and populates `os.environ` (without overriding existing vars).
+
+    Intentionally tiny: no python-dotenv dep, no interpolation, no quoting
+    rules beyond stripping a single pair of surrounding single/double quotes.
+    Lines starting with `#` and blank lines are ignored."""
+    env_path = REPO_ROOT / ".env"
+    if not env_path.exists():
+        return
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            os.environ.setdefault(key, value)
+    except OSError:
+        # Best-effort: a broken .env shouldn't crash the API.
+        pass
+
+
+_load_dotenv()
 DATA_DIR = Path(os.environ.get("FARES_DATA_DIR", REPO_ROOT / "data"))
 
 
@@ -170,8 +204,8 @@ def api_impact(
         None,
         description=(
             "Comma-separated analysis blocks to compute. Valid keys: "
-            "compliance, anomalies, revenue, splits. Default: "
-            "compliance,anomalies,revenue (splits is opt-in)."
+            "compliance, anomalies, revenue, splits, performance. Default: "
+            "compliance,anomalies,revenue (splits and performance are opt-in)."
         ),
     ),
 ) -> ImpactReportModel:
@@ -180,6 +214,32 @@ def api_impact(
     requested = _parse_include(include)
     report = compute_impact(change, fp, include=requested)
     return impact_to_model(report)
+
+
+# --- 2b. Performance (dedicated endpoint) ---------------------------------
+
+
+@app.get("/api/performance", response_model=PerformanceResultModel)
+def api_performance(
+    from_crs: str = Query(..., min_length=3, max_length=3, description="Origin CRS"),
+    to_crs: str = Query(..., min_length=3, max_length=3, description="Destination CRS"),
+    from_date: str = Query(..., description="YYYY-MM-DD inclusive lower bound"),
+    to_date: str = Query(..., description="YYYY-MM-DD inclusive upper bound"),
+    days: str = Query(
+        "WEEKDAY",
+        description="Day type: WEEKDAY, SATURDAY, or SUNDAY",
+        pattern="^(WEEKDAY|SATURDAY|SUNDAY)$",
+    ),
+) -> PerformanceResultModel:
+    """HSP serviceMetrics for a corridor + window. Three-mode (live -> cached
+    -> fixture); never 500s. A missing fixture (last fall-through) becomes a
+    400 via the FileNotFoundError handler."""
+    result = fetch_performance(
+        from_crs, to_crs, from_date, to_date, days,  # type: ignore[arg-type]
+        cache_dir=PERF_CACHE_DIR,
+        fixture_dir=PERF_FIXTURE_DIR,
+    )
+    return perf_to_model(result)
 
 
 # --- 3. Staging -----------------------------------------------------------

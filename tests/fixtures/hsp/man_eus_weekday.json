@@ -1,0 +1,43 @@
+{
+  "_NOTE": "Synthetic placeholder fixture for the MAN->EUS weekday corridor. Shape mirrors HSP serviceMetrics responses (header + Services[].serviceAttributesMetrics + Services[].Metrics[]). Replace with a real captured response once NRDP credentials are available; the schema stays the same. See plan: tools curl in §Task 1.",
+  "header": {
+    "from_location": "MAN",
+    "to_location": "EUS",
+    "collection_period": {"from": "2026-05-01", "to": "2026-05-31"},
+    "trains_in_collection_period": "120"
+  },
+  "Services": [
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0735",
+        "gbtt_pta": "0843",
+        "toc_code": "VT",
+        "matched_services": "20",
+        "rids": ["202605020770840", "202605030770840"]
+      },
+      "Metrics": [
+        {"tolerance_value": "0", "num_not_tolerance": "5", "num_tolerance": "15", "percent_tolerance": "75", "global_tolerance": false},
+        {"tolerance_value": "5", "num_not_tolerance": "2", "num_tolerance": "18", "percent_tolerance": "90", "global_tolerance": false},
+        {"tolerance_value": "10", "num_not_tolerance": "1", "num_tolerance": "19", "percent_tolerance": "95", "global_tolerance": false}
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1135",
+        "gbtt_pta": "1244",
+        "toc_code": "VT",
+        "matched_services": "18",
+        "rids": ["202605020770841"]
+      },
+      "Metrics": [
+        {"tolerance_value": "0", "num_not_tolerance": "3", "num_tolerance": "15", "percent_tolerance": "83.33", "global_tolerance": false},
+        {"tolerance_value": "5", "num_not_tolerance": "1", "num_tolerance": "17", "percent_tolerance": "94.44", "global_tolerance": false},
+        {"tolerance_value": "10", "num_not_tolerance": "0", "num_tolerance": "18", "percent_tolerance": "100", "global_tolerance": false}
+      ]
+    }
+  ]
+}

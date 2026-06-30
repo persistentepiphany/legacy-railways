@@ -172,6 +172,40 @@ class SplitOpportunityResultModel(BaseModel):
     notes: list[str]
 
 
+class ServicePerformanceModel(BaseModel):
+    gbtt_ptd: str
+    gbtt_pta: str
+    origin_crs: str
+    dest_crs: str
+    toc_code: str
+    matched_services: int
+    rids: list[str]
+
+
+class ServiceToleranceModel(BaseModel):
+    service: ServicePerformanceModel
+    percent_tolerance: list[tuple[int, float]]
+    num_tolerance: list[tuple[int, int]]
+    num_not_tolerance: list[tuple[int, int]]
+
+
+class PerformanceResultModel(BaseModel):
+    corridor_from_crs: str
+    corridor_to_crs: str
+    from_date: str
+    to_date: str
+    days: Literal["WEEKDAY", "SATURDAY", "SUNDAY"]
+    services: list[ServiceToleranceModel]
+    mode: Literal["live", "cached", "fixture"]
+    fetched_at: str
+    source_url: str | None
+    notes: list[str]
+
+
+class PerformanceBlockModel(BaseModel):
+    result: PerformanceResultModel
+
+
 class ImpactReportModel(BaseModel):
     change: ChangeRequestModel
     canonical_affected: list[AffectedFareModel]
@@ -182,6 +216,7 @@ class ImpactReportModel(BaseModel):
     anomalies: AnomaliesBlockModel | None = None
     revenue: RevenueBlockModel | None = None
     splits: SplitOpportunityResultModel | None = None
+    performance: PerformanceBlockModel | None = None
 
 
 # --- Staging ---------------------------------------------------------------
@@ -238,6 +273,11 @@ def impact_to_model(dc: ImpactReport) -> ImpactReportModel:
     return ImpactReportModel.model_validate(asdict(dc))
 
 
+def perf_to_model(dc) -> PerformanceResultModel:
+    """Wrap a PerformanceResult dataclass as its Pydantic mirror for /api/performance."""
+    return PerformanceResultModel.model_validate(asdict(dc))
+
+
 def card_to_model(dc: ApprovalCard) -> ApprovalCardModel:
     return ApprovalCardModel.model_validate(asdict(dc))
 
@@ -269,11 +309,15 @@ __all__ = [
     "EscalationModel",
     "FareInversionModel",
     "ImpactReportModel",
+    "PerformanceBlockModel",
+    "PerformanceResultModel",
     "ProposalOutcomeModel",
     "ProvenanceStepModel",
     "RegulationCitationModel",
     "ResolvedFareModel",
     "RevenueBlockModel",
+    "ServicePerformanceModel",
+    "ServiceToleranceModel",
     "SplitCandidateModel",
     "SplitOpportunityResultModel",
     "StagingLayerModel",
@@ -281,5 +325,6 @@ __all__ = [
     "impact_to_model",
     "layer_to_model",
     "outcome_to_model",
+    "perf_to_model",
     "resolved_to_model",
 ]
