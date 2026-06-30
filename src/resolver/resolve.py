@@ -204,7 +204,19 @@ def resolve_fare(
             },
         ))
 
-    chosen = _pick_flow(all_flows, prov, feed_label, route_code=route_code)
+    # Prefer flows that actually carry the requested ticket. Two flows can
+    # exist for the same (o,d) pair (different routes / TOCs); picking by
+    # FLOW_ID alone can land on a sibling that lacks the ticket while
+    # another sibling has it (observed on MAN->MKC SOS). Narrow first; if
+    # nothing carries the ticket, fall through to the original set so the
+    # downstream no_fare path still surfaces the proper "available_tickets"
+    # provenance.
+    ticket_bearing_flows = [
+        f for f in all_flows
+        if any(t.ticket_code == ticket_code for t in indexes.fares_by_flow.get(f.flow_id, []))
+    ]
+    pickable = ticket_bearing_flows if ticket_bearing_flows else all_flows
+    chosen = _pick_flow(pickable, prov, feed_label, route_code=route_code)
 
     prov.append(ProvenanceStep(
         step="flow_record",
