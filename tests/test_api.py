@@ -124,12 +124,18 @@ def test_impact_demo_change_returns_compliance(client: TestClient) -> None:
         assert fare["compliance"]["status"] in {
             "compliant", "breach", "not_regulated",
         }
+    compliance = body["compliance"]
+    assert compliance is not None
     assert any(
         "1 March 2025" in n or "REGULATION.md §4" in n
-        for n in body["regulation_map_notes"]
+        for n in compliance["regulation_map_notes"]
     )
     # No breach on the narrow discount-only scope.
-    assert body["breach_count"] == 0
+    assert compliance["breach_count"] == 0
+    # Default include set has compliance + anomalies + revenue, no splits.
+    assert body["anomalies"] is not None
+    assert body["revenue"] is not None
+    assert body["splits"] is None
 
 
 def test_impact_bad_discount_returns_400(client: TestClient) -> None:

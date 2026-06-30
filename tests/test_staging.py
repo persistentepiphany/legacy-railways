@@ -26,9 +26,12 @@ import pytest
 
 from src.impact import (
     AffectedFare,
+    AnomaliesBlock,
     ChangeRequest,
+    ComplianceBlock,
     FeedPaths,
     ImpactReport,
+    RevenueBlock,
     compute_impact,
 )
 from src.impact.affected import BlastRadiusPair
@@ -109,16 +112,21 @@ def _impact(change: ChangeRequest, *fares: AffectedFare) -> ImpactReport:
             )
             for i, _ in enumerate(fares)
         ),
-        inversions=(),
-        per_flow_exposure_pence=sum(
-            (f.new_price_pence or 0) - (f.old_price_pence or 0) for f in fares
-        ),
-        per_pair_exposure_pence=0,
         notes=(),
-        regulated_count=0,
-        breach_count=0,
-        breaches=(),
-        regulation_map_notes=(),
+        compliance=ComplianceBlock(
+            regulated_count=0,
+            breach_count=0,
+            breaches=(),
+            regulation_map_notes=(),
+        ),
+        anomalies=AnomaliesBlock(inversions=()),
+        revenue=RevenueBlock(
+            per_flow_exposure_pence=sum(
+                (f.new_price_pence or 0) - (f.old_price_pence or 0) for f in fares
+            ),
+            per_pair_exposure_pence=0,
+        ),
+        splits=None,
     )
 
 

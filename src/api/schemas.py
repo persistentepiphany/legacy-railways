@@ -3,7 +3,11 @@
 One model per engine dataclass — direct field-for-field mirrors. The
 engine dataclasses (frozen, primitives + tuples + dicts) are already
 JSON-friendly; these models exist to give the frontend an explicit
-contract via FastAPI's OpenAPI schema."""
+contract via FastAPI's OpenAPI schema.
+
+The impact report is modular: compliance / anomalies / revenue / splits
+are independently-computed blocks, each Optional. The frontend renders
+whichever blocks are present in the response."""
 
 from __future__ import annotations
 
@@ -123,19 +127,61 @@ class FareInversionModel(BaseModel):
     explanation: str
 
 
+# --- Modular blocks -------------------------------------------------------
+
+
+class ComplianceBlockModel(BaseModel):
+    regulated_count: int
+    breach_count: int
+    breaches: list[AffectedFareModel]
+    regulation_map_notes: list[str]
+
+
+class AnomaliesBlockModel(BaseModel):
+    inversions: list[FareInversionModel]
+
+
+class RevenueBlockModel(BaseModel):
+    per_flow_exposure_pence: int
+    per_pair_exposure_pence: int
+
+
+class SplitCandidateModel(BaseModel):
+    intermediate_nlc: str
+    ticket_code: str
+    route_code: str | None
+    through_price_pence: int | None
+    leg1_price_pence: int | None
+    leg2_price_pence: int | None
+    split_total_pence: int | None
+    saving_pence: int
+    status: Literal["opportunity", "no_saving", "unresolvable"]
+    provenance: list[ProvenanceStepModel]
+    explanation: str
+
+
+class SplitOpportunityResultModel(BaseModel):
+    corridor_origin_nlc: str
+    corridor_dest_nlc: str
+    ticket_code: str
+    route_code: str | None
+    pre_change: list[SplitCandidateModel]
+    post_change: list[SplitCandidateModel]
+    created: list[SplitCandidateModel]
+    closed: list[SplitCandidateModel]
+    notes: list[str]
+
+
 class ImpactReportModel(BaseModel):
     change: ChangeRequestModel
     canonical_affected: list[AffectedFareModel]
     skipped: list[AffectedFareModel]
     blast_radius_pairs: list[BlastRadiusPairModel]
-    inversions: list[FareInversionModel]
-    per_flow_exposure_pence: int
-    per_pair_exposure_pence: int
     notes: list[str]
-    regulated_count: int
-    breach_count: int
-    breaches: list[AffectedFareModel]
-    regulation_map_notes: list[str]
+    compliance: ComplianceBlockModel | None = None
+    anomalies: AnomaliesBlockModel | None = None
+    revenue: RevenueBlockModel | None = None
+    splits: SplitOpportunityResultModel | None = None
 
 
 # --- Staging ---------------------------------------------------------------
@@ -213,9 +259,11 @@ def outcome_to_model(dc: ProposalOutcome) -> AcceptedModel | EscalationModel:
 __all__ = [
     "AcceptedModel",
     "AffectedFareModel",
+    "AnomaliesBlockModel",
     "ApprovalCardModel",
     "BlastRadiusPairModel",
     "ChangeRequestModel",
+    "ComplianceBlockModel",
     "ComplianceVerdictModel",
     "ContradictingPairModel",
     "EscalationModel",
@@ -225,6 +273,9 @@ __all__ = [
     "ProvenanceStepModel",
     "RegulationCitationModel",
     "ResolvedFareModel",
+    "RevenueBlockModel",
+    "SplitCandidateModel",
+    "SplitOpportunityResultModel",
     "StagingLayerModel",
     "card_to_model",
     "impact_to_model",

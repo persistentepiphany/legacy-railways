@@ -362,10 +362,11 @@ def test_demo_change_carries_compliance_verdict(demo_report: ImpactReport) -> No
         assert fare.compliance is not None
         assert fare.compliance.status in ("compliant", "breach", "not_regulated")
 
-    assert demo_report.regulated_count == 0
-    assert demo_report.breach_count == 0
+    assert demo_report.compliance is not None
+    assert demo_report.compliance.regulated_count == 0
+    assert demo_report.compliance.breach_count == 0
     # Sanity: breaches tuple matches the count.
-    assert len(demo_report.breaches) == 0
+    assert len(demo_report.compliance.breaches) == 0
 
 
 @pytest.mark.slow
@@ -397,9 +398,10 @@ def test_regulated_scope_has_at_least_one_regulated_row(
     """The broader scope (cats '01', '03', '05', '08') must hit at least
     one regulated walk-up. SVR is the headline (Off-Peak Return,
     REGULATION.md §1) and lives in DISCOUNT_CATEGORY '03'."""
-    assert regulated_scope_report.regulated_count >= 1, (
+    assert regulated_scope_report.compliance is not None
+    assert regulated_scope_report.compliance.regulated_count >= 1, (
         "broad-scope Student-railcard change should touch at least one "
-        f"regulated walk-up; got {regulated_scope_report.regulated_count}"
+        f"regulated walk-up; got {regulated_scope_report.compliance.regulated_count}"
     )
 
 
@@ -469,9 +471,10 @@ def test_regulated_scope_breach_carries_full_evidence(
 
     Skipped if no breaches fired on this snapshot (in which case the fast
     deliberate-breach unit test still covers the path)."""
-    if regulated_scope_report.breach_count == 0:
+    assert regulated_scope_report.compliance is not None
+    if regulated_scope_report.compliance.breach_count == 0:
         pytest.skip("no organic breaches on this snapshot")
-    for fare in regulated_scope_report.breaches:
+    for fare in regulated_scope_report.compliance.breaches:
         assert fare.compliance is not None
         assert fare.compliance.status == "breach"
         assert fare.compliance.cap_price_2025_pence is not None
@@ -489,7 +492,8 @@ def test_compute_impact_notes_include_baseline_disclosure(demo_report: ImpactRep
     """The regmap's §4 baseline-fallback disclosure must surface on
     regulation_map_notes so the UI/judges see that cap_price = current
     snapshot (not the true 1 Mar 2025 reference)."""
-    joined = " | ".join(demo_report.regulation_map_notes)
+    assert demo_report.compliance is not None
+    joined = " | ".join(demo_report.compliance.regulation_map_notes)
     assert "1 March 2025" in joined or "REGULATION.md §4" in joined, (
         f"expected baseline disclosure in regulation_map_notes; got: {joined!r}"
     )
@@ -509,7 +513,8 @@ def test_compute_impact_notes_include_london_inference_caveat(
 def test_breaches_subset_of_canonical_affected(demo_report: ImpactReport) -> None:
     """Structural invariant: every entry in `breaches` must be in
     `canonical_affected` with compliance.status == 'breach'."""
+    assert demo_report.compliance is not None
     canonical_ids = {(f.flow_id, f.ticket_code) for f in demo_report.canonical_affected}
-    for f in demo_report.breaches:
+    for f in demo_report.compliance.breaches:
         assert (f.flow_id, f.ticket_code) in canonical_ids
         assert f.compliance is not None and f.compliance.status == "breach"

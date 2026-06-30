@@ -121,11 +121,12 @@ def test_demo_flows_end_to_end(feed_paths: FeedPaths) -> None:
         assert fare.compliance.status in ("compliant", "breach", "not_regulated")
 
     # Discount-only change can't breach on this narrow scope.
-    assert report.breach_count == 0
+    assert report.compliance is not None
+    assert report.compliance.breach_count == 0
     # Report carries the regulation-map disclosure for the UI.
     assert any(
         "1 March 2025" in n or "REGULATION.md §4" in n
-        for n in report.regulation_map_notes
+        for n in report.compliance.regulation_map_notes
     )
 
     # compute_impact did not mutate the baseline.
@@ -205,11 +206,12 @@ def test_breach_in_staging_does_not_block_approval(feed_paths: FeedPaths) -> Non
         description="Broad-scope Student railcard, MAN->EUS",
     )
     report = compute_impact(change, feed_paths)
-    if report.breach_count == 0:
+    assert report.compliance is not None
+    if report.compliance.breach_count == 0:
         pytest.skip("no organic breaches on this snapshot (snapshot drift)")
 
     # The breach surfaces — that's the UI red flag.
-    assert report.breach_count >= 1
+    assert report.compliance.breach_count >= 1
     # But approval still works (no enforcement gate at the engine layer).
     proposed = propose(StagingLayer.empty(), change, report)
     assert isinstance(proposed, Accepted)
@@ -217,8 +219,9 @@ def test_breach_in_staging_does_not_block_approval(feed_paths: FeedPaths) -> Non
     assert isinstance(approved_outcome, Accepted)
     # The approved card carries the breach evidence for audit.
     approved_card = approved_outcome.layer.approved[0]
-    assert approved_card.impact.breach_count >= 1
-    breach_rows = approved_card.impact.breaches
+    assert approved_card.impact.compliance is not None
+    assert approved_card.impact.compliance.breach_count >= 1
+    breach_rows = approved_card.impact.compliance.breaches
     assert len(breach_rows) >= 1
     for f in breach_rows:
         assert f.compliance is not None

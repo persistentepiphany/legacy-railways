@@ -111,7 +111,8 @@ def test_demo_change_canonical_count(demo_report: ImpactReport) -> None:
 def test_demo_change_per_flow_exposure(demo_report: ImpactReport) -> None:
     """Hand-computed exact: sum of (new - old) over the 13 canonical rows
     using the synthetic-rule arithmetic. Negative because it's a discount."""
-    assert demo_report.per_flow_exposure_pence == EXPECTED_PER_FLOW_EXPOSURE_PENCE
+    assert demo_report.revenue is not None
+    assert demo_report.revenue.per_flow_exposure_pence == EXPECTED_PER_FLOW_EXPOSURE_PENCE
 
 
 @pytest.mark.slow
@@ -119,7 +120,8 @@ def test_demo_change_per_pair_exposure(demo_report: ImpactReport) -> None:
     """Cluster-weighted exposure (per-flow delta × blast-radius count).
     NEVER use as revenue — that's the per_flow number. This guards the
     cluster fan-out arithmetic in compute_affected_set."""
-    assert demo_report.per_pair_exposure_pence == EXPECTED_PER_PAIR_EXPOSURE_PENCE
+    assert demo_report.revenue is not None
+    assert demo_report.revenue.per_pair_exposure_pence == EXPECTED_PER_PAIR_EXPOSURE_PENCE
 
 
 @pytest.mark.slow
@@ -208,11 +210,12 @@ def test_demo_change_inversion_flagged(demo_report: ImpactReport) -> None:
     discount cheaper than VCJ, an Avanti group ticket). The exact count is
     snapshot-dependent; the >= 1 guard catches both the headline demo beat
     and any regression that silently disables the detector."""
-    assert len(demo_report.inversions) >= 1
-    rules = {inv.rule for inv in demo_report.inversions}
+    assert demo_report.anomalies is not None
+    assert len(demo_report.anomalies.inversions) >= 1
+    rules = {inv.rule for inv in demo_report.anomalies.inversions}
     assert rules, "inversions were detected but no rule fields populated"
     # All detected inversions must carry a non-empty explanation for the UI.
-    for inv in demo_report.inversions:
+    for inv in demo_report.anomalies.inversions:
         assert inv.explanation.strip()
         assert 0 <= inv.lower_price_pence < inv.higher_price_pence
 
@@ -239,7 +242,8 @@ def test_demo_change_no_flow_returns_empty(feed_paths: FeedPaths) -> None:
     report = compute_impact(change_no_flow, feed_paths)
     assert len(report.canonical_affected) == 0
     assert len(report.blast_radius_pairs) == 0
-    assert report.per_flow_exposure_pence == 0
+    assert report.revenue is not None
+    assert report.revenue.per_flow_exposure_pence == 0
     # The notes list must explain the no-op honestly.
     notes_joined = " | ".join(report.notes)
     assert "no fares matched" in notes_joined or "no-op" in notes_joined.lower()

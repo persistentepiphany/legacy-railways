@@ -1,14 +1,21 @@
 """Impact engine — turn a ChangeRequest into a full ImpactReport.
 
 Pure, deterministic, side-effect-free. Reads the feed via mtime-cached
-loaders; produces a report aggregating affected set + blast radius +
-inversions + revenue exposure. The LLM never computes anything in this
-path; the ChangeRequest is constructed directly in code.
+loaders; produces a report aggregating affected set + blast radius + a
+suite of optional analysis blocks (compliance, anomalies, revenue, splits).
+The LLM never computes anything in this path; the ChangeRequest is
+constructed directly in code.
 
 Public API:
     compute_impact      — the orchestrator (single public entry point)
     ChangeRequest       — proposal dataclass
-    ImpactReport        — output dataclass
+    ImpactReport        — output dataclass (substrate + Optional blocks)
+    AnomaliesBlock      — Optional block: structural anomalies
+    ComplianceBlock     — Optional block: regulation compliance
+    RevenueBlock        — Optional block: structural exposure
+    SplitOpportunityResult — Optional block: split-ticket arbitrage
+    DEFAULT_INCLUDE     — frozenset of include keys computed by default
+    KNOWN_INCLUDE_KEYS  — every legal include key
     AffectedFare        — one canonical repriced fare
     BlastRadiusPair     — one (o,d) reachable through cluster fan-out
     FareInversion       — one structural inversion detected post-change
@@ -31,8 +38,24 @@ from src.impact.compliance import (
 )
 from src.impact.feed_paths import FeedPaths
 from src.impact.inversions import FareInversion, detect_inversions
-from src.impact.report import ImpactReport, compute_impact
+from src.impact.report import (
+    DEFAULT_INCLUDE,
+    KNOWN_INCLUDE_KEYS,
+    AnomaliesBlock,
+    ComplianceBlock,
+    ImpactReport,
+    RevenueBlock,
+    compute_impact,
+)
 from src.impact.revenue import per_flow_exposure, per_pair_exposure
+from src.impact.splits import (
+    DEMO_CORRIDOR_INTERMEDIATES,
+    SplitCandidate,
+    SplitOpportunityResult,
+    SplitStatus,
+    detect_splits,
+    splits_for_change,
+)
 from src.impact.synthetic_railcard import (
     apply_synthetic_railcard,
     inject_synthetic_railcard,
@@ -41,13 +64,22 @@ from src.impact.synthetic_railcard import (
 __all__ = [
     "AffectedFare",
     "AffectedSet",
+    "AnomaliesBlock",
     "BlastRadiusPair",
     "ChangeRequest",
+    "ComplianceBlock",
     "ComplianceStatus",
     "ComplianceVerdict",
+    "DEFAULT_INCLUDE",
+    "DEMO_CORRIDOR_INTERMEDIATES",
     "FareInversion",
     "FeedPaths",
     "ImpactReport",
+    "KNOWN_INCLUDE_KEYS",
+    "RevenueBlock",
+    "SplitCandidate",
+    "SplitOpportunityResult",
+    "SplitStatus",
     "apply_synthetic_railcard",
     "attach_compliance",
     "build_corridor_regulation_map",
@@ -55,8 +87,10 @@ __all__ = [
     "compute_affected_set",
     "compute_impact",
     "detect_inversions",
+    "detect_splits",
     "inject_synthetic_railcard",
     "per_flow_exposure",
     "per_pair_exposure",
+    "splits_for_change",
     "validate_against_feed",
 ]

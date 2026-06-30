@@ -47,7 +47,13 @@ from src.api.schemas import (
     outcome_to_model,
     resolved_to_model,
 )
-from src.impact import ChangeRequest, FeedPaths, compute_impact
+from src.impact import (
+    DEFAULT_INCLUDE,
+    KNOWN_INCLUDE_KEYS,
+    ChangeRequest,
+    FeedPaths,
+    compute_impact,
+)
 from src.resolver.resolve import resolve_fare
 from src.staging import (
     Accepted,
@@ -135,11 +141,44 @@ def api_resolve(
 # --- 2. Impact ------------------------------------------------------------
 
 
+def _parse_include(raw: str | None) -> frozenset[str]:
+    """Parse the `?include=` CSV query param into a validated frozenset.
+
+    None → DEFAULT_INCLUDE (compliance + anomalies + revenue; splits is opt-in).
+    Empty string → empty set (compute substrate only — affected set + blast
+    radius + notes, no analysis blocks). Unknown keys raise at the
+    boundary so callers see a 400, not a silently-dropped block."""
+    if raw is None:
+        return DEFAULT_INCLUDE
+    requested = frozenset(
+        token.strip() for token in raw.split(",") if token.strip()
+    )
+    unknown = requested - KNOWN_INCLUDE_KEYS
+    if unknown:
+        raise ValueError(
+            f"unknown include key(s): {sorted(unknown)}; "
+            f"valid keys are {sorted(KNOWN_INCLUDE_KEYS)}"
+        )
+    return requested
+
+
 @app.post("/api/impact", response_model=ImpactReportModel)
-def api_impact(body: ChangeRequestModel, request: Request) -> ImpactReportModel:
+def api_impact(
+    body: ChangeRequestModel,
+    request: Request,
+    include: str | None = Query(
+        None,
+        description=(
+            "Comma-separated analysis blocks to compute. Valid keys: "
+            "compliance, anomalies, revenue, splits. Default: "
+            "compliance,anomalies,revenue (splits is opt-in)."
+        ),
+    ),
+) -> ImpactReportModel:
     change: ChangeRequest = body.to_dataclass()
     fp: FeedPaths = request.app.state.feed_paths
-    report = compute_impact(change, fp)
+    requested = _parse_include(include)
+    report = compute_impact(change, fp, include=requested)
     return impact_to_model(report)
 
 
