@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from src.ingest.inspect import (
     FFLIndexes,
@@ -39,6 +39,13 @@ from src.resolver.resolve import ProvenanceStep, ResolveStatus
 from src.impact.change_request import ChangeRequest
 from src.impact.feed_paths import FeedPaths
 from src.impact.synthetic_railcard import apply_synthetic_railcard
+
+if TYPE_CHECKING:
+    # Forward reference only — avoids a circular import. compliance.py imports
+    # AffectedFare/AffectedSet from this module to do its join; we only need
+    # the type name here for annotations (deferred by `from __future__ import
+    # annotations`).
+    from src.impact.compliance import ComplianceVerdict
 
 
 @dataclass(frozen=True)
@@ -55,6 +62,10 @@ class AffectedFare:
     discount_category: str             # 2-char .TTY DISCOUNT_CATEGORY
     provenance: tuple[ProvenanceStep, ...]
     blast_radius_pairs: tuple[tuple[str, str], ...]  # all (o,d) governed by this flow_id
+    # Populated by src.impact.compliance.attach_compliance after the row is
+    # built. Default None so callers of compute_affected_set that don't want
+    # the compliance join (e.g. unit tests) get a still-valid row.
+    compliance: "ComplianceVerdict | None" = None
 
 
 @dataclass(frozen=True)

@@ -22,6 +22,13 @@ from src.impact.affected import (
     compute_affected_set,
 )
 from src.impact.change_request import ChangeRequest, validate_against_feed
+from src.impact.compliance import (
+    ComplianceStatus,
+    ComplianceVerdict,
+    attach_compliance,
+    build_corridor_regulation_map,
+    check_compliance,
+)
 from src.impact.feed_paths import FeedPaths
 from src.impact.inversions import FareInversion, detect_inversions
 from src.impact.report import ImpactReport, compute_impact
@@ -36,10 +43,15 @@ __all__ = [
     "AffectedSet",
     "BlastRadiusPair",
     "ChangeRequest",
+    "ComplianceStatus",
+    "ComplianceVerdict",
     "FareInversion",
     "FeedPaths",
     "ImpactReport",
     "apply_synthetic_railcard",
+    "attach_compliance",
+    "build_corridor_regulation_map",
+    "check_compliance",
     "compute_affected_set",
     "compute_impact",
     "detect_inversions",
