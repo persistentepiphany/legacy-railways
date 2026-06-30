@@ -30,6 +30,12 @@ venv/
 # Data — NEVER commit the feed snapshot or the regulation map data dumps
 data/
 *.zip
+*.tar.gz
+data_railway/
+
+# Personal planning + scratch experiment scripts (not part of the project)
+PLAN.md
+tools/experiments.py
 
 # Build artefacts
 build/
