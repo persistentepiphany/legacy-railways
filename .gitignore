@@ -22,6 +22,11 @@ venv/
 .vscode/
 .idea/
 
+# Claude Code session state (rules/ stays tracked; ephemeral state does not)
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/projects/
+
 # Data — NEVER commit the feed snapshot or the regulation map data dumps
 data/
 *.zip
