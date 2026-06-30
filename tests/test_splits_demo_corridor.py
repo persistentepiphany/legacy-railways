@@ -55,6 +55,7 @@ def baseline_splits(feed_paths: FeedPaths) -> SplitOpportunityResult:
 @pytest.mark.slow
 def test_detect_splits_runs_on_demo_corridor(
     baseline_splits: SplitOpportunityResult,
+    feed_paths: FeedPaths,
 ) -> None:
     """The module loads, the resolver wires correctly through three legs per
     candidate, and the honest NRCoT Cond. 14 disclosure ships in every result.
@@ -68,14 +69,33 @@ def test_detect_splits_runs_on_demo_corridor(
         "expected at least one candidate; check DEMO_CORRIDOR_INTERMEDIATES "
         "vs .LOC membership in src/impact/splits.py"
     )
-    # The honest deferral note must always ship — CLAUDE.md: flag rather than
-    # fabricate. If this assertion fails the module silently dropped the
-    # NRCoT disclosure and the UI would mislead.
-    notes_joined = " | ".join(baseline_splits.notes)
-    assert "NRCoT Cond. 14" in notes_joined, (
-        f"NRCoT Cond. 14 deferral note missing from result notes: "
-        f"{baseline_splits.notes!r}"
+    # An NRCoT Cond. 14 disclosure must always ship as notes[0] — the
+    # canonical slot — in exactly one form: deferred (no timetable) or
+    # verified (timetable wired). CLAUDE.md: flag rather than fabricate.
+    assert baseline_splits.notes, "result must always ship at least one note"
+    canonical = baseline_splits.notes[0]
+    assert "NRCoT Cond. 14" in canonical, (
+        f"first note must be the NRCoT Cond. 14 disclosure; got {canonical!r}"
     )
+    has_deferred = canonical.startswith("Split validity NOT verified")
+    has_verified = canonical.startswith("Split validity call-pattern-verified")
+    # When the timetable .MCA is present, the verified variant must fire.
+    # When absent, the deferred variant must fire. This is the contract
+    # that makes the UI safe to render either way.
+    tt_present = (
+        feed_paths.timetable_mca is not None
+        and feed_paths.timetable_mca.exists()
+    )
+    if tt_present:
+        assert has_verified, (
+            "timetable .MCA present but result claims validity deferred; "
+            "wiring in splits._intermediates_from_timetable likely broken"
+        )
+    else:
+        assert has_deferred, (
+            "timetable .MCA absent but result claims call-pattern verified; "
+            "fallback path in detect_splits is wrong"
+        )
     # Every candidate carries a non-empty provenance chain + explanation
     # string for the UI to render.
     for c in baseline_splits.pre_change:

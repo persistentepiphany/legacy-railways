@@ -22,11 +22,19 @@ class FeedPaths:
     rcm: Path
     frr: Path
     tty: Path
+    # Optional timetable (RSPS5046 .MCA CIF master). Present when an NRDP
+    # timetable bundle has been unzipped into data/; absent on minimal
+    # installs. Modules that can use it (splits) fall back to a hardcoded
+    # whitelist when this is None or the file is missing.
+    timetable_mca: Path | None = None
 
     @classmethod
     def default_for_data_dir(cls, data_dir: Path, *, snapshot: str = "RJFAF805") -> "FeedPaths":
-        """RJFAF805 snapshot layout used by the rest of the project."""
+        """RJFAF805 snapshot layout used by the rest of the project.
+        Timetable .MCA is auto-detected from `data/RJTTF*.MCA` if present
+        (the DTD timetable bundle names rotate with each snapshot)."""
         d = Path(data_dir)
+        tt_candidates = sorted(d.glob("RJTTF*.MCA"))
         return cls(
             ffl=d / f"{snapshot}.FFL",
             loc=d / f"{snapshot}.LOC",
@@ -37,10 +45,12 @@ class FeedPaths:
             rcm=d / f"{snapshot}.RCM",
             frr=d / f"{snapshot}.FRR",
             tty=d / f"{snapshot}.TTY",
+            timetable_mca=tt_candidates[-1] if tt_candidates else None,
         )
 
     def missing(self) -> list[Path]:
-        """Return any of the 9 paths that don't exist on disk; for test skips."""
+        """Return any of the 9 required paths that don't exist on disk; for
+        test skips. The timetable .MCA is optional and never reported here."""
         return [p for p in (self.ffl, self.loc, self.fsc, self.nfo,
                             self.rlc, self.dis, self.rcm, self.frr, self.tty)
                 if not p.exists()]
