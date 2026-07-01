@@ -23,6 +23,7 @@ from src.impact.change_request import ChangeRequest, validate_against_feed
 from src.impact.compliance import attach_compliance, build_corridor_regulation_map
 from src.impact.feed_paths import FeedPaths
 from src.impact.inversions import FareInversion, detect_inversions
+from src.impact.odm import ODMRevenueBlock, compute_odm_revenue, load_odm_index
 from src.impact.revenue import per_flow_exposure, per_pair_exposure
 from pathlib import Path
 from typing import Callable
@@ -45,7 +46,7 @@ DEFAULT_PERF_DAYS = "WEEKDAY"
 # so the API layer surfaces typos as 400s rather than silently dropping
 # them. Adding a new module = add a key here + a block field + a branch.
 KNOWN_INCLUDE_KEYS: frozenset[str] = frozenset({
-    "compliance", "anomalies", "revenue", "splits", "performance",
+    "compliance", "anomalies", "revenue", "revenue_odm", "splits", "performance",
 })
 DEFAULT_INCLUDE: frozenset[str] = frozenset({
     "compliance", "anomalies", "revenue",
@@ -114,6 +115,7 @@ class ImpactReport:
     compliance: ComplianceBlock | None = None
     anomalies: AnomaliesBlock | None = None
     revenue: RevenueBlock | None = None
+    revenue_odm: ODMRevenueBlock | None = None
     splits: SplitOpportunityResult | None = None
     performance: PerformanceBlock | None = None
 
@@ -209,6 +211,20 @@ def compute_impact(
             per_pair_exposure_pence=per_pair_exposure(affected_set.canonical),
         )
 
+    revenue_odm_block: ODMRevenueBlock | None = None
+    if "revenue_odm" in requested:
+        if feed_paths.odm_csv is None or not feed_paths.odm_csv.exists():
+            notes.append(
+                "revenue_odm block skipped: no ODM CSV at data/odm/odm.csv. "
+                "Drop an ORR-style origin-destination matrix release there to "
+                "populate this block; structural exposure remains available "
+                "via the `revenue` block."
+            )
+        else:
+            loc = load_loc_meta(feed_paths.loc)
+            odm_index = load_odm_index(feed_paths.odm_csv, loc=loc)
+            revenue_odm_block = compute_odm_revenue(affected_set, odm_index)
+
     splits_block: SplitOpportunityResult | None = None
     if "splits" in requested:
         splits_block = splits_for_change(change, feed_paths)
@@ -242,6 +258,7 @@ def compute_impact(
         compliance=compliance_block,
         anomalies=anomalies_block,
         revenue=revenue_block,
+        revenue_odm=revenue_odm_block,
         splits=splits_block,
         performance=performance_block,
     )
@@ -306,6 +323,7 @@ __all__ = [
     "DEFAULT_INCLUDE",
     "ImpactReport",
     "KNOWN_INCLUDE_KEYS",
+    "ODMRevenueBlock",
     "PerformanceBlock",
     "RevenueBlock",
     "compute_impact",

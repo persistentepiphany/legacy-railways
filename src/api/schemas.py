@@ -146,6 +146,25 @@ class RevenueBlockModel(BaseModel):
     per_pair_exposure_pence: int
 
 
+class ODMRevenueEstimateModel(BaseModel):
+    flow_id: str
+    ticket_code: str
+    matched_pair_count: int
+    unmatched_pair_count: int
+    journeys_per_period: int
+    delta_pence_per_journey: int
+    revenue_delta_pence: int
+
+
+class ODMRevenueBlockModel(BaseModel):
+    estimates: list[ODMRevenueEstimateModel]
+    total_revenue_delta_pence: int
+    matched_flow_count: int
+    unmatched_flow_count: int
+    period_label: str
+    notes: list[str]
+
+
 class SplitCandidateModel(BaseModel):
     intermediate_nlc: str
     ticket_code: str
@@ -215,6 +234,7 @@ class ImpactReportModel(BaseModel):
     compliance: ComplianceBlockModel | None = None
     anomalies: AnomaliesBlockModel | None = None
     revenue: RevenueBlockModel | None = None
+    revenue_odm: ODMRevenueBlockModel | None = None
     splits: SplitOpportunityResultModel | None = None
     performance: PerformanceBlockModel | None = None
 
@@ -309,6 +329,8 @@ __all__ = [
     "EscalationModel",
     "FareInversionModel",
     "ImpactReportModel",
+    "ODMRevenueBlockModel",
+    "ODMRevenueEstimateModel",
     "PerformanceBlockModel",
     "PerformanceResultModel",
     "ProposalOutcomeModel",

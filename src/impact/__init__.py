@@ -38,6 +38,13 @@ from src.impact.compliance import (
 )
 from src.impact.feed_paths import FeedPaths
 from src.impact.inversions import FareInversion, detect_inversions
+from src.impact.odm import (
+    ODMIndex,
+    ODMRevenueBlock,
+    ODMRevenueEstimate,
+    compute_odm_revenue,
+    load_odm_index,
+)
 from src.impact.report import (
     DEFAULT_INCLUDE,
     KNOWN_INCLUDE_KEYS,
@@ -77,6 +84,9 @@ __all__ = [
     "FeedPaths",
     "ImpactReport",
     "KNOWN_INCLUDE_KEYS",
+    "ODMIndex",
+    "ODMRevenueBlock",
+    "ODMRevenueEstimate",
     "PerformanceBlock",
     "RevenueBlock",
     "SplitCandidate",
@@ -88,9 +98,11 @@ __all__ = [
     "check_compliance",
     "compute_affected_set",
     "compute_impact",
+    "compute_odm_revenue",
     "detect_inversions",
     "detect_splits",
     "inject_synthetic_railcard",
+    "load_odm_index",
     "per_flow_exposure",
     "per_pair_exposure",
     "splits_for_change",

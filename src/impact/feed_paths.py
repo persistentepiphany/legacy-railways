@@ -27,14 +27,20 @@ class FeedPaths:
     # installs. Modules that can use it (splits) fall back to a hardcoded
     # whitelist when this is None or the file is missing.
     timetable_mca: Path | None = None
+    # Optional ODM CSV (ORR-style origin-destination matrix). Present when
+    # an OGL-licensed release has been dropped at data/odm/odm.csv. The
+    # revenue_odm block degrades to None + a note when this is missing.
+    odm_csv: Path | None = None
 
     @classmethod
     def default_for_data_dir(cls, data_dir: Path, *, snapshot: str = "RJFAF805") -> "FeedPaths":
         """RJFAF805 snapshot layout used by the rest of the project.
         Timetable .MCA is auto-detected from `data/RJTTF*.MCA` if present
-        (the DTD timetable bundle names rotate with each snapshot)."""
+        (the DTD timetable bundle names rotate with each snapshot).
+        ODM CSV is auto-detected from `data/odm/odm.csv` if present."""
         d = Path(data_dir)
         tt_candidates = sorted(d.glob("RJTTF*.MCA"))
+        odm_candidate = d / "odm" / "odm.csv"
         return cls(
             ffl=d / f"{snapshot}.FFL",
             loc=d / f"{snapshot}.LOC",
@@ -46,6 +52,7 @@ class FeedPaths:
             frr=d / f"{snapshot}.FRR",
             tty=d / f"{snapshot}.TTY",
             timetable_mca=tt_candidates[-1] if tt_candidates else None,
+            odm_csv=odm_candidate if odm_candidate.exists() else None,
         )
 
     def missing(self) -> list[Path]:
