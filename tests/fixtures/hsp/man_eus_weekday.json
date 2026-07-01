@@ -1,26 +1,1267 @@
 {
-  "_NOTE": "Synthetic placeholder fixture for the MAN->EUS weekday corridor. Shape mirrors HSP serviceMetrics responses (header + Services[].serviceAttributesMetrics + Services[].Metrics[]). Replace with a real captured response once NRDP credentials are available; the schema stays the same. See plan: tools curl in §Task 1.",
   "header": {
     "from_location": "MAN",
-    "to_location": "EUS",
-    "collection_period": {"from": "2026-05-01", "to": "2026-05-31"},
-    "trains_in_collection_period": "120"
+    "to_location": "EUS"
   },
   "Services": [
     {
       "serviceAttributesMetrics": {
         "origin_location": "MAN",
         "destination_location": "EUS",
-        "gbtt_ptd": "0735",
-        "gbtt_pta": "0843",
+        "gbtt_ptd": "0504",
+        "gbtt_pta": "0727",
         "toc_code": "VT",
-        "matched_services": "20",
-        "rids": ["202605020770840", "202605030770840"]
+        "matched_services": "2",
+        "rids": [
+          "202506058709832",
+          "202506068709832"
+        ]
       },
       "Metrics": [
-        {"tolerance_value": "0", "num_not_tolerance": "5", "num_tolerance": "15", "percent_tolerance": "75", "global_tolerance": false},
-        {"tolerance_value": "5", "num_not_tolerance": "2", "num_tolerance": "18", "percent_tolerance": "90", "global_tolerance": false},
-        {"tolerance_value": "10", "num_not_tolerance": "1", "num_tolerance": "19", "percent_tolerance": "95", "global_tolerance": false}
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "2",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0505",
+        "gbtt_pta": "0727",
+        "toc_code": "VT",
+        "matched_services": "19",
+        "rids": [
+          "202506028709832",
+          "202506038709832",
+          "202506048709832",
+          "202506098709832",
+          "202506108709832",
+          "202506118709832",
+          "202506128709832",
+          "202506138709832",
+          "202506168709832",
+          "202506178709832",
+          "202506188709832",
+          "202506198709832",
+          "202506208709832",
+          "202506238709832",
+          "202506248709832",
+          "202506258709832",
+          "202506268709832",
+          "202506278709832",
+          "202506308709832"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "16",
+          "num_tolerance": "3",
+          "percent_tolerance": "16",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0555",
+        "gbtt_pta": "0810",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709838",
+          "202506108709838",
+          "202506118709838",
+          "202506128709838",
+          "202506138709838",
+          "202506168709838",
+          "202506178709838",
+          "202506188709838",
+          "202506198709838",
+          "202506208709838",
+          "202506238709838",
+          "202506248709838",
+          "202506258709838",
+          "202506268709838",
+          "202506278709838",
+          "202506308709838"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "9",
+          "num_tolerance": "7",
+          "percent_tolerance": "44",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0555",
+        "gbtt_pta": "0813",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709838",
+          "202506038709838",
+          "202506048709838",
+          "202506058709838",
+          "202506068709838"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "3",
+          "num_tolerance": "2",
+          "percent_tolerance": "40",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0603",
+        "gbtt_pta": "0909",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028710498",
+          "202506038710498",
+          "202506048710498",
+          "202506058710498",
+          "202506068710498",
+          "202506098710498",
+          "202506108710498",
+          "202506118710498",
+          "202506128710498",
+          "202506138710498",
+          "202506168710498",
+          "202506178710498",
+          "202506188710498",
+          "202506198710498",
+          "202506208710498",
+          "202506238710498",
+          "202506248710498",
+          "202506258710498",
+          "202506268710498",
+          "202506278710498",
+          "202506308710498"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "9",
+          "num_tolerance": "12",
+          "percent_tolerance": "57",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0615",
+        "gbtt_pta": "0825",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709839",
+          "202506038709839",
+          "202506048709839",
+          "202506058709839",
+          "202506068709839",
+          "202506098709839",
+          "202506108709839",
+          "202506118709839",
+          "202506128709839",
+          "202506138709839",
+          "202506168709839",
+          "202506178709839",
+          "202506188709839",
+          "202506198709839",
+          "202506208709839",
+          "202506238709839",
+          "202506248709839",
+          "202506258709839",
+          "202506268709839",
+          "202506278709839",
+          "202506308709839"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "6",
+          "percent_tolerance": "29",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0624",
+        "gbtt_pta": "0940",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098710499",
+          "202506108710499",
+          "202506118710499",
+          "202506128710499",
+          "202506138710499",
+          "202506168710499",
+          "202506178710499",
+          "202506188710499",
+          "202506198710499",
+          "202506208710499",
+          "202506238710499",
+          "202506248710499",
+          "202506258710499",
+          "202506268710499",
+          "202506278710499",
+          "202506308710499"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "10",
+          "num_tolerance": "6",
+          "percent_tolerance": "38",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0624",
+        "gbtt_pta": "0941",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028710499",
+          "202506038710499",
+          "202506048710499",
+          "202506058710499",
+          "202506068710499"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "3",
+          "num_tolerance": "2",
+          "percent_tolerance": "40",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0630",
+        "gbtt_pta": "0841",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709844",
+          "202506108709844",
+          "202506118709844",
+          "202506128709844",
+          "202506138709844",
+          "202506168709844",
+          "202506178709844",
+          "202506188709844",
+          "202506198709844",
+          "202506208709844",
+          "202506238709844",
+          "202506248709844",
+          "202506258709844",
+          "202506268709844",
+          "202506278709844",
+          "202506308709844"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "16",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0630",
+        "gbtt_pta": "0842",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709844",
+          "202506038709844",
+          "202506048709844",
+          "202506058709844",
+          "202506068709844"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0655",
+        "gbtt_pta": "0912",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709848",
+          "202506108709848",
+          "202506118709848",
+          "202506128709848",
+          "202506138709848",
+          "202506168709848",
+          "202506178709848",
+          "202506188709848",
+          "202506198709848",
+          "202506208709848",
+          "202506238709848",
+          "202506248709848",
+          "202506258709848",
+          "202506268709848",
+          "202506278709848",
+          "202506308709848"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "7",
+          "num_tolerance": "9",
+          "percent_tolerance": "56",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0655",
+        "gbtt_pta": "0911",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709848",
+          "202506038709848",
+          "202506048709848",
+          "202506058709848",
+          "202506068709848"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "2",
+          "num_tolerance": "3",
+          "percent_tolerance": "60",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0700",
+        "gbtt_pta": "0859",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028000482",
+          "202506038000482",
+          "202506048000482",
+          "202506058000482",
+          "202506068000482",
+          "202506098000482",
+          "202506108000482",
+          "202506118000482",
+          "202506128000482",
+          "202506138000482",
+          "202506168000482",
+          "202506178000482",
+          "202506188000482",
+          "202506198000482",
+          "202506208000482",
+          "202506238000482",
+          "202506248000482",
+          "202506258000482",
+          "202506268000482",
+          "202506278000482",
+          "202506308000482"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "19",
+          "num_tolerance": "2",
+          "percent_tolerance": "10",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0715",
+        "gbtt_pta": "0928",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709850",
+          "202506108709850",
+          "202506118709850",
+          "202506128709850",
+          "202506138709850",
+          "202506168709850",
+          "202506178709850",
+          "202506188709850",
+          "202506198709850",
+          "202506208709850",
+          "202506238709850",
+          "202506248709850",
+          "202506258709850",
+          "202506268709850",
+          "202506278709850",
+          "202506308709850"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "13",
+          "num_tolerance": "3",
+          "percent_tolerance": "19",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0715",
+        "gbtt_pta": "0929",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709850",
+          "202506038709850",
+          "202506048709850",
+          "202506058709850",
+          "202506068709850"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0735",
+        "gbtt_pta": "0943",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709853",
+          "202506108709853",
+          "202506118709853",
+          "202506128709853",
+          "202506138709853",
+          "202506168709853",
+          "202506178709853",
+          "202506188709853",
+          "202506198709853",
+          "202506208709853",
+          "202506238709853",
+          "202506248709853",
+          "202506258709853",
+          "202506268709853",
+          "202506278709853",
+          "202506308709853"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "12",
+          "num_tolerance": "4",
+          "percent_tolerance": "25",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0735",
+        "gbtt_pta": "0944",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709853",
+          "202506038709853",
+          "202506048709853",
+          "202506058709853",
+          "202506068709853"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0755",
+        "gbtt_pta": "1009",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709140",
+          "202506108709140",
+          "202506118709140",
+          "202506128709140",
+          "202506138709140",
+          "202506168709140",
+          "202506178709140",
+          "202506188709140",
+          "202506198709140",
+          "202506208709140",
+          "202506238709140",
+          "202506248709140",
+          "202506258709140",
+          "202506268709140",
+          "202506278709140",
+          "202506308709140"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "10",
+          "num_tolerance": "6",
+          "percent_tolerance": "38",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0755",
+        "gbtt_pta": "1010",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709140",
+          "202506038709140",
+          "202506048709140",
+          "202506058709140",
+          "202506068709140"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0815",
+        "gbtt_pta": "1027",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709144",
+          "202506108709144",
+          "202506118709144",
+          "202506128709144",
+          "202506138709144",
+          "202506168709144",
+          "202506178709144",
+          "202506188709144",
+          "202506198709144",
+          "202506208709144",
+          "202506238709144",
+          "202506248709144",
+          "202506258709144",
+          "202506268709144",
+          "202506278709144",
+          "202506308709144"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "13",
+          "num_tolerance": "3",
+          "percent_tolerance": "19",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0815",
+        "gbtt_pta": "1029",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709144",
+          "202506038709144",
+          "202506048709144",
+          "202506058709144",
+          "202506068709144"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0835",
+        "gbtt_pta": "1041",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709155",
+          "202506108709155",
+          "202506118709155",
+          "202506128709155",
+          "202506138709155",
+          "202506168709155",
+          "202506178709155",
+          "202506188709155",
+          "202506198709155",
+          "202506208709155",
+          "202506238709155",
+          "202506248709155",
+          "202506258709155",
+          "202506268709155",
+          "202506278709155",
+          "202506308709155"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "13",
+          "num_tolerance": "3",
+          "percent_tolerance": "19",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0835",
+        "gbtt_pta": "1043",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709155",
+          "202506038709155",
+          "202506048709155",
+          "202506058709155",
+          "202506068709155"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0855",
+        "gbtt_pta": "1109",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709162",
+          "202506108709162",
+          "202506118709162",
+          "202506128709162",
+          "202506138709162",
+          "202506168709162",
+          "202506178709162",
+          "202506188709162",
+          "202506198709162",
+          "202506208709162",
+          "202506238709162",
+          "202506248709162",
+          "202506258709162",
+          "202506268709162",
+          "202506278709162",
+          "202506308709162"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "9",
+          "num_tolerance": "7",
+          "percent_tolerance": "44",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0855",
+        "gbtt_pta": "1110",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709162",
+          "202506038709162",
+          "202506048709162",
+          "202506058709162",
+          "202506068709162"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0915",
+        "gbtt_pta": "1127",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709165",
+          "202506108709165",
+          "202506118709165",
+          "202506128709165",
+          "202506138709165",
+          "202506168709165",
+          "202506178709165",
+          "202506188709165",
+          "202506198709165",
+          "202506208709165",
+          "202506238709165",
+          "202506248709165",
+          "202506258709165",
+          "202506268709165",
+          "202506278709165",
+          "202506308709165"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "12",
+          "num_tolerance": "4",
+          "percent_tolerance": "25",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0915",
+        "gbtt_pta": "1128",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709165",
+          "202506038709165",
+          "202506048709165",
+          "202506058709165",
+          "202506068709165"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0935",
+        "gbtt_pta": "1141",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709178",
+          "202506108709178",
+          "202506118709178",
+          "202506128709178",
+          "202506138709178",
+          "202506168709178",
+          "202506178709178",
+          "202506188709178",
+          "202506198709178",
+          "202506208709178",
+          "202506238709178",
+          "202506248709178",
+          "202506258709178",
+          "202506268709178",
+          "202506278709178",
+          "202506308709178"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0935",
+        "gbtt_pta": "1143",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709178",
+          "202506038709178",
+          "202506048709178",
+          "202506058709178",
+          "202506068709178"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0955",
+        "gbtt_pta": "1210",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709186",
+          "202506108709186",
+          "202506118709186",
+          "202506128709186",
+          "202506138709186",
+          "202506168709186",
+          "202506178709186",
+          "202506188709186",
+          "202506198709186",
+          "202506208709186",
+          "202506238709186",
+          "202506248709186",
+          "202506258709186",
+          "202506268709186",
+          "202506278709186",
+          "202506308709186"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "9",
+          "num_tolerance": "7",
+          "percent_tolerance": "44",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "0955",
+        "gbtt_pta": "1211",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709186",
+          "202506038709186",
+          "202506048709186",
+          "202506058709186",
+          "202506068709186"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "2",
+          "num_tolerance": "3",
+          "percent_tolerance": "60",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1015",
+        "gbtt_pta": "1227",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709188",
+          "202506108709188",
+          "202506118709188",
+          "202506128709188",
+          "202506138709188",
+          "202506168709188",
+          "202506178709188",
+          "202506188709188",
+          "202506198709188",
+          "202506208709188",
+          "202506238709188",
+          "202506248709188",
+          "202506258709188",
+          "202506268709188",
+          "202506278709188",
+          "202506308709188"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "13",
+          "num_tolerance": "3",
+          "percent_tolerance": "19",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1015",
+        "gbtt_pta": "1229",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709188",
+          "202506038709188",
+          "202506048709188",
+          "202506058709188",
+          "202506068709188"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1035",
+        "gbtt_pta": "1241",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709200",
+          "202506108709200",
+          "202506118709200",
+          "202506128709200",
+          "202506138709200",
+          "202506168709200",
+          "202506178709200",
+          "202506188709200",
+          "202506198709200",
+          "202506208709200",
+          "202506238709200",
+          "202506248709200",
+          "202506258709200",
+          "202506268709200",
+          "202506278709200",
+          "202506308709200"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "14",
+          "num_tolerance": "2",
+          "percent_tolerance": "13",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1035",
+        "gbtt_pta": "1243",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709200",
+          "202506038709200",
+          "202506048709200",
+          "202506058709200",
+          "202506068709200"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1055",
+        "gbtt_pta": "1309",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709209",
+          "202506108709209",
+          "202506118709209",
+          "202506128709209",
+          "202506138709209",
+          "202506168709209",
+          "202506178709209",
+          "202506188709209",
+          "202506198709209",
+          "202506208709209",
+          "202506238709209",
+          "202506248709209",
+          "202506258709209",
+          "202506268709209",
+          "202506278709209",
+          "202506308709209"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1055",
+        "gbtt_pta": "1310",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709209",
+          "202506038709209",
+          "202506048709209",
+          "202506058709209",
+          "202506068709209"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1115",
+        "gbtt_pta": "1327",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709212",
+          "202506108709212",
+          "202506118709212",
+          "202506128709212",
+          "202506138709212",
+          "202506168709212",
+          "202506178709212",
+          "202506188709212",
+          "202506198709212",
+          "202506208709212",
+          "202506238709212",
+          "202506248709212",
+          "202506258709212",
+          "202506268709212",
+          "202506278709212",
+          "202506308709212"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1115",
+        "gbtt_pta": "1329",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709212",
+          "202506038709212",
+          "202506048709212",
+          "202506058709212",
+          "202506068709212"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
       ]
     },
     {
@@ -28,15 +1269,1490 @@
         "origin_location": "MAN",
         "destination_location": "EUS",
         "gbtt_ptd": "1135",
-        "gbtt_pta": "1244",
+        "gbtt_pta": "1341",
         "toc_code": "VT",
-        "matched_services": "18",
-        "rids": ["202605020770841"]
+        "matched_services": "20",
+        "rids": [
+          "202506028709222",
+          "202506038709222",
+          "202506048709222",
+          "202506058709222",
+          "202506068709222",
+          "202506098709222",
+          "202506108709222",
+          "202506118709222",
+          "202506128709222",
+          "202506138709222",
+          "202506168709222",
+          "202506178709222",
+          "202506188709222",
+          "202506198709222",
+          "202506208709222",
+          "202506238709222",
+          "202506248709222",
+          "202506258709222",
+          "202506278709222",
+          "202506308709222"
+        ]
       },
       "Metrics": [
-        {"tolerance_value": "0", "num_not_tolerance": "3", "num_tolerance": "15", "percent_tolerance": "83.33", "global_tolerance": false},
-        {"tolerance_value": "5", "num_not_tolerance": "1", "num_tolerance": "17", "percent_tolerance": "94.44", "global_tolerance": false},
-        {"tolerance_value": "10", "num_not_tolerance": "0", "num_tolerance": "18", "percent_tolerance": "100", "global_tolerance": false}
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "16",
+          "num_tolerance": "4",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1155",
+        "gbtt_pta": "1411",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709229",
+          "202506038709229",
+          "202506048709229",
+          "202506058709229",
+          "202506068709229"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1155",
+        "gbtt_pta": "1412",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709229",
+          "202506108709229",
+          "202506118709229",
+          "202506128709229",
+          "202506138709229",
+          "202506168709229",
+          "202506178709229",
+          "202506188709229",
+          "202506198709229",
+          "202506208709229",
+          "202506238709229",
+          "202506248709229",
+          "202506258709229",
+          "202506268709229",
+          "202506278709229",
+          "202506308709229"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1215",
+        "gbtt_pta": "1427",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709232",
+          "202506108709232",
+          "202506118709232",
+          "202506128709232",
+          "202506138709232",
+          "202506168709232",
+          "202506178709232",
+          "202506188709232",
+          "202506198709232",
+          "202506208709232",
+          "202506238709232",
+          "202506248709232",
+          "202506258709232",
+          "202506268709232",
+          "202506278709232",
+          "202506308709232"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "14",
+          "num_tolerance": "2",
+          "percent_tolerance": "13",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1215",
+        "gbtt_pta": "1429",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709232",
+          "202506038709232",
+          "202506048709232",
+          "202506058709232",
+          "202506068709232"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1235",
+        "gbtt_pta": "1441",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709242",
+          "202506038709242",
+          "202506048709242",
+          "202506058709242",
+          "202506068709242",
+          "202506098709242",
+          "202506108709242",
+          "202506118709242",
+          "202506128709242",
+          "202506138709242",
+          "202506168709242",
+          "202506178709242",
+          "202506188709242",
+          "202506198709242",
+          "202506208709242",
+          "202506238709242",
+          "202506248709242",
+          "202506258709242",
+          "202506268709242",
+          "202506278709242",
+          "202506308709242"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "19",
+          "num_tolerance": "2",
+          "percent_tolerance": "10",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1255",
+        "gbtt_pta": "1509",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709248",
+          "202506108709248",
+          "202506118709248",
+          "202506128709248",
+          "202506138709248",
+          "202506168709248",
+          "202506178709248",
+          "202506188709248",
+          "202506198709248",
+          "202506208709248",
+          "202506238709248",
+          "202506248709248",
+          "202506258709248",
+          "202506268709248",
+          "202506278709248",
+          "202506308709248"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "12",
+          "num_tolerance": "4",
+          "percent_tolerance": "25",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1255",
+        "gbtt_pta": "1510",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709248",
+          "202506038709248",
+          "202506048709248",
+          "202506058709248",
+          "202506068709248"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1315",
+        "gbtt_pta": "1527",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709250",
+          "202506108709250",
+          "202506118709250",
+          "202506128709250",
+          "202506138709250",
+          "202506168709250",
+          "202506178709250",
+          "202506188709250",
+          "202506198709250",
+          "202506208709250",
+          "202506238709250",
+          "202506248709250",
+          "202506258709250",
+          "202506268709250",
+          "202506278709250",
+          "202506308709250"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "12",
+          "num_tolerance": "4",
+          "percent_tolerance": "25",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1315",
+        "gbtt_pta": "1528",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709250",
+          "202506038709250",
+          "202506048709250",
+          "202506058709250",
+          "202506068709250"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1335",
+        "gbtt_pta": "1542",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709262",
+          "202506038709262",
+          "202506048709262",
+          "202506058709262",
+          "202506068709262"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1335",
+        "gbtt_pta": "1541",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709262",
+          "202506108709262",
+          "202506118709262",
+          "202506128709262",
+          "202506138709262",
+          "202506168709262",
+          "202506178709262",
+          "202506188709262",
+          "202506198709262",
+          "202506208709262",
+          "202506238709262",
+          "202506248709262",
+          "202506258709262",
+          "202506268709262",
+          "202506278709262",
+          "202506308709262"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "14",
+          "num_tolerance": "2",
+          "percent_tolerance": "13",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1355",
+        "gbtt_pta": "1611",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709269",
+          "202506038709269",
+          "202506048709269",
+          "202506058709269",
+          "202506068709269",
+          "202506098709269",
+          "202506108709269",
+          "202506118709269",
+          "202506128709269",
+          "202506138709269",
+          "202506168709269",
+          "202506178709269",
+          "202506188709269",
+          "202506198709269",
+          "202506208709269",
+          "202506238709269",
+          "202506248709269",
+          "202506258709269",
+          "202506268709269",
+          "202506278709269",
+          "202506308709269"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "17",
+          "num_tolerance": "4",
+          "percent_tolerance": "19",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1415",
+        "gbtt_pta": "1630",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709272",
+          "202506038709272",
+          "202506048709272",
+          "202506058709272",
+          "202506068709272",
+          "202506098709272",
+          "202506108709272",
+          "202506118709272",
+          "202506128709272",
+          "202506138709272",
+          "202506168709272",
+          "202506178709272",
+          "202506188709272",
+          "202506198709272",
+          "202506208709272",
+          "202506238709272",
+          "202506248709272",
+          "202506258709272",
+          "202506268709272",
+          "202506278709272",
+          "202506308709272"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "6",
+          "percent_tolerance": "29",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1435",
+        "gbtt_pta": "1642",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709283",
+          "202506108709283",
+          "202506118709283",
+          "202506128709283",
+          "202506138709283",
+          "202506168709283",
+          "202506178709283",
+          "202506188709283",
+          "202506198709283",
+          "202506208709283",
+          "202506238709283",
+          "202506248709283",
+          "202506258709283",
+          "202506268709283",
+          "202506278709283",
+          "202506308709283"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "14",
+          "num_tolerance": "2",
+          "percent_tolerance": "13",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1435",
+        "gbtt_pta": "1643",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709283",
+          "202506038709283",
+          "202506048709283",
+          "202506058709283",
+          "202506068709283"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1455",
+        "gbtt_pta": "1709",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709290",
+          "202506108709290",
+          "202506118709290",
+          "202506128709290",
+          "202506138709290",
+          "202506168709290",
+          "202506178709290",
+          "202506188709290",
+          "202506198709290",
+          "202506208709290",
+          "202506238709290",
+          "202506248709290",
+          "202506258709290",
+          "202506268709290",
+          "202506278709290",
+          "202506308709290"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1455",
+        "gbtt_pta": "1710",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709290",
+          "202506038709290",
+          "202506048709290",
+          "202506058709290",
+          "202506068709290"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "4",
+          "num_tolerance": "1",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1515",
+        "gbtt_pta": "1727",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709292",
+          "202506108709292",
+          "202506118709292",
+          "202506128709292",
+          "202506138709292",
+          "202506168709292",
+          "202506178709292",
+          "202506188709292",
+          "202506198709292",
+          "202506208709292",
+          "202506238709292",
+          "202506248709292",
+          "202506258709292",
+          "202506268709292",
+          "202506278709292",
+          "202506308709292"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "16",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1515",
+        "gbtt_pta": "1729",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709292",
+          "202506038709292",
+          "202506048709292",
+          "202506058709292",
+          "202506068709292"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1535",
+        "gbtt_pta": "1741",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709304",
+          "202506108709304",
+          "202506118709304",
+          "202506128709304",
+          "202506138709304",
+          "202506168709304",
+          "202506178709304",
+          "202506188709304",
+          "202506198709304",
+          "202506208709304",
+          "202506238709304",
+          "202506248709304",
+          "202506258709304",
+          "202506268709304",
+          "202506278709304",
+          "202506308709304"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1535",
+        "gbtt_pta": "1744",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709304",
+          "202506038709304",
+          "202506048709304",
+          "202506058709304",
+          "202506068709304"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1555",
+        "gbtt_pta": "1810",
+        "toc_code": "VT",
+        "matched_services": "20",
+        "rids": [
+          "202506028709311",
+          "202506038709311",
+          "202506048709311",
+          "202506058709311",
+          "202506068709311",
+          "202506098709311",
+          "202506108709311",
+          "202506118709311",
+          "202506128709311",
+          "202506138709311",
+          "202506168709311",
+          "202506178709311",
+          "202506188709311",
+          "202506198709311",
+          "202506208709311",
+          "202506238709311",
+          "202506248709311",
+          "202506258709311",
+          "202506268709311",
+          "202506308709311"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "18",
+          "num_tolerance": "2",
+          "percent_tolerance": "10",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1555",
+        "gbtt_pta": "1811",
+        "toc_code": "VT",
+        "matched_services": "1",
+        "rids": [
+          "202506278709311"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "1",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1615",
+        "gbtt_pta": "1827",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709313",
+          "202506108709313",
+          "202506118709313",
+          "202506128709313",
+          "202506138709313",
+          "202506168709313",
+          "202506178709313",
+          "202506188709313",
+          "202506198709313",
+          "202506208709313",
+          "202506238709313",
+          "202506248709313",
+          "202506258709313",
+          "202506268709313",
+          "202506278709313",
+          "202506308709313"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "16",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1615",
+        "gbtt_pta": "1828",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709313",
+          "202506038709313",
+          "202506048709313",
+          "202506058709313",
+          "202506068709313"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1635",
+        "gbtt_pta": "1842",
+        "toc_code": "VT",
+        "matched_services": "15",
+        "rids": [
+          "202506098709325",
+          "202506108709325",
+          "202506118709325",
+          "202506128709325",
+          "202506138709325",
+          "202506168709325",
+          "202506178709325",
+          "202506188709325",
+          "202506198709325",
+          "202506208709325",
+          "202506238709325",
+          "202506248709325",
+          "202506258709325",
+          "202506268709325",
+          "202506308709325"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "12",
+          "num_tolerance": "3",
+          "percent_tolerance": "20",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1635",
+        "gbtt_pta": "1844",
+        "toc_code": "VT",
+        "matched_services": "6",
+        "rids": [
+          "202506028709325",
+          "202506038709325",
+          "202506048709325",
+          "202506058709325",
+          "202506068709325",
+          "202506278709325"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "6",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1655",
+        "gbtt_pta": "1910",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709332",
+          "202506038709332",
+          "202506048709332",
+          "202506058709332",
+          "202506068709332"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1655",
+        "gbtt_pta": "1909",
+        "toc_code": "VT",
+        "matched_services": "17",
+        "rids": [
+          "202506098709332",
+          "202506108709332",
+          "202506118709332",
+          "202506128709332",
+          "202506138709332",
+          "202506168709332",
+          "202506178709332",
+          "202506188709332",
+          "202506197936968",
+          "202506198709332",
+          "202506208709332",
+          "202506238709332",
+          "202506248709332",
+          "202506258709332",
+          "202506268709332",
+          "202506278709332",
+          "202506308709332"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "14",
+          "num_tolerance": "3",
+          "percent_tolerance": "18",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1715",
+        "gbtt_pta": "1927",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709334",
+          "202506108709334",
+          "202506118709334",
+          "202506128709334",
+          "202506138709334",
+          "202506168709334",
+          "202506178709334",
+          "202506188709334",
+          "202506198709334",
+          "202506208709334",
+          "202506238709334",
+          "202506248709334",
+          "202506258709334",
+          "202506268709334",
+          "202506278709334",
+          "202506308709334"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1715",
+        "gbtt_pta": "1928",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709334",
+          "202506038709334",
+          "202506048709334",
+          "202506058709334",
+          "202506068709334"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "3",
+          "num_tolerance": "2",
+          "percent_tolerance": "40",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1735",
+        "gbtt_pta": "1941",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709344",
+          "202506108709344",
+          "202506118709344",
+          "202506128709344",
+          "202506138709344",
+          "202506168709344",
+          "202506178709344",
+          "202506188709344",
+          "202506198709344",
+          "202506208709344",
+          "202506238709344",
+          "202506248709344",
+          "202506258709344",
+          "202506268709344",
+          "202506278709344",
+          "202506308709344"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "16",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1735",
+        "gbtt_pta": "1943",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709344",
+          "202506038709344",
+          "202506048709344",
+          "202506058709344",
+          "202506068709344"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1755",
+        "gbtt_pta": "2010",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709351",
+          "202506038709351",
+          "202506048709351",
+          "202506058709351",
+          "202506068709351"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1755",
+        "gbtt_pta": "2009",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709351",
+          "202506108709351",
+          "202506118709351",
+          "202506128709351",
+          "202506138709351",
+          "202506168709351",
+          "202506178709351",
+          "202506188709351",
+          "202506198709351",
+          "202506208709351",
+          "202506238709351",
+          "202506248709351",
+          "202506258709351",
+          "202506268709351",
+          "202506278709351",
+          "202506308709351"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "1",
+          "percent_tolerance": "6",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1815",
+        "gbtt_pta": "2027",
+        "toc_code": "VT",
+        "matched_services": "16",
+        "rids": [
+          "202506098709354",
+          "202506108709354",
+          "202506118709354",
+          "202506128709354",
+          "202506138709354",
+          "202506168709354",
+          "202506178709354",
+          "202506188709354",
+          "202506198709354",
+          "202506208709354",
+          "202506238709354",
+          "202506248709354",
+          "202506258709354",
+          "202506268709354",
+          "202506278709354",
+          "202506308709354"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "14",
+          "num_tolerance": "2",
+          "percent_tolerance": "13",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1815",
+        "gbtt_pta": "2028",
+        "toc_code": "VT",
+        "matched_services": "5",
+        "rids": [
+          "202506028709354",
+          "202506038709354",
+          "202506048709354",
+          "202506058709354",
+          "202506068709354"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "5",
+          "num_tolerance": "0",
+          "percent_tolerance": "0",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1835",
+        "gbtt_pta": "2041",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709359",
+          "202506038709359",
+          "202506048709359",
+          "202506058709359",
+          "202506068709359",
+          "202506098709359",
+          "202506108709359",
+          "202506118709359",
+          "202506128709359",
+          "202506138709359",
+          "202506168709359",
+          "202506178709359",
+          "202506188709359",
+          "202506198709359",
+          "202506208709359",
+          "202506238709359",
+          "202506248709359",
+          "202506258709359",
+          "202506268709359",
+          "202506278709359",
+          "202506308709359"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "17",
+          "num_tolerance": "4",
+          "percent_tolerance": "19",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1855",
+        "gbtt_pta": "2113",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709366",
+          "202506038709366",
+          "202506048709366",
+          "202506058709366",
+          "202506068709366",
+          "202506098709366",
+          "202506108709366",
+          "202506118709366",
+          "202506128709366",
+          "202506138709366",
+          "202506168709366",
+          "202506178709366",
+          "202506188709366",
+          "202506198709366",
+          "202506208709366",
+          "202506238709366",
+          "202506248709366",
+          "202506258709366",
+          "202506268709366",
+          "202506278709366",
+          "202506308709366"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "18",
+          "num_tolerance": "3",
+          "percent_tolerance": "14",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1915",
+        "gbtt_pta": "2134",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709368",
+          "202506038709368",
+          "202506048709368",
+          "202506058709368",
+          "202506068709368",
+          "202506098709368",
+          "202506108709368",
+          "202506118709368",
+          "202506128709368",
+          "202506138709368",
+          "202506168709368",
+          "202506178709368",
+          "202506188709368",
+          "202506198709368",
+          "202506208709368",
+          "202506238709368",
+          "202506248709368",
+          "202506258709368",
+          "202506268709368",
+          "202506278709368",
+          "202506308709368"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "18",
+          "num_tolerance": "3",
+          "percent_tolerance": "14",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "1955",
+        "gbtt_pta": "2214",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709375",
+          "202506038709375",
+          "202506048709375",
+          "202506058709375",
+          "202506068709375",
+          "202506098709375",
+          "202506108709375",
+          "202506118709375",
+          "202506128709375",
+          "202506138709375",
+          "202506168709375",
+          "202506178709375",
+          "202506188709375",
+          "202506198709375",
+          "202506208709375",
+          "202506238709375",
+          "202506248709375",
+          "202506258709375",
+          "202506268709375",
+          "202506278709375",
+          "202506308709375"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "13",
+          "num_tolerance": "8",
+          "percent_tolerance": "38",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "2015",
+        "gbtt_pta": "2231",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709377",
+          "202506038709377",
+          "202506048709377",
+          "202506058709377",
+          "202506068709377",
+          "202506098709377",
+          "202506108709377",
+          "202506118709377",
+          "202506128709377",
+          "202506138709377",
+          "202506168709377",
+          "202506178709377",
+          "202506188709377",
+          "202506198709377",
+          "202506208709377",
+          "202506238709377",
+          "202506248709377",
+          "202506258709377",
+          "202506268709377",
+          "202506278709377",
+          "202506308709377"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "15",
+          "num_tolerance": "6",
+          "percent_tolerance": "29",
+          "global_tolerance": true
+        }
+      ]
+    },
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "MAN",
+        "destination_location": "EUS",
+        "gbtt_ptd": "2115",
+        "gbtt_pta": "2359",
+        "toc_code": "VT",
+        "matched_services": "21",
+        "rids": [
+          "202506028709382",
+          "202506038709382",
+          "202506048709382",
+          "202506058709382",
+          "202506068709382",
+          "202506098709382",
+          "202506108709382",
+          "202506118709382",
+          "202506128709382",
+          "202506138709382",
+          "202506168709382",
+          "202506178709382",
+          "202506188709382",
+          "202506198709382",
+          "202506208709382",
+          "202506238709382",
+          "202506248709382",
+          "202506258709382",
+          "202506268709382",
+          "202506278709382",
+          "202506308709382"
+        ]
+      },
+      "Metrics": [
+        {
+          "tolerance_value": "0",
+          "num_not_tolerance": "11",
+          "num_tolerance": "10",
+          "percent_tolerance": "48",
+          "global_tolerance": true
+        }
       ]
     }
   ]
