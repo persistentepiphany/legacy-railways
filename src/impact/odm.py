@@ -28,7 +28,7 @@ years. See `_infer_columns` for the substring rules."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -89,6 +89,23 @@ class ODMIndex:
     is_ticket_aware: bool
     row_count: int
     notes: tuple[str, ...]
+    # Optional revenue column (some ORR releases carry earnings alongside
+    # journeys). Populated only when the CSV has one; enables a per-pair
+    # implied yield (revenue / journeys) as the demand module's price base.
+    revenue_pence_by_pair: dict[tuple[str, str], int] = field(default_factory=dict)
+    has_revenue: bool = False
+
+    def yield_pence(self, origin_nlc: str, dest_nlc: str) -> int | None:
+        """Implied average yield for a pair: revenue / journeys, rounded to
+        the penny. None when the ODM has no revenue column, no row for the
+        pair, or zero journeys — callers degrade with a note, never guess."""
+        if not self.has_revenue:
+            return None
+        revenue = self.revenue_pence_by_pair.get((origin_nlc, dest_nlc))
+        journeys = self.by_pair.get((origin_nlc, dest_nlc))
+        if revenue is None or not journeys:
+            return None
+        return round(revenue / journeys)
 
 
 # --- Loader --------------------------------------------------------------
@@ -117,6 +134,7 @@ def _infer_columns(columns: list[str]) -> dict[str, str | None]:
     dest_crs = _match(("dest_crs", "destination_crs", "to_crs", "destcrs"))
     journeys = _match(("journey", "trips", "passenger", "demand", "volume"))
     ticket = _match(("ticket_code", "ticket_type", "product_code", "fare_code"))
+    revenue = _match(("revenue", "earnings", "receipts"))
 
     if journeys is None:
         raise ValueError(
@@ -142,6 +160,7 @@ def _infer_columns(columns: list[str]) -> dict[str, str | None]:
         "dest_crs": dest_crs,
         "journeys": journeys,
         "ticket": ticket,
+        "revenue": revenue,
     }
 
 
@@ -217,8 +236,16 @@ def load_odm_index(
         return crs_to_nlc.get(crs)
 
     is_ticket_aware = cols["ticket"] is not None
+    revenue_col = cols["revenue"]
+    has_revenue = revenue_col is not None
+    # Revenue units: a header mentioning pence/gbx is taken as pence;
+    # otherwise ORR releases publish pounds and we convert. The choice is
+    # surfaced in the notes so a wrong guess is visible, not silent.
+    revenue_in_pence = revenue_col is not None and any(
+        u in revenue_col.lower() for u in ("pence", "gbx"))
     by_pair: dict[tuple[str, str], int] = {}
     by_pair_and_ticket: dict[tuple[str, str, str], int] = {}
+    revenue_pence_by_pair: dict[tuple[str, str], int] = {}
     dropped = 0
 
     for row in df.to_dict(orient="records"):
@@ -239,11 +266,26 @@ def load_odm_index(
                 by_pair_and_ticket[(o, d, t)] = (
                     by_pair_and_ticket.get((o, d, t), 0) + journeys
                 )
+        if revenue_col is not None:
+            try:
+                raw = float(row[revenue_col])
+            except (TypeError, ValueError):
+                continue  # journeys row stands; only the revenue cell is bad
+            pence = int(round(raw if revenue_in_pence else raw * 100))
+            revenue_pence_by_pair[(o, d)] = (
+                revenue_pence_by_pair.get((o, d), 0) + pence
+            )
 
     if dropped:
         notes.append(
             f"skipped {dropped} rows with unresolvable origin/dest or non-numeric "
             "demand — no silent guesses."
+        )
+    if has_revenue:
+        notes.append(
+            f"revenue column {revenue_col!r} read as "
+            f"{'pence' if revenue_in_pence else 'pounds (x100 to pence)'}; "
+            "enables implied per-pair yield (revenue / journeys)."
         )
 
     return ODMIndex(
@@ -253,6 +295,8 @@ def load_odm_index(
         is_ticket_aware=is_ticket_aware,
         row_count=len(df),
         notes=tuple(notes),
+        revenue_pence_by_pair=revenue_pence_by_pair,
+        has_revenue=has_revenue,
     )
 
 

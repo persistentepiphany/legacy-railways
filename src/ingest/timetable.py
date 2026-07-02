@@ -53,6 +53,9 @@ from src.ingest.inspect import _cached
 #   30-31 train category (e.g. OO=ordinary passenger, XX=express passenger)
 #   32-35 train identity (signalling headcode)
 #   ...
+#   50-52 power type (EMU/DMU/HST/E/D/ED/EML...; verified 'EMU' at [50:53]
+#         against RJTTF883 WCML schedules)
+#   ...
 #   77    STP indicator (P=permanent, N=STP new, O=overlay, C=cancellation)
 
 # LO: Origin location. 80 chars.
@@ -123,6 +126,7 @@ class TrainSchedule:
     stp_indicator: str
     train_status: str
     train_category: str
+    power_type: str        # BS pos 50-52, stripped ('' when blank)
     calling_points: tuple[CallingPoint, ...]
 
 
@@ -165,6 +169,7 @@ def _build_timetable_index(mca_path: Path) -> TimetableIndex:
                 stp_indicator=current_bs["stp_indicator"],
                 train_status=current_bs["train_status"],
                 train_category=current_bs["train_category"],
+                power_type=current_bs["power_type"],
                 calling_points=tuple(current_calls),
             ))
         current_bs = None
@@ -203,6 +208,7 @@ def _build_timetable_index(mca_path: Path) -> TimetableIndex:
                 train_uid = line[3:9].strip()
                 train_status = line[29:30]
                 train_category = line[30:32]
+                power_type = line[50:53].strip()
                 stp = line[79] if len(line) > 79 else line[78] if len(line) > 78 else " "
                 if (
                     train_status in _PASSENGER_TRAIN_STATUSES
@@ -213,6 +219,7 @@ def _build_timetable_index(mca_path: Path) -> TimetableIndex:
                         "stp_indicator": stp,
                         "train_status": train_status,
                         "train_category": train_category,
+                        "power_type": power_type,
                     }
                     in_passenger_train = True
                 else:
@@ -363,12 +370,97 @@ def intermediate_calls(
     return tuple(sorted(intermediates))
 
 
+# --- Traction mix ----------------------------------------------------------
+
+# CIF power-type → traction class. Only codes whose traction is
+# unambiguous are classified; anything else (including electro-diesel
+# 'ED' bi-modes and blanks) is counted as unknown — we never guess.
+#   EMU/EML/E  = electric multiple unit / EMU-hauled / electric loco
+#   DMU/DEM/DMV/D = diesel multiple unit variants / diesel loco
+#   HST        = High Speed Train (diesel power cars)
+_ELECTRIC_POWER_TYPES: frozenset[str] = frozenset({"EMU", "EML", "E"})
+_DIESEL_POWER_TYPES: frozenset[str] = frozenset({"DMU", "DEM", "DMV", "D", "HST"})
+
+
+@dataclass(frozen=True)
+class TractionMix:
+    """Traction composition of the trains serving a corridor (both
+    directions), as fractions of train count summing to ~1.0.
+
+    `unknown_pct` holds blanks, bi-modes ('ED') and unrecognised codes —
+    quarantined into their own bucket rather than silently assigned.
+    Downstream carbon maths must disclose how the unknown share was
+    treated."""
+    electric_pct: float
+    diesel_pct: float
+    unknown_pct: float
+    train_count: int
+    notes: tuple[str, ...]
+
+
+def traction_mix(
+    idx: TimetableIndex,
+    origin_crs: str,
+    dest_crs: str,
+) -> TractionMix:
+    """Electric/diesel/unknown split over the trains serving the corridor
+    in EITHER direction (union of both `trains_serving_corridor` calls —
+    traction does not depend on direction of travel).
+
+    Counts schedules, not seats or service-days: a schedule that runs
+    daily and one that runs Saturdays-only weigh the same. Disclosed in
+    the notes; acceptable for a corridor-level factor blend."""
+    seen: dict[tuple[str, str], TrainSchedule] = {}
+    for s in trains_serving_corridor(idx, origin_crs, dest_crs):
+        seen[(s.train_uid, s.stp_indicator)] = s
+    for s in trains_serving_corridor(idx, dest_crs, origin_crs):
+        seen[(s.train_uid, s.stp_indicator)] = s
+
+    electric = diesel = unknown = 0
+    unknown_codes: set[str] = set()
+    for s in seen.values():
+        if s.power_type in _ELECTRIC_POWER_TYPES:
+            electric += 1
+        elif s.power_type in _DIESEL_POWER_TYPES:
+            diesel += 1
+        else:
+            unknown += 1
+            unknown_codes.add(s.power_type or "(blank)")
+
+    total = electric + diesel + unknown
+    notes = [
+        "traction mix is a share of distinct schedules serving the corridor "
+        "(both directions), not of service-days or passenger volume.",
+    ]
+    if total == 0:
+        notes.append(
+            f"no schedule in {idx.source_file} links {origin_crs} and "
+            f"{dest_crs}; traction mix is empty — callers must fall back "
+            "to the national-average factor and say so."
+        )
+        return TractionMix(0.0, 0.0, 0.0, 0, tuple(notes))
+    if unknown:
+        notes.append(
+            f"{unknown}/{total} schedules had unclassifiable power type(s) "
+            f"{sorted(unknown_codes)!r}; counted as unknown, never guessed."
+        )
+    return TractionMix(
+        electric_pct=electric / total,
+        diesel_pct=diesel / total,
+        unknown_pct=unknown / total,
+        train_count=total,
+        notes=tuple(notes),
+    )
+
+
 __all__ = [
     "CallingPoint",
     "TimetableIndex",
     "TipLocMeta",
+    "TractionMix",
     "TrainSchedule",
     "intermediate_calls",
     "load_timetable_index",
+    "traction_mix",
     "trains_serving_corridor",
 ]
