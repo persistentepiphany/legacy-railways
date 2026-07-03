@@ -977,8 +977,10 @@ async def api_events(request: Request):
 # --- Routers (merge point: visual-copilot-agent session) -------------------
 
 from src.api.corridor import router as corridor_router  # noqa: E402
+from src.api.copilot import router as copilot_router  # noqa: E402
 
 app.include_router(corridor_router)
+app.include_router(copilot_router)
 
 
 # --- 6. Static mount for the cockpit UI -----------------------------------
