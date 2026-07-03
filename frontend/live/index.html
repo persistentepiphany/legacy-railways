@@ -1061,9 +1061,13 @@
                 <div style="font-size:8.5px;letter-spacing:.6px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px">EST</div>
               </sc-if>
             </div>
-            <!-- Reuse the existing ref for the revenue big number so the
-                 animation lands (only when the revenue KPI is active).  -->
-            <div ref="{{ refs.revenueNum }}" title="{{ aggKpis.panel.explain }}" style="font-family:'Source Sans 3',sans-serif;font-size:22px;font-weight:600;color:{{ aggKpis.panel.color }};line-height:1">{{ aggKpis.panel.headline }}</div>
+            <!-- Headline is the currently-selected KPI's value (varies by
+                 sub-tab + scale mode). Do NOT bind an animNum ref here —
+                 the imperative textContent write would clobber the template
+                 output when the analyst switches KPI tab (was leaking a
+                 £-formatted revenue value into the carbon/demand/fares
+                 slot). Template is now the single source of truth. -->
+            <div title="{{ aggKpis.panel.explain }}" style="font-family:'Source Sans 3',sans-serif;font-size:22px;font-weight:600;color:{{ aggKpis.panel.color }};line-height:1">{{ aggKpis.panel.headline }}</div>
             <div style="font-size:10px;color:#5f6773;margin-top:5px">{{ aggKpis.panel.sub }}</div>
 
             <!-- Inline mini-chart: horizontal bars, same styling as the
@@ -2316,7 +2320,7 @@ class Component extends DCLogic {
     this._els = {}; this._impact = null; this._prevImpact = null; this._lastFareP = null; this._sizes = null;
     this._lastAnimEpoch = -1; this._lastSelFlow = null; this._lastFareEpoch = -1;
     this._ref = {};
-    ['countTotal','revenueNum','resolvedFare','blastList','bClean','bAnomaly','bBreach','bContradiction',
+    ['countTotal','resolvedFare','blastList','bClean','bAnomaly','bBreach','bContradiction',
      'vsFares','vsRev','verdictStrip','mapSvg','provList','aggList'].forEach((k) => { this._ref[k] = (el) => { this._els[k] = el; }; });
   }
 
@@ -2392,13 +2396,11 @@ class Component extends DCLogic {
       this.animNum('bBreach', pv.breaches||0, cv.breaches||0, (v)=>v);
       this.animNum('bContradiction', pv.contradictions, cv.contradictions, (v)=>v);
       this.animNum('vsFares', pv.affectedTotal, cv.affectedTotal, (v)=>v.toLocaleString());
-      // Only animate the revenue big number when the aggregate KPI panel
-      // is actually rendering the revenue headline in total mode. Any
-      // other combination and the animation would overwrite whatever the
-      // template just wrote (fares count / carbon kg / demand %).
-      if (this.state.aggKpi === 'revenue' && this.state.scaleMode === 'total') {
-        this.animNum('revenueNum', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBigDir(v));
-      }
+      // The aggregate KPI headline is no longer animated: its value
+      // varies by sub-tab + scale mode, and an imperative textContent
+      // write would race the template and leak a £ figure into the
+      // carbon/demand/fares slots when the analyst switches tab. The
+      // static template render is authoritative.
       if (cur.verdict.revenue) this.animNum('vsRev', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBigDir(v));
       this.animateBlast();
       this.animateList('aggList', 55, 300);
