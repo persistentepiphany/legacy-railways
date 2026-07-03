@@ -63,6 +63,14 @@
 
     <div style="flex:1"></div>
 
+    <!-- copilot toggle (flagged: renders only when localStorage.meridianCopilot === "1") -->
+    <sc-if value="{{ copilot.on }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ copilot.onToggle }}" style="display:flex;align-items:center;gap:7px;padding:0 14px;height:100%;border-left:1px solid #1a1c20;cursor:pointer;user-select:none" style-hover="background:#101215">
+        <div style="width:7px;height:7px;border-radius:50%;background:{{ copilot.dotColor }}"></div>
+        <div style="font-size:11px;letter-spacing:.8px;font-weight:600;color:{{ copilot.toggleColor }}">COPILOT</div>
+      </div>
+    </sc-if>
+
     <!-- data mode / freshness -->
     <div style="display:flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-left:1px solid #1a1c20">
       <div style="width:7px;height:7px;border-radius:50%;background:{{ mode.dotColor }};animation:{{ mode.anim }}"></div>
@@ -1395,6 +1403,60 @@
     </div>
   </sc-if>
 
+  <!-- ============ COPILOT DRAWER (visual-copilot session; flagged) ============ -->
+  <sc-if value="{{ copilot.on }}" hint-placeholder-val="{{ false }}">
+    <sc-if value="{{ copilot.open }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Copilot" style="position:fixed;top:52px;right:0;bottom:0;width:330px;z-index:45;display:flex;flex-direction:column;background:#0c0d0f;border-left:1px solid #2a2e34;box-shadow:-18px 0 40px rgba(0,0,0,.45)">
+        <div style="height:40px;flex:0 0 40px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid #1a1c20">
+          <div style="width:6px;height:6px;border-radius:50%;background:{{ copilot.dotColor }}"></div>
+          <div style="font-size:11px;letter-spacing:1.2px;font-weight:600;color:#d8dde4">COPILOT</div>
+          <div style="font-size:9.5px;color:#626b76;letter-spacing:.4px">{{ copilot.statusLabel }}</div>
+          <div style="flex:1"></div>
+          <div onClick="{{ copilot.onToggle }}" style="cursor:pointer;color:#626b76;font-size:15px;line-height:1;padding:2px 4px" style-hover="color:#d8dde4">×</div>
+        </div>
+        <div id="cp-msgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px">
+          <sc-if value="{{ copilot.empty }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:11px;color:#626b76;line-height:1.55;padding:2px 2px 4px">Ask the fares engine in plain English. Every number in an answer comes from the deterministic resolver — nothing is invented.</div>
+          </sc-if>
+          <sc-if value="{{ copilot.hasMsgs }}" hint-placeholder-val="{{ false }}">
+            <sc-for list="{{ copilot.msgs }}" as="m" hint-placeholder-count="2">
+              <div style="align-self:{{ m.align }};max-width:88%">
+                <sc-if value="{{ m.intent }}" hint-placeholder-val="">
+                  <div style="font-size:8.5px;letter-spacing:.8px;color:#626b76;margin:0 2px 3px;text-transform:uppercase">{{ m.intent }}</div>
+                </sc-if>
+                <div style="background:{{ m.bg }};border:1px solid {{ m.border }};border-radius:6px;padding:7px 9px;font-size:11.5px;line-height:1.5;color:{{ m.color }};white-space:pre-wrap;word-break:break-word;font-family:'Source Sans 3',sans-serif">{{ m.text }}</div>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ copilot.showChips }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ copilot.chips }}" as="ch" hint-placeholder-count="5">
+                <div onClick="{{ ch.onAsk }}" style="cursor:pointer;font-size:10.5px;color:#98a1ae;border:1px solid #2a2e34;border-radius:12px;padding:4px 10px;background:#101215;user-select:none" style-hover="color:#d8dde4;border-color:#8a93a3">{{ ch.t }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ copilot.busy }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:7px;color:#626b76;font-size:10.5px"><div style="width:11px;height:11px;border:2px solid #1b1e22;border-top-color:#8a93a3;border-radius:50%;animation:rfe-spin .7s linear infinite"></div>querying engine…</div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ copilot.offline }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:0 0 auto;border-top:1px solid #1a1c20;padding:10px 12px;display:flex;align-items:center;gap:8px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#c17f6e"></div>
+            <div style="font-size:11px;color:#c17f6e">copilot offline</div>
+            <div style="flex:1"></div>
+            <div onClick="{{ copilot.onRetry }}" style="cursor:pointer;font-size:10.5px;color:#98a1ae;border:1px solid #2a2e34;border-radius:4px;padding:3px 9px" style-hover="color:#d8dde4;border-color:#8a93a3">Retry</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ copilot.online }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:0 0 auto;border-top:1px solid #1a1c20;padding:10px 12px;display:flex;gap:8px">
+            <input id="cp-input" onKeyDown="{{ copilot.onKey }}" placeholder="Ask the fares engine…" style="flex:1;min-width:0;background:#101215;border:1px solid #2a2e34;border-radius:5px;color:#d8dde4;font-size:11.5px;padding:7px 9px;outline:none;font-family:'Source Sans 3',sans-serif" style-focus="border-color:#8a93a3" />
+            <div onClick="{{ copilot.onSend }}" style="cursor:pointer;display:flex;align-items:center;justify-content:center;border:1px solid #2a2e34;border-radius:5px;padding:0 12px;font-size:11px;color:#98a1ae;background:#16181c;user-select:none" style-hover="color:#d8dde4;border-color:#8a93a3">Ask</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </sc-if>
+
   <template id="__bundler_thumbnail">
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#0c0d0f"/><circle cx="50" cy="38" r="8" fill="none" stroke="#8a93a3" stroke-width="2.5"/><line x1="50" y1="46" x2="50" y2="70" stroke="#6f9e86" stroke-width="2.5"/><circle cx="50" cy="70" r="3" fill="#c2a15c"/></svg>
   </template>
@@ -1424,10 +1486,15 @@ class Component extends DCLogic {
       env:'demo', envNote:false, showReport:false, feedFilter:'all', feedPaused:false,
       activeRailcard:'highland', productMenuOpen:false, wizard:null,
       mapFull:false, stationDetail:null,
+      copilotOpen:false, copilotBusy:false, copilotOffline:false, copilotMsgs:[],
       // Guided flow: ① scope → ② author → ③ review → ④ approve.
       // scopeKind/selToc feed buildChangeRequest via fare-engine's _scopeFromRoot().
       stage:'scope', scopeKind:'corridor', selToc:null
     };
+    // Copilot feature flag — the single sanctioned localStorage read (spec:
+    // drawer exists only when meridianCopilot === "1"; off = zero DOM, zero requests).
+    try { this._copilotOn = window.localStorage.getItem('meridianCopilot') === '1'; }
+    catch (e) { this._copilotOn = false; }
     // Camera lives OUTSIDE React state: wheel/drag write the SVG viewBox
     // imperatively (zero re-renders per mousemove); templates read it via
     // mapViewBox() so full renders stay consistent.
@@ -1494,6 +1561,14 @@ class Component extends DCLogic {
   }
   componentWillUnmount() { clearInterval(this._feedTimer); clearInterval(this._freshTimer); clearTimeout(this._rt); clearTimeout(this._busHlTimer); if (this._onResize) window.removeEventListener('resize', this._onResize); if (this._onKey) window.removeEventListener('keydown', this._onKey); if (this._busListeners) { this._busListeners.forEach(([k, h]) => window.removeEventListener(k, h)); this._busListeners = null; } if (this._es) { this._es.close(); this._es = null; } }
   componentDidUpdate() {
+    // Copilot drawer: keep the newest message in view (before the _impact
+    // early-return — the drawer works pre-first-run too).
+    const nMsgs = this.state.copilotMsgs.length;
+    if (nMsgs !== this._lastCopilotMsgs) {
+      this._lastCopilotMsgs = nMsgs;
+      const box = document.getElementById('cp-msgs');
+      if (box) box.scrollTop = box.scrollHeight;
+    }
     if (!this._impact) return;
     if (this.state.resultsCurrent && this.state.animEpoch !== this._lastAnimEpoch) {
       this._lastAnimEpoch = this.state.animEpoch;
@@ -2103,6 +2178,38 @@ class Component extends DCLogic {
     if (this._busHighlight) this._busHlTimer = setTimeout(() => { this._busHighlight = null; this.forceUpdate(); }, 6000);
     this.forceUpdate();
   }
+
+  /* ---------------- copilot drawer (visual-copilot session) ---------------- */
+  copilotToggle() { if (this._copilotOn) this.setState((s) => ({ copilotOpen:!s.copilotOpen })); }
+  copilotAsk(text) {
+    const q = (text || '').trim();
+    if (!q || !this._copilotOn || this.state.copilotBusy) return;
+    this.setState((s) => ({ copilotBusy:true, copilotMsgs:s.copilotMsgs.concat([{ role:'user', text:q }]) }));
+    window.RFE_API.copilotQuery({ text:q, context:{ corridor_id:this.state.selCorridor } })
+      .then((r) => {
+        this.setState((s) => ({ copilotBusy:false, copilotOffline:false,
+          copilotMsgs:s.copilotMsgs.concat([{ role:'copilot', text:r.answer_text || '', intent:r.intent || '' }]) }));
+        // Drive the cockpit through the same meridian:* bus a console
+        // dispatch would use, staggered so each move is legible.
+        (r.ui_commands || []).forEach((c, i) => {
+          setTimeout(() => {
+            try { window.dispatchEvent(new CustomEvent(c.event, { detail:c.payload || {} })); }
+            catch (e) { console.warn('copilot ui_command failed', c, e); }
+          }, 300 * (i + 1));
+        });
+      })
+      .catch((err) => {
+        if (err && err.name === 'AbortError') return;
+        this.setState({ copilotBusy:false, copilotOffline:true });
+      });
+  }
+  copilotSend() {
+    const el = document.getElementById('cp-input'); if (!el) return;
+    const q = el.value; el.value = '';
+    this.copilotAsk(q);
+  }
+  copilotKey(e) { if (e && e.key === 'Enter') this.copilotSend(); }
+  copilotRetry() { this.setState({ copilotOffline:false }); }
   // One expanding radial ring from the corridor centroid, appended
   // imperatively (React never learns about it) and removed on animation end.
   fireRadialWave() {
@@ -2412,6 +2519,35 @@ class Component extends DCLogic {
       authorCta: S.stage === 'author',
     };
     V.reviewBar = this.buildReviewBar();
+
+    // copilot drawer (visual-copilot session) — flag off ⇒ on:false and the
+    // template's outer sc-if renders nothing (zero DOM trace, zero requests).
+    V.copilot = { on:!!this._copilotOn };
+    if (V.copilot.on) {
+      const cp = V.copilot;
+      cp.open = S.copilotOpen; cp.busy = S.copilotBusy;
+      cp.offline = S.copilotOffline; cp.online = !S.copilotOffline;
+      cp.hasMsgs = S.copilotMsgs.length > 0;
+      cp.empty = S.copilotMsgs.length === 0;
+      cp.showChips = S.copilotMsgs.length === 0 && !S.copilotBusy;
+      cp.dotColor = S.copilotOffline ? C.bad : (S.copilotBusy ? C.warn : C.ok);
+      cp.statusLabel = S.copilotOffline ? 'offline' : (S.copilotBusy ? 'querying engine' : 'deterministic engine');
+      cp.toggleColor = S.copilotOpen ? C.acHi : C.tx1;
+      cp.msgs = S.copilotMsgs.map((m) => {
+        const user = m.role === 'user';
+        return { text:m.text, intent: user ? '' : (m.intent || ''),
+          align: user ? 'flex-end' : 'flex-start',
+          bg: user ? C.bg3 : C.bg1, border: user ? C.line2 : C.line,
+          color: user ? C.tx0 : C.tx1 };
+      });
+      cp.chips = ['fare from Manchester to London Euston', 'why is it that price',
+        'run the impact', 'which fares breach the cap', 'show the splits']
+        .map((t) => ({ t, onAsk:() => this.copilotAsk(t) }));
+      cp.onToggle = () => this.copilotToggle();
+      cp.onSend = () => this.copilotSend();
+      cp.onKey = (e) => this.copilotKey(e);
+      cp.onRetry = () => this.copilotRetry();
+    }
 
     // change builder
     V.change = this.buildChange();

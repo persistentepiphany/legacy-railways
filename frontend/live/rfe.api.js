@@ -89,6 +89,10 @@
       return api_get("/api/corridor/callings?origin=" + encodeURIComponent(origin) +
                      "&dest=" + encodeURIComponent(dest));
     },
+    // Merge point (visual-copilot session): copilot drawer → intent brain.
+    copilotQuery: function (payload) {
+      return api_post("/api/copilot/query", payload, { kind: "copilot" });
+    },
     // Working endpoints
     resolve: function (origin, dest, ticket, opts) {
       opts = opts || {};
