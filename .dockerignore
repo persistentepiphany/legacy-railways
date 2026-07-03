@@ -13,10 +13,12 @@ __pycache__/
 .idea/
 .DS_Store
 
-# Tests, docs, frontend not needed in the API image.
+# Tests and docs not needed in the API image. Frontend IS copied in
+# (Dockerfile mounts it at /live) so the Railway service can serve the
+# cockpit UI end-to-end.
 tests/
 docs/
-frontend/
+frontend/_archive/
 
 # Drop everything in data/ except the 9 RJFAF805 files the engine needs.
 data/*
