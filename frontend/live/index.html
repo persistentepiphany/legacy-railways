@@ -361,10 +361,14 @@
               <sc-if value="{{ verdictBar.dec.busy }}" hint-placeholder-val="{{ false }}">
                 <div style="display:flex;align-items:center;gap:6px"><div style="width:11px;height:11px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .7s linear infinite"></div><span style="font-size:10.5px;color:#98a1ae">staging…</span></div>
               </sc-if>
+              <!-- merge conflict: approval blocked until the analyst picks an authority -->
               <sc-if value="{{ verdictBar.dec.escalated }}" hint-placeholder-val="{{ false }}">
-                <div onClick="{{ verdictBar.dec.onResolve }}" style="display:flex;align-items:center;gap:6px;cursor:pointer;border:1px solid #40292a;border-radius:6px;padding:5px 10px;background:#150e0f" style-hover="border-color:#5a3a3b">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#c98a86" stroke-width="2.2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>
-                  <span style="font-size:10.5px;color:#c98a86;font-weight:600">contradiction — resolve to approve</span>
+                <div style="display:flex;align-items:center;gap:7px;border:1px solid #2b2138;border-radius:6px;padding:4px 9px;background:#0f0b13">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#9a86b4" stroke-width="2" style="flex:0 0 auto"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 4.3 3 17a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path></svg>
+                  <span style="font-size:10.5px;color:#c3b6d6;font-weight:600;white-space:nowrap">conflict · {{ contra.od }}</span>
+                  <div onClick="{{ contra.onPickA }}" title="{{ contra.optA.title }}" style="font-size:10.5px;color:#b3a3c7;border:1px solid #3c3548;border-radius:5px;padding:3px 9px;cursor:pointer;white-space:nowrap" style-hover="border-color:#493c5c;background:#130e1b">A · existing</div>
+                  <div onClick="{{ contra.onPickB }}" title="{{ contra.optB.title }}" style="font-size:10.5px;color:#b3a3c7;border:1px solid #3c3548;border-radius:5px;padding:3px 9px;cursor:pointer;white-space:nowrap" style-hover="border-color:#493c5c;background:#130e1b">B · proposal</div>
+                  <div onClick="{{ verdictBar.dec.onResolve }}" style="font-size:10.5px;color:#7b8390;cursor:pointer;white-space:nowrap" style-hover="color:#adb6c4">details →</div>
                 </div>
               </sc-if>
               <sc-if value="{{ verdictBar.dec.approved }}" hint-placeholder-val="{{ false }}">
@@ -1856,9 +1860,12 @@ class Component extends DCLogic {
     else off('splits', 'splits');
     chip(v.contradictions, v.contradictions === 1 ? 'contradiction' : 'contradictions', C.bad, () => this.setState({ activeRight:'contra' }));
     // Decision phase is DERIVED from staging state — no parallel state to drift.
+    // Approval is blocked by a staging escalation OR an unresolved impact-time
+    // contradiction: the analyst must pick an authority, the engine never does.
     const qd = S.queueDisp.main;
+    const conflict = !!S.escalation || (v.contradictions > 0 && S.disp.contradiction == null);
     const phase = S.proposing ? 'busy'
-      : (S.escalation ? 'escalated'
+      : (conflict ? 'escalated'
       : (qd === 'approved' ? 'approved' : (qd === 'held' ? 'held' : 'idle')));
     const dec = {
       show: S.stage === 'review' || S.stage === 'approve',
