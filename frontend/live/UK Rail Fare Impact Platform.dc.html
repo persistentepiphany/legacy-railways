@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#08090b;height:100%}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#22252b;border-radius:5px}
+  ::-webkit-scrollbar-thumb:hover{background:#2f333a}
+  ::-webkit-scrollbar-track{background:transparent}
+  input[type=range]{accent-color:#8a93a3;height:3px;cursor:pointer}
+  input,button{font-family:inherit}
+  input:focus{outline:none}
+  @keyframes rfe-spin{to{transform:rotate(360deg)}}
+  @keyframes rfe-pulse{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+  @keyframes rfe-blink{0%,100%{opacity:1}50%{opacity:.28}}
+  @keyframes rfe-shimmer{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}
+</style>
+<script src="fare-engine.js"></script>
+</helmet>
+
+<div style="height:100vh;display:flex;flex-direction:column;background:#08090b;color:#d8dde4;font-family:'Source Sans 3',system-ui,sans-serif;font-size:13px;line-height:1.35;overflow:hidden;letter-spacing:.1px;font-variant-numeric:tabular-nums">
+
+  <!-- ============ TOP BAR ============ -->
+  <header data-screen-label="Topbar" style="height:52px;flex:0 0 52px;display:flex;align-items:center;gap:0;border-bottom:1px solid #1a1c20;background:#0c0d0f;padding:0 14px 0 16px">
+    <div style="display:flex;align-items:center;gap:11px;padding-right:18px;border-right:1px solid #1a1c20;height:100%">
+      <div style="width:24px;height:24px;border:1px solid #2f333a;border-radius:5px;display:flex;align-items:center;justify-content:center;position:relative">
+        <div style="width:9px;height:9px;border:1.5px solid #adb6c4;border-radius:50%"></div>
+        <div style="position:absolute;width:20px;height:1px;background:#2f333a;transform:rotate(38deg)"></div>
+      </div>
+      <div style="line-height:1">
+        <div style="font-weight:600;font-size:13.5px;letter-spacing:1.4px;color:#f0f2f6">MERIDIAN</div>
+        <div style="font-size:9.5px;letter-spacing:.6px;color:#626b76;margin-top:2px;text-transform:uppercase">Fares Impact Console</div>
+      </div>
+    </div>
+
+    <!-- active snapshot -->
+    <div style="display:flex;align-items:center;gap:9px;padding:0 16px;height:100%;border-right:1px solid #1a1c20">
+      <div style="width:6px;height:6px;border-radius:50%;background:#6f9e86;box-shadow:0 0 6px #6f9e86"></div>
+      <div style="line-height:1.25">
+        <div style="font-size:10px;color:#626b76;letter-spacing:.4px">ACTIVE SNAPSHOT</div>
+        <div style="font-family:'Source Sans 3',sans-serif;font-size:11.5px;color:#adb6c4">{{ snap.id }} <span style="color:#3a4048">·</span> {{ snap.date }}</div>
+      </div>
+      <div style="text-align:right;line-height:1.25;margin-left:6px">
+        <div style="font-size:10px;color:#626b76;letter-spacing:.4px">{{ snap.feed }} FEED</div>
+        <div style="font-family:'Source Sans 3',sans-serif;font-size:11.5px;color:#7b8390">{{ snap.records }} recs</div>
+      </div>
+    </div>
+
+    <div style="flex:1"></div>
+
+    <!-- data mode / freshness -->
+    <div onClick="{{ mode.onToggle }}" title="Toggle simulated live-feed outage" style="display:flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-left:1px solid #1a1c20;cursor:pointer" style-hover="background:#0f1116">
+      <div style="width:7px;height:7px;border-radius:50%;background:{{ mode.dotColor }};animation:{{ mode.anim }}"></div>
+      <div style="line-height:1.25">
+        <div style="font-size:11px;letter-spacing:.8px;font-weight:600;color:{{ mode.dotColor }}">{{ mode.label }}</div>
+        <div style="font-size:9.5px;color:#626b76;font-family:'Source Sans 3',sans-serif">{{ mode.fetched }}</div>
+      </div>
+    </div>
+
+    <!-- staging / baseline lock -->
+    <div style="display:flex;align-items:center;gap:9px;padding:0 4px 0 14px;height:100%;border-left:1px solid #1a1c20">
+      <div style="width:15px;height:15px;color:#7b8390;display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a93a3" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="1.6"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+      </div>
+      <div style="line-height:1.25">
+        <div style="font-size:10px;color:#626b76;letter-spacing:.3px">BASELINE READ-ONLY</div>
+        <div style="font-size:11px;color:#98a1ae">Staging <span style="color:#6f9e86;font-weight:600">{{ staging.approved }}</span> approved · <span style="color:#c2a15c;font-weight:600">{{ staging.held }}</span> held · {{ staging.pending }} open</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- recompute progress hairline -->
+  <div style="height:2px;flex:0 0 2px;background:#0c0d0f;overflow:hidden;position:relative">
+    <sc-if value="{{ status.computing }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;top:0;left:0;height:2px;width:34%;background:linear-gradient(90deg,transparent,#8a93a3,transparent);animation:rfe-shimmer 1s linear infinite"></div>
+    </sc-if>
+  </div>
+
+  <!-- ============ ACTION TOOLBAR ============ -->
+  <div data-screen-label="Toolbar" style="height:42px;flex:0 0 42px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1a1c20;background:#0a0b0d;padding:0 12px">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;flex-shrink:1">
+      <div style="width:22px;height:22px;border-radius:6px;background:#101215;border:1px solid #1b1e22;display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#8a93a3" stroke-width="1.8"><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle><path d="M9 7h6a2 2 0 0 1 2 2v6"></path></svg>
+      </div>
+      <span style="font-size:12px;color:#c8cfd7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tb.corridorName }}</span>
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#454c56" stroke-width="2" style="flex:0 0 auto"><path d="m9 6 6 6-6 6"></path></svg>
+      <span style="font-size:11.5px;color:#8b93a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tb.flowLabel }}</span>
+    </div>
+    <div style="flex:1"></div>
+    <div onClick="{{ tb.onRun }}" style="display:flex;align-items:center;gap:7px;background:#16181c;border:1px solid #2a2e34;border-radius:7px;padding:6px 13px;cursor:pointer" style-hover="border-color:#3a4048;background:#1b1e24">
+      <sc-if value="{{ tb.computing }}" hint-placeholder-val="{{ false }}"><div style="width:11px;height:11px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .7s linear infinite"></div></sc-if>
+      <sc-if value="{{ tb.idle }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" width="12" height="12" fill="#adb6c4"><path d="M8 5v14l11-7z"></path></svg></sc-if>
+      <span style="font-size:12px;color:#dfe3e9;font-weight:600">Run impact</span>
+    </div>
+    <div onClick="{{ tb.onReport }}" style="display:flex;align-items:center;gap:7px;background:transparent;border:1px solid #1b1e22;border-radius:7px;padding:6px 12px;cursor:pointer" style-hover="border-color:#2a2e34;background:#101215">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#98a1ae" stroke-width="1.8"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h6"></path></svg>
+      <span style="font-size:12px;color:#c3cad3">View report</span>
+    </div>
+    <div style="width:1px;height:20px;background:#1a1c20"></div>
+    <div style="display:flex;align-items:center;gap:7px;position:relative">
+      <span style="font-size:9px;letter-spacing:.6px;color:#5f6773">ENV</span>
+      <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #1b1e22;border-radius:7px">
+        <div onClick="{{ tb.onDemo }}" style="position:relative;padding:4px 11px;border-radius:5px;cursor:pointer;font-size:11px;color:{{ tb.demoColor }};font-weight:{{ tb.demoWeight }}">
+          <sc-if value="{{ tb.demoActive }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:5px"></div></sc-if>
+          <span style="position:relative;display:flex;align-items:center;gap:5px"><div style="width:5px;height:5px;border-radius:50%;background:#6f9e86"></div>Demo</span>
+        </div>
+        <div onClick="{{ tb.onLive }}" style="position:relative;padding:4px 11px;border-radius:5px;cursor:pointer;font-size:11px;color:#5f6773;display:flex;align-items:center;gap:5px">
+          <span>Live</span><span style="font-size:8px;letter-spacing:.4px;color:#8b7fa0;border:1px solid #2b2138;border-radius:3px;padding:0 3px">SOON</span>
+        </div>
+      </div>
+      <sc-if value="{{ envNote }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:38px;right:0;z-index:30;width:224px;background:#101215;border:1px solid #2b2138;border-radius:8px;padding:9px 11px;box-shadow:0 8px 24px rgba(0,0,0,.6)">
+          <div style="font-size:11px;color:#c3b6d6;font-weight:600;margin-bottom:3px">Live environment — coming soon</div>
+          <div style="font-size:10px;color:#8b93a0;line-height:1.45">Live connects to production RSP settlement feeds. Wired up in a later release; the demo runs on the fixture snapshot.</div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- ============ MAIN GRID ============ -->
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:var(--rfe-left,326px) 5px minmax(0,1fr) 5px var(--rfe-right,392px);grid-template-rows:minmax(0,1fr)">
+
+    <!-- ---------- LEFT: CONTROL ---------- -->
+    <aside data-screen-label="Control · Change builder" style="min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;background:#0c0d0f;border-right:0">
+
+      <!-- corridor / journey selector -->
+      <div style="padding:13px 14px 12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+          <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">CORRIDOR / JOURNEY</div>
+          <div style="font-size:10px;color:#454c56">select a spine</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <sc-for list="{{ corridors }}" as="c" hint-placeholder-count="4">
+            <div onClick="{{ c.onSelect }}" style="position:relative;padding:8px 10px;border:1px solid {{ c.border }};border-radius:7px;cursor:pointer;background:{{ c.bg }};overflow:hidden" style-hover="border-color:#2f333a">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:6px;height:6px;border-radius:50%;background:{{ c.dot }};flex:0 0 auto"></div>
+                <div style="min-width:0;flex:1">
+                  <div style="font-size:12.5px;color:{{ c.nameColor }};font-weight:{{ c.weight }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</div>
+                  <div style="font-size:10px;color:#626b76;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.sub }}</div>
+                </div>
+                <div style="font-family:'Source Sans 3',sans-serif;font-size:9.5px;color:#4f5762">{{ c.endpoints }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <!-- journey lookup (bad-input handling) -->
+        <div style="margin-top:9px">
+          <div style="display:flex;gap:6px;align-items:center;border:1px solid {{ lookup.border }};border-radius:7px;background:#090a0c;padding:2px 2px 2px 9px">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#5f6773" stroke-width="2" style="flex:0 0 auto"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+            <input value="{{ lookup.value }}" onInput="{{ lookup.onInput }}" onKeyDown="{{ lookup.onKey }}" placeholder="lookup flow  e.g. ABD-EDB" style="flex:1;min-width:0;background:transparent;border:0;color:#d8dde4;font-size:12px;padding:6px 0;font-family:'Source Sans 3',sans-serif" />
+            <button onClick="{{ lookup.onSubmit }}" style="flex:0 0 auto;background:#16181c;border:1px solid #23262c;color:#adb6c4;font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer" style-hover="background:#1b1e24">go</button>
+          </div>
+          <sc-if value="{{ lookup.err }}" hint-placeholder-val="">
+            <div style="margin-top:5px;font-size:10.5px;color:#c17f6e;display:flex;align-items:center;gap:5px">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#c17f6e" stroke-width="2"><path d="M12 8v5"></path><circle cx="12" cy="16.5" r=".4" fill="#c17f6e" stroke="none"></circle><path d="M10.3 4.3 3 17a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path></svg>
+              {{ lookup.err }}
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#141519;margin:0 0 0 0"></div>
+
+      <!-- change builder -->
+      <div style="padding:13px 14px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">PROPOSED CHANGE</div>
+          <div style="font-size:9.5px;color:#5f6773;border:1px solid #1b1e22;border-radius:4px;padding:2px 6px">staged</div>
+        </div>
+
+        <!-- product selector -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:9px;letter-spacing:.5px;color:#7b8390;background:#101215;border:1px solid #1b1e22;border-radius:4px;padding:2px 6px">{{ product.typeLabel }}</span>
+          <span style="font-size:10.5px;color:#5f6773">product</span>
+        </div>
+        <div style="position:relative;margin-bottom:13px">
+          <div onClick="{{ product.onToggle }}" style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:#090a0c;border:1px solid {{ product.menuBorder }};border-radius:8px;cursor:pointer" style-hover="border-color:#2f333a">
+            <div style="width:22px;height:22px;border-radius:6px;background:#101215;border:1px solid #1b1e22;display:flex;align-items:center;justify-content:center;flex:0 0 auto"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#8a93a3" stroke-width="1.7"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M3 10h18"></path></svg></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:#e7ebf0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ product.name }}</div>
+              <div style="font-size:9.5px;color:#5f6773">{{ product.subLabel }}</div>
+            </div>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#7b8390" stroke-width="2" style="flex:0 0 auto;transition:transform .2s;transform:{{ product.chev }}"><path d="m6 9 6 6 6-6"></path></svg>
+          </div>
+          <sc-if value="{{ product.menuOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:25;background:#101215;border:1px solid #23262c;border-radius:9px;box-shadow:0 14px 40px rgba(0,0,0,.6);overflow:hidden">
+              <div style="padding:8px 11px 5px;font-size:9px;letter-spacing:.6px;color:#5f6773">RAILCARDS</div>
+              <sc-for list="{{ product.railcards }}" as="r" hint-placeholder-count="3">
+                <div onClick="{{ r.onSelect }}" style="display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;background:{{ r.bg }}" style-hover="background:#16181c">
+                  <div style="width:6px;height:6px;border-radius:50%;background:{{ r.dot }};flex:0 0 auto"></div>
+                  <div style="flex:1;min-width:0"><div style="font-size:12.5px;color:#d0d6dd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div><div style="font-size:9.5px;color:#5f6773;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.summary }}</div></div>
+                  <sc-if value="{{ r.isNew }}" hint-placeholder-val="{{ false }}"><span style="font-size:8px;letter-spacing:.4px;color:#6f9e86;border:1px solid #1b2c21;border-radius:3px;padding:1px 4px;flex:0 0 auto">NEW</span></sc-if>
+                </div>
+              </sc-for>
+              <div style="height:1px;background:#1a1c20;margin:4px 0"></div>
+              <div onClick="{{ product.onNew }}" style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer" style-hover="background:#16181c">
+                <div style="width:18px;height:18px;border-radius:5px;border:1px dashed #2f333a;display:flex;align-items:center;justify-content:center;flex:0 0 auto"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#8a93a3" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg></div>
+                <span style="font-size:12.5px;font-weight:600;color:#dfe3e9">Create new railcard…</span>
+              </div>
+              <div style="height:1px;background:#1a1c20;margin:4px 0"></div>
+              <div style="padding:5px 11px 4px;font-size:9px;letter-spacing:.6px;color:#5f6773">OTHER ACTIONS</div>
+              <div onClick="{{ product.onAdjust }}" style="padding:7px 11px;cursor:pointer;font-size:12px;color:#98a1ae" style-hover="background:#16181c">Adjust discount on active product</div>
+              <div onClick="{{ product.onWithdraw }}" style="padding:7px 11px 9px;cursor:pointer;font-size:12px;color:#98a1ae" style-hover="background:#16181c">Withdraw active product</div>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- discount slider -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
+            <div style="font-size:10.5px;color:#7b8390">{{ change.discountVerb }}</div>
+            <div style="font-family:'Source Sans 3',sans-serif;font-size:15px;color:#f0f2f6;font-weight:600">{{ change.discountStr }}</div>
+          </div>
+          <input type="range" min="0" max="60" step="1" value="{{ change.discountPct }}" onInput="{{ change.onDiscount }}" style="width:100%" />
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#454c56;font-family:'Source Sans 3',sans-serif;margin-top:3px"><span>0%</span><span>30%</span><span>60%</span></div>
+        </div>
+
+        <!-- peak validity -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:9px 11px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+          <div>
+            <div style="font-size:12px;color:#c3cad3">Peak validity</div>
+            <div style="font-size:10px;color:#626b76;margin-top:1px">{{ change.peakLabel }}</div>
+          </div>
+          <div onClick="{{ change.onPeak }}" style="width:38px;height:20px;border-radius:11px;background:{{ change.peakBg }};position:relative;cursor:pointer;transition:background .22s;flex:0 0 auto">
+            <div style="position:absolute;top:2px;left:{{ change.peakKnob }};width:16px;height:16px;border-radius:50%;background:#f0f2f6;transition:left .22s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>
+          </div>
+        </div>
+
+        <!-- rounding rule -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:10.5px;color:#7b8390;margin-bottom:6px">Rounding rule</div>
+          <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+            <sc-for list="{{ change.roundingOpts }}" as="r" hint-placeholder-count="4">
+              <div onClick="{{ r.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ r.color }};font-family:'Source Sans 3',sans-serif">
+                <sc-if value="{{ r.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+                <span style="position:relative">{{ r.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- scheme area / cluster -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div style="font-size:10.5px;color:#7b8390">Scheme area</div><div style="font-size:10px;color:#5f6773">{{ change.clusterFull }}</div></div>
+          <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+            <sc-for list="{{ change.clusterOpts }}" as="c" hint-placeholder-count="3">
+              <div onClick="{{ c.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ c.color }};font-weight:{{ c.weight }}">
+                <sc-if value="{{ c.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+                <span style="position:relative">{{ c.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- min fare floor -->
+        <div style="margin-bottom:2px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
+            <div style="font-size:10.5px;color:#7b8390">Railcard min-fare floor</div>
+            <div style="font-family:'Source Sans 3',sans-serif;font-size:13px;color:#c3cad3">{{ change.minFloorStr }}</div>
+          </div>
+          <input type="range" min="50" max="75" step="1" value="{{ change.minFloorPct }}" onInput="{{ change.onFloor }}" style="width:100%" />
+          <div style="font-size:9.5px;color:#4f5762;margin-top:4px">Discounted fare cannot fall below this % of the protected fare.</div>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#141519"></div>
+
+      <!-- analysis modules (?include=) -->
+      <div style="padding:13px 14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+          <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">ANALYSIS MODULES</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <sc-for list="{{ modules }}" as="m" hint-placeholder-count="5">
+            <div onClick="{{ m.onToggle }}" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid {{ m.border }};border-radius:7px;cursor:{{ m.cursor }};background:{{ m.bg }};opacity:{{ m.opacity }}" style-hover="border-color:#2a2e34">
+              <div style="width:15px;height:15px;border-radius:4px;border:1.5px solid {{ m.boxBorder }};background:{{ m.boxBg }};flex:0 0 auto;display:flex;align-items:center;justify-content:center">
+                <sc-if value="{{ m.on }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#0c0d0f" stroke-width="3.4"><path d="M5 12.5 10 17l9-10"></path></svg></sc-if>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:{{ m.labelColor }}">{{ m.label }}</div>
+                <div style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ m.param }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;flex:0 0 auto">
+                <div style="width:6px;height:6px;border-radius:50%;background:{{ m.modeDot }}"></div>
+                <div style="font-size:9px;letter-spacing:.4px;color:{{ m.modeColor }};min-width:44px;text-align:right">{{ m.statusLabel }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:10px;padding:8px 10px;background:#090a0c;border:1px solid #15171b;border-radius:7px">
+          <div style="font-size:9px;color:#4f5762;letter-spacing:.5px;margin-bottom:3px">REQUEST</div>
+          <div style="font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#7b8390;word-break:break-all">GET /impact?<span style="color:#adb6c4">include=</span>{{ includeQuery }}</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- col splitter 1 -->
+    <div onPointerDown="{{ onDrag.left }}" style="cursor:col-resize;background:#1a1c20;position:relative" style-hover="background:#2f333a">
+      <div style="position:absolute;inset:0 -3px"></div>
+    </div>
+
+    <!-- ---------- CENTER ---------- -->
+    <section style="min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) 5px var(--rfe-anah,318px);background:#08090b">
+
+      <!-- CENTER TOP: map + aggregate impact -->
+      <div data-screen-label="Blast radius map" style="min-height:0;min-width:0;overflow:hidden;display:flex;border-bottom:0">
+        <!-- map -->
+        <div style="flex:1 1 300px;min-width:0;overflow:hidden;position:relative;background:radial-gradient(120% 90% at 42% 20%,#0c0e12 0%,#08090b 62%)">
+          <!-- title overlay -->
+          <div style="position:absolute;top:12px;left:14px;z-index:3">
+            <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">BLAST RADIUS — SPATIAL FAN-OUT</div>
+            <div style="font-size:11px;color:#7b8390;margin-top:2px">{{ map.scopeLabel }}</div>
+          </div>
+          <!-- computing veil -->
+          <sc-if value="{{ status.computing }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:12px;right:14px;z-index:4;display:flex;align-items:center;gap:7px;background:#101215;border:1px solid #1b1e22;border-radius:20px;padding:5px 11px 5px 8px">
+              <div style="width:12px;height:12px;border:2px solid #2a2e34;border-top-color:#8a93a3;border-radius:50%;animation:rfe-spin .7s linear infinite"></div>
+              <span style="font-size:10.5px;color:#98a1ae">recomputing fan-out…</span>
+            </div>
+          </sc-if>
+
+          <svg ref="{{ refs.mapSvg }}" viewBox="{{ map.viewBox }}" preserveAspectRatio="xMidYMid meet" onWheel="{{ map.onWheel }}" onPointerDown="{{ map.onPanStart }}" style="width:100%;height:100%;display:block;cursor:grab;touch-action:none">
+            <defs>
+              <radialGradient id="rfe-land" cx="45%" cy="30%" r="75%">
+                <stop offset="0%" stop-color="#0d0f13"></stop>
+                <stop offset="100%" stop-color="#08090c"></stop>
+              </radialGradient>
+            </defs>
+            <!-- landmass hint -->
+            <path d="{{ map.outline }}" fill="url(#rfe-land)" stroke="#171a1e" stroke-width="1" stroke-linejoin="round"></path>
+            <!-- edges -->
+            <g>
+              <sc-for list="{{ map.edges }}" as="e" hint-placeholder-count="0">
+                <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" style="stroke:{{ e.stroke }};stroke-width:{{ e.width }};opacity:{{ e.opacity }};transition:{{ e.transition }}"></line>
+              </sc-for>
+            </g>
+            <!-- traveling pulses -->
+            <g>
+              <sc-for list="{{ map.pulses }}" as="p" hint-placeholder-count="0">
+                <circle r="2.1" style="fill:{{ p.color }};opacity:.85">
+                  <animateMotion dur="{{ p.dur }}" repeatCount="indefinite" path="{{ p.d }}" rotate="auto"></animateMotion>
+                </circle>
+              </sc-for>
+            </g>
+            <!-- nodes -->
+            <g>
+              <sc-for list="{{ map.nodes }}" as="n" hint-placeholder-count="0">
+                <g onClick="{{ n.onClick }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}" style="cursor:pointer">
+                  <sc-if value="{{ n.selRing }}" hint-placeholder-val="{{ false }}"><circle cx="{{ n.cx }}" cy="{{ n.cy }}" r="{{ n.ringR }}" fill="none" style="stroke:{{ n.ringColor }};stroke-width:1;opacity:.9"></circle></sc-if>
+                  <circle cx="{{ n.cx }}" cy="{{ n.cy }}" r="{{ n.r }}" style="fill:{{ n.fill }};opacity:{{ n.opacity }};transition:{{ n.transition }};filter:{{ n.filter }}"></circle>
+                  <sc-if value="{{ n.showLabel }}" hint-placeholder-val="{{ false }}">
+                    <text x="{{ n.labelX }}" y="{{ n.cy }}" text-anchor="{{ n.anchor }}" dominant-baseline="central" style="fill:{{ n.labelColor }};font-size:{{ n.labelSize }}px;font-family:'Source Sans 3',sans-serif;font-weight:{{ n.labelWeight }};paint-order:stroke;stroke:#08090b;stroke-width:2.4px">{{ n.label }}</text>
+                  </sc-if>
+                </g>
+              </sc-for>
+            </g>
+          </svg>
+
+          <!-- zoom / pan controls -->
+          <div style="position:absolute;top:46px;right:12px;z-index:5;display:flex;flex-direction:column;gap:2px;background:#0c0d10;border:1px solid #171a1e;border-radius:8px;padding:3px">
+            <div onClick="{{ map.onZoomIn }}" title="Zoom in" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:5px;color:#98a1ae" style-hover="background:#16181c">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6v12M6 12h12"></path></svg>
+            </div>
+            <div style="text-align:center;font-size:8px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ map.zoomLabel }}</div>
+            <div onClick="{{ map.onZoomOut }}" title="Zoom out" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:5px;color:#98a1ae" style-hover="background:#16181c">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12h12"></path></svg>
+            </div>
+            <div style="height:1px;background:#171a1e;margin:1px 3px"></div>
+            <div onClick="{{ map.onReset }}" title="Reset view" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:5px;color:#7b8390" style-hover="background:#16181c">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v4h4"></path></svg>
+            </div>
+          </div>
+
+          <!-- hover tooltip -->
+          <sc-if value="{{ map.hover.show }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:14px;bottom:14px;z-index:5;background:#101215;border:1px solid #23262c;border-radius:8px;padding:9px 11px;min-width:150px;box-shadow:0 6px 20px rgba(0,0,0,.5)">
+              <div style="font-size:12px;color:#f0f2f6;font-weight:600">{{ map.hover.name }} <span style="color:#5f6773;font-family:'Source Sans 3',sans-serif;font-size:10px">{{ map.hover.crs }}</span></div>
+              <div style="font-size:10.5px;color:#7b8390;margin-top:3px">{{ map.hover.line1 }}</div>
+              <div style="font-size:10.5px;color:#7b8390">{{ map.hover.line2 }}</div>
+            </div>
+          </sc-if>
+
+          <!-- legend -->
+          <div style="position:absolute;right:12px;bottom:12px;z-index:3;display:flex;gap:11px;background:#0c0d10;border:1px solid #171a1e;border-radius:7px;padding:6px 10px">
+            <sc-for list="{{ map.legend }}" as="l" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:{{ l.color }}"></div><span style="font-size:9.5px;color:#7b8390">{{ l.label }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- aggregate impact panel -->
+        <sc-if value="{{ showAgg }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:0 1 290px;min-width:0;border-left:1px solid #1a1c20;background:#0c0d0f;overflow-y:auto;overflow-x:hidden;padding:13px 14px">
+          <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600;margin-bottom:10px">AGGREGATE IMPACT</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
+            <div ref="{{ refs.countTotal }}" style="font-size:40px;font-weight:600;color:#f0f2f6;line-height:1;font-family:'Source Sans 3',sans-serif">{{ impact.total }}</div>
+            <div style="font-size:12px;color:#7b8390">affected fares</div>
+          </div>
+          <div style="font-size:10.5px;color:#5f6773;margin-bottom:13px">across {{ impact.affectedStations }} stations · {{ impact.scopeShort }}</div>
+
+          <!-- bucket bars -->
+          <div ref="{{ refs.aggList }}" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+            <sc-for list="{{ impact.buckets }}" as="b" hint-placeholder-count="4">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <div style="display:flex;align-items:center;gap:6px"><div style="width:7px;height:7px;border-radius:2px;background:{{ b.color }}"></div><span style="font-size:11.5px;color:#98a1ae">{{ b.label }}</span></div>
+                  <div ref="{{ b.ref }}" style="font-family:'Source Sans 3',sans-serif;font-size:13px;color:{{ b.color }};font-weight:600">{{ b.count }}</div>
+                </div>
+                <div style="height:4px;background:#090a0c;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ b.pct }}%;background:{{ b.color }};border-radius:2px;transition:width .55s cubic-bezier(.2,.8,.2,1);opacity:.75"></div></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- revenue headline -->
+          <div style="padding:11px 12px;background:#090a0c;border:1px solid #15171b;border-radius:9px;margin-bottom:11px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+              <div style="font-size:10px;letter-spacing:.6px;color:#626b76">REVENUE {{ impact.revLabel }}</div>
+              <div style="font-size:8.5px;letter-spacing:.6px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px">EST</div>
+            </div>
+            <div ref="{{ refs.revenueNum }}" style="font-family:'Source Sans 3',sans-serif;font-size:22px;font-weight:600;color:{{ impact.revColor }};line-height:1">{{ impact.revenueStr }}</div>
+            <div style="font-size:10px;color:#5f6773;margin-top:5px">{{ impact.journeysStr }} railcard journeys/yr modelled</div>
+            <div style="display:flex;gap:4px;margin-top:8px;height:5px;border-radius:3px;overflow:hidden;background:#101215">
+              <div style="height:100%;width:{{ impact.exactPct }}%;background:#6f9e86;opacity:.8"></div>
+              <div style="height:100%;flex:1;background:#c2a15c;opacity:.55"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:#5f6773;margin-top:4px"><span>{{ impact.exactPct }}% feed-derived</span><span>{{ impact.estPct }}% modelled</span></div>
+          </div>
+
+          <div style="font-size:9.5px;color:#454c56;line-height:1.5">{{ impact.scaleNote }}</div>
+        </div>
+        </sc-if>
+      </div>
+
+      <!-- row splitter -->
+      <div onPointerDown="{{ onDrag.anah }}" style="cursor:row-resize;background:#1a1c20" style-hover="background:#2f333a"></div>
+
+      <!-- CENTER BOTTOM: analysis tabs -->
+      <div data-screen-label="Analysis" style="min-height:0;display:flex;flex-direction:column;background:#0c0d0f;border-top:0">
+        <!-- tab bar -->
+        <div style="flex:0 0 auto;display:flex;align-items:stretch;border-bottom:1px solid #1a1c20;background:#0d0e11;padding:0 4px;overflow-x:auto">
+          <sc-for list="{{ analysisTabs }}" as="t" hint-placeholder-count="6">
+            <div onClick="{{ t.onSelect }}" style="position:relative;display:flex;align-items:center;gap:6px;padding:9px 13px;cursor:pointer;white-space:nowrap;opacity:{{ t.opacity }}">
+              <span style="font-size:12px;color:{{ t.color }};font-weight:{{ t.weight }}">{{ t.label }}</span>
+              <sc-if value="{{ t.showBadge }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Source Sans 3',sans-serif;font-size:9.5px;color:{{ t.badgeColor }};background:{{ t.badgeBg }};border-radius:8px;padding:1px 5px;min-width:16px;text-align:center">{{ t.badge }}</span></sc-if>
+              <sc-if value="{{ t.off }}" hint-placeholder-val="{{ false }}"><span style="font-size:8.5px;color:#5f6773">off</span></sc-if>
+              <sc-if value="{{ t.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:8px;right:8px;bottom:0;height:2px;background:#adb6c4;border-radius:2px 2px 0 0"></div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- panel body -->
+        <div style="flex:1;min-height:0;overflow:hidden;position:relative">
+
+          <!-- module OFF veil -->
+          <sc-if value="{{ analysis.activeOff }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:#5f6773">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#2f333a" stroke-width="1.6"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 8 0"></path></svg>
+              <div style="font-size:13px;color:#7b8390">{{ analysis.offTitle }}</div>
+              <div style="font-size:11px;color:#5f6773;max-width:280px;text-align:center">{{ analysis.offBody }}</div>
+              <sc-if value="{{ analysis.offToggle }}" hint-placeholder-val="{{ false }}"><button onClick="{{ analysis.onEnable }}" style="margin-top:3px;background:#16181c;border:1px solid #23262c;color:#adb6c4;font-size:11px;padding:6px 13px;border-radius:6px;cursor:pointer" style-hover="background:#1b1e24">Enable module</button></sc-if>
+            </div>
+          </sc-if>
+
+          <!-- BLAST TABLE -->
+          <sc-if value="{{ analysis.showBlast }}" hint-placeholder-val="{{ true }}">
+            <div style="height:100%;display:flex;flex-direction:column">
+              <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:7px 13px;border-bottom:1px solid #141519">
+                <div style="font-size:11px;color:#7b8390">{{ blast.count }} affected fares · before → after</div>
+                <div style="flex:1"></div>
+                <sc-if value="{{ blast.filter }}" hint-placeholder-val="">
+                  <div onClick="{{ blast.onClearFilter }}" style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:#adb6c4;background:#16181c;border:1px solid #23262c;border-radius:14px;padding:3px 6px 3px 9px;cursor:pointer">filtered: {{ blast.filterName }} <span style="color:#7b8390">✕</span></div>
+                </sc-if>
+              </div>
+              <!-- header -->
+              <div style="flex:0 0 auto;display:grid;grid-template-columns:minmax(160px,1.6fr) 70px 74px 74px 78px 96px;gap:8px;padding:6px 13px;border-bottom:1px solid #141519;font-size:9.5px;letter-spacing:.5px;color:#5f6773">
+                <div>FLOW · TICKET</div><div style="text-align:right">BEFORE</div><div style="text-align:right">AFTER</div><div style="text-align:right">Δ</div><div>SHIFT</div><div style="text-align:right">COMPLIANCE</div>
+              </div>
+              <!-- rows -->
+              <div ref="{{ refs.blastList }}" style="flex:1;min-height:0;overflow-y:auto">
+                <sc-for list="{{ blast.rows }}" as="r" hint-placeholder-count="10">
+                  <div onClick="{{ r.onSelect }}" style="display:grid;grid-template-columns:minmax(160px,1.6fr) 70px 74px 74px 78px 96px;gap:8px;align-items:center;padding:8px 13px;border-bottom:1px solid #0f1116;cursor:pointer;background:{{ r.rowBg }};border-left:2px solid {{ r.edge }}" style-hover="background:#0f1117">
+                    <div style="min-width:0">
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <div style="width:6px;height:6px;border-radius:2px;background:{{ r.bucketColor }};flex:0 0 auto"></div>
+                        <span style="font-size:12px;color:#c8cfd7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.od }}</span>
+                      </div>
+                      <div style="font-size:9.5px;color:#5f6773;margin-left:12px;font-family:'Source Sans 3',sans-serif">{{ r.code }} · {{ r.km }}</div>
+                    </div>
+                    <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12px;color:#8b93a0">{{ r.beforeStr }}</div>
+                    <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12.5px;color:#dbe0e7;font-weight:600">{{ r.afterStr }}</div>
+                    <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:11.5px;color:{{ r.deltaColor }}">{{ r.deltaStr }}</div>
+                    <div style="height:5px;background:#090a0c;border-radius:3px;overflow:hidden;position:relative"><div style="position:absolute;top:0;right:50%;height:100%;width:{{ r.barPct }}%;background:{{ r.barColor }};opacity:.7;transform-origin:right;transition:width .5s ease {{ r.barDelay }}"></div><div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:#23262c"></div></div>
+                    <div style="text-align:right">
+                      <span style="font-size:9.5px;letter-spacing:.3px;color:{{ r.verdictColor }};border:1px solid {{ r.verdictBorder }};border-radius:4px;padding:2px 5px;white-space:nowrap">{{ r.verdictLabel }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- COMPLIANCE -->
+          <sc-if value="{{ analysis.showCompliance }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;overflow-y:auto;padding:12px 14px">
+              <div style="display:flex;gap:9px;margin-bottom:13px">
+                <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:10px 12px"><div style="font-size:22px;font-weight:600;color:#6f9e86;font-family:'Source Sans 3',sans-serif">{{ compliance.compliantN }}</div><div style="font-size:10.5px;color:#7b8390">compliant</div></div>
+                <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:10px 12px"><div style="font-size:22px;font-weight:600;color:#c17f6e;font-family:'Source Sans 3',sans-serif">{{ compliance.breachN }}</div><div style="font-size:10.5px;color:#7b8390">breach</div></div>
+                <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:10px 12px"><div style="font-size:22px;font-weight:600;color:#7b8390;font-family:'Source Sans 3',sans-serif">{{ compliance.notRegN }}</div><div style="font-size:10.5px;color:#7b8390">not regulated</div></div>
+              </div>
+              <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76;margin-bottom:8px">PROTECTED-FARE BREACHES</div>
+              <sc-if value="{{ compliance.hasBreaches }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{ compliance.breaches }}" as="b" hint-placeholder-count="3">
+                    <div onClick="{{ b.onSelect }}" style="padding:9px 11px;background:#130c0f;border:1px solid #2f201d;border-radius:8px;cursor:pointer" style-hover="border-color:#4a2b23">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-size:12.5px;color:#d8c4bf;font-weight:600">{{ b.od }}</span>
+                        <span style="font-family:'Source Sans 3',sans-serif;font-size:12px;color:#c17f6e">{{ b.afterStr }} <span style="color:#7b6560">&lt; floor {{ b.floorStr }}</span></span>
+                      </div>
+                      <div style="font-size:10px;color:#8a7570;margin-top:4px;font-family:'Source Sans 3',sans-serif">{{ b.cite }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ compliance.noBreaches }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:14px;text-align:center;color:#5f6773;font-size:11.5px;border:1px dashed #1b1e22;border-radius:8px">No protected-fare breaches at these parameters.</div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- ANOMALIES -->
+          <sc-if value="{{ analysis.showAnomalies }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;overflow-y:auto;padding:12px 14px">
+              <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76;margin-bottom:9px">FARE INVERSIONS DETECTED · {{ anomalies.count }}</div>
+              <sc-if value="{{ anomalies.has }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ anomalies.items }}" as="a" hint-placeholder-count="2">
+                    <div onClick="{{ a.onSelect }}" style="padding:10px 12px;background:#110e08;border:1px solid #2d2617;border-radius:8px;cursor:pointer" style-hover="border-color:#423419">
+                      <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#c2a15c" stroke-width="2"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg>
+                        <span style="font-size:9px;letter-spacing:.5px;color:#c2a15c">INVERSION · {{ a.kind }}</span>
+                      </div>
+                      <div style="font-size:12px;color:#d3cbb6;line-height:1.4">{{ a.text }}</div>
+                      <div style="font-size:10.5px;color:#8a8064;margin-top:5px">{{ a.detail }}</div>
+                      <div style="font-size:10px;color:#6b6350;margin-top:4px;font-style:italic">cause: {{ a.cause }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ anomalies.none }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:14px;text-align:center;color:#5f6773;font-size:11.5px;border:1px dashed #1b1e22;border-radius:8px">No fare inversions at these parameters.</div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- SPLITS -->
+          <sc-if value="{{ analysis.showSplits }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;overflow-y:auto;padding:12px 14px">
+              <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76;margin-bottom:9px">SPLIT-TICKET OPPORTUNITIES · {{ splits.count }}</div>
+              <sc-if value="{{ splits.has }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ splits.items }}" as="s" hint-placeholder-count="2">
+                    <div style="padding:11px 12px;background:#090a0c;border:1px solid #15171b;border-radius:8px">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:12.5px;color:#c8cfd7;font-weight:600">{{ s.od }}</span>
+                        <span style="font-size:14px;font-family:'Source Sans 3',sans-serif;color:#6f9e86;font-weight:600">save {{ s.saveStr }}</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:7px;font-family:'Source Sans 3',sans-serif;font-size:11px;color:#8b93a0;margin-bottom:8px">
+                        <span style="color:#7b8390">through {{ s.throughStr }}</span>
+                        <span style="color:#454c56">›</span>
+                        <span>{{ s.leg1 }}</span><span style="color:#454c56">+</span><span>{{ s.leg2 }}</span>
+                        <span style="color:#454c56">=</span><span style="color:#c8cfd7">{{ s.sumStr }}</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <div style="width:6px;height:6px;border-radius:50%;background:{{ s.vColor }}"></div>
+                        <span style="font-size:10px;color:{{ s.vColor }}">{{ s.verifyNote }}</span>
+                        <span style="font-size:10px;color:#5f6773">· split at {{ s.midName }}</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ splits.none }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:14px;text-align:center;color:#5f6773;font-size:11.5px;border:1px dashed #1b1e22;border-radius:8px">No split-ticket opportunities beat the through-fare here.</div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- PERFORMANCE -->
+          <sc-if value="{{ analysis.showPerformance }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;overflow-y:auto;padding:12px 14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76">SERVICE PERFORMANCE · calling-pattern source</div>
+                <div style="display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:{{ performance.modeDot }}"></div><span style="font-size:10px;color:{{ performance.modeColor }}">{{ performance.modeLabel }} · {{ performance.fetched }}</span></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <sc-for list="{{ performance.services }}" as="p" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:11px;padding:9px 11px;background:#090a0c;border:1px solid #15171b;border-radius:7px">
+                    <span style="font-family:'Source Sans 3',sans-serif;font-size:12px;color:#adb6c4;font-weight:600">{{ p.hc }}</span>
+                    <span style="flex:1;font-size:12px;color:#98a1ae">{{ p.route }}</span>
+                    <span style="font-size:11px;font-family:'Source Sans 3',sans-serif;color:{{ p.color }}">{{ p.status }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- REVENUE -->
+          <sc-if value="{{ analysis.showRevenue }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;overflow-y:auto;padding:14px">
+              <div style="display:flex;gap:12px;margin-bottom:14px">
+                <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:9px;padding:13px 14px">
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><span style="font-size:10px;letter-spacing:.5px;color:#626b76">TOTAL {{ revenue.label }}</span><span style="font-size:8.5px;letter-spacing:.5px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px">EST</span></div>
+                  <div style="font-family:'Source Sans 3',sans-serif;font-size:27px;font-weight:600;color:{{ revenue.color }};line-height:1">{{ revenue.totalStr }}</div>
+                  <div style="font-size:10.5px;color:#5f6773;margin-top:5px">per year · {{ revenue.journeysStr }} modelled journeys</div>
+                </div>
+              </div>
+              <div style="font-size:10.5px;letter-spacing:.5px;color:#626b76;margin-bottom:8px">EXACT vs ESTIMATED SPLIT</div>
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <div style="background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:11px 12px">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div style="display:flex;align-items:center;gap:7px"><span style="font-size:9px;letter-spacing:.5px;color:#0c0d0f;background:#6f9e86;border-radius:3px;padding:2px 6px;font-weight:700">EXACT</span><span style="font-size:11.5px;color:#98a1ae">feed-derived · LENNON railcard sales</span></div><span style="font-family:'Source Sans 3',sans-serif;font-size:14px;color:#c8cfd7;font-weight:600">{{ revenue.exactStr }}</span></div>
+                  <div style="height:5px;background:#101215;border-radius:3px;overflow:hidden"><div style="height:100%;width:{{ revenue.exactPct }}%;background:#6f9e86;opacity:.8"></div></div>
+                </div>
+                <div style="background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:11px 12px">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div style="display:flex;align-items:center;gap:7px"><span style="font-size:9px;letter-spacing:.5px;color:#c2a15c;border:1px dashed #574828;border-radius:3px;padding:1px 5px">EST</span><span style="font-size:11.5px;color:#98a1ae">modelled uptake proxy</span></div><span style="font-family:'Source Sans 3',sans-serif;font-size:14px;color:#c8cfd7;font-weight:600">{{ revenue.estStr }}</span></div>
+                  <div style="height:5px;background:#101215;border-radius:3px;overflow:hidden"><div style="height:100%;width:{{ revenue.estPct }}%;background:#c2a15c;opacity:.6"></div></div>
+                </div>
+              </div>
+              <div style="margin-top:12px;font-size:10px;color:#5f6773;line-height:1.5">{{ revenue.note }}</div>
+            </div>
+          </sc-if>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- col splitter 2 -->
+    <div onPointerDown="{{ onDrag.right }}" style="cursor:col-resize;background:#1a1c20" style-hover="background:#2f333a"></div>
+
+    <!-- ---------- RIGHT: PROVENANCE / QUEUE / CONTRADICTION ---------- -->
+    <aside data-screen-label="Provenance / Queue / Contradiction" style="min-width:0;min-height:0;display:flex;flex-direction:column;background:#0c0d0f">
+      <!-- tabs -->
+      <div style="flex:0 0 auto;display:flex;border-bottom:1px solid #1a1c20;background:#0d0e11">
+        <sc-for list="{{ rightTabs }}" as="t" hint-placeholder-count="3">
+          <div onClick="{{ t.onSelect }}" style="position:relative;flex:1;text-align:center;padding:10px 6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <span style="font-size:12px;color:{{ t.color }};font-weight:{{ t.weight }}">{{ t.label }}</span>
+            <sc-if value="{{ t.showBadge }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Source Sans 3',sans-serif;font-size:9.5px;color:{{ t.badgeColor }};background:{{ t.badgeBg }};border-radius:8px;padding:1px 5px;min-width:15px">{{ t.badge }}</span></sc-if>
+            <sc-if value="{{ t.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:12px;right:12px;bottom:0;height:2px;background:#adb6c4;border-radius:2px 2px 0 0"></div></sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="flex:1;min-height:0;overflow-y:auto">
+
+        <!-- PROVENANCE -->
+        <sc-if value="{{ right.showProv }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:13px 14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+              <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76">RESOLVED FARE</div>
+              <div style="font-size:9px;letter-spacing:.5px;color:#0c0d0f;background:#6f9e86;border-radius:3px;padding:2px 6px;font-weight:700">EXACT · FEED-DERIVED</div>
+            </div>
+            <div style="font-size:13px;color:#c8cfd7;margin-top:4px;font-weight:600">{{ prov.selLabel }}</div>
+            <div style="font-size:10.5px;color:#5f6773;margin-bottom:8px">{{ prov.productName }} · {{ prov.scopeNote }}</div>
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:3px">
+              <div ref="{{ refs.resolvedFare }}" style="font-family:'Source Sans 3',sans-serif;font-size:34px;font-weight:600;color:#f0f2f6;line-height:1">{{ prov.finalStr }}</div>
+              <div style="font-size:11px;color:#7b8390">was <span style="font-family:'Source Sans 3',sans-serif">{{ prov.beforeStr }}</span> <span style="color:{{ prov.deltaColor }}">{{ prov.deltaStr }}</span></div>
+            </div>
+
+            <div style="height:1px;background:#141519;margin:13px 0 12px"></div>
+            <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76;margin-bottom:11px">PROVENANCE CHAIN</div>
+
+            <!-- steps -->
+            <div ref="{{ refs.provList }}" style="position:relative">
+              <sc-for list="{{ prov.steps }}" as="s" hint-placeholder-count="5">
+                <div onClick="{{ s.onClick }}" style="position:relative;display:flex;gap:11px;cursor:pointer;padding-bottom:14px">
+                  <!-- rail + dot -->
+                  <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:14px">
+                    <div style="width:12px;height:12px;border-radius:50%;border:2px solid {{ s.dotColor }};background:{{ s.dotFill }};z-index:2"></div>
+                    <sc-if value="{{ s.showLine }}" hint-placeholder-val="{{ true }}"><div style="flex:1;width:2px;background:{{ s.lineColor }};margin-top:1px"></div></sc-if>
+                  </div>
+                  <!-- card -->
+                  <div style="flex:1;min-width:0;border:1px solid {{ s.cardBorder }};border-radius:8px;padding:9px 11px;background:{{ s.cardBg }};margin-top:-2px" style-hover="border-color:#2f333a">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                      <span style="font-size:12px;color:{{ s.labelColor }};font-weight:600">{{ s.label }}</span>
+                      <span style="font-family:'Source Sans 3',sans-serif;font-size:12px;color:{{ s.outColor }}">{{ s.outStr }}</span>
+                    </div>
+                    <div style="font-size:10.5px;color:#7b8390;margin-top:4px;line-height:1.4">{{ s.note }}</div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+                      <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#5f6773" stroke-width="2" style="flex:0 0 auto"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 0 1 0 10h-2"></path><path d="M8 12h8"></path></svg>
+                      <span style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.cite }}</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- raw source inspector -->
+            <div style="margin-top:4px;border:1px solid #15171b;border-radius:8px;background:#070809;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:7px;padding:8px 11px;border-bottom:1px solid #121417;background:#0b0c0e">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#7b8390" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
+                <span style="font-size:10.5px;letter-spacing:.5px;color:#7b8390">SOURCE RECORD — {{ prov.stepLabel }}</span>
+              </div>
+              <sc-if value="{{ prov.hasSource }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:9px 11px;max-height:190px;overflow:auto">
+                  <div style="font-size:10px;color:#8b93a0;margin-bottom:6px;font-weight:600">{{ prov.source.title }}</div>
+                  <sc-for list="{{ prov.source.lines }}" as="ln" hint-placeholder-count="6">
+                    <div style="font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#7f96a8;line-height:1.65;white-space:pre">{{ ln }}</div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ prov.noSource }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:14px 11px;font-size:10.5px;color:#5f6773;text-align:center">This step is a pass-through — no source record to inspect.</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- APPROVAL QUEUE -->
+        <sc-if value="{{ right.showQueue }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:13px 14px">
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0b0c0e;border:1px solid #15171b;border-radius:8px;margin-bottom:12px">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8a93a3" stroke-width="1.8" style="flex:0 0 auto"><rect x="5" y="11" width="14" height="9" rx="1.6"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+              <div style="font-size:10.5px;color:#8b93a0;line-height:1.4">Baseline <span style="font-family:'Source Sans 3',sans-serif;color:#7b8390">{{ snap.id }}</span> is read-only. Dispositions write to <span style="color:#adb6c4">staging</span> only.</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ queue.items }}" as="q" hint-placeholder-count="4">
+                <div style="border:1px solid {{ q.border }};border-radius:9px;background:{{ q.bg }};overflow:hidden">
+                  <div style="padding:10px 12px">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                      <div style="min-width:0">
+                        <div style="display:flex;align-items:center;gap:7px"><div style="width:7px;height:7px;border-radius:2px;background:{{ q.tColor }};flex:0 0 auto"></div><span style="font-size:12.5px;color:#d0d6dd;font-weight:600">{{ q.title }}</span></div>
+                        <div style="font-size:10.5px;color:#7b8390;margin-top:4px;margin-left:14px">{{ q.sub }}</div>
+                      </div>
+                      <span style="font-family:'Source Sans 3',sans-serif;font-size:11px;color:{{ q.tColor }};background:{{ q.countBg }};border-radius:6px;padding:2px 7px;flex:0 0 auto">{{ q.count }}</span>
+                    </div>
+                    <sc-if value="{{ q.hasDetail }}" hint-placeholder-val="{{ false }}"><div style="font-size:10px;color:#5f6773;margin-top:6px;margin-left:14px">{{ q.detail }}</div></sc-if>
+                  </div>
+                  <!-- disposition bar -->
+                  <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid {{ q.border }};background:#08090b">
+                    <sc-if value="{{ q.blocked }}" hint-placeholder-val="{{ false }}">
+                      <div onClick="{{ q.onGoResolve }}" style="flex:1;font-size:10.5px;color:#9a86b4;cursor:pointer;display:flex;align-items:center;gap:6px" style-hover="color:#b3a3c7"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#9a86b4" stroke-width="2"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 4.3 3 17a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path></svg>Resolve contradiction first →</div>
+                    </sc-if>
+                    <sc-if value="{{ q.actionable }}" hint-placeholder-val="{{ true }}">
+                      <div style="flex:1;font-size:10px;color:{{ q.dispColor }};display:flex;align-items:center;gap:5px"><div style="width:5px;height:5px;border-radius:50%;background:{{ q.dispColor }}"></div>{{ q.dispLabel }}</div>
+                      <div onClick="{{ q.onHold }}" style="font-size:11px;color:{{ q.holdColor }};border:1px solid {{ q.holdBorder }};border-radius:6px;padding:4px 11px;cursor:pointer" style-hover="border-color:#c2a15c">Hold</div>
+                      <div onClick="{{ q.onApprove }}" style="font-size:11px;color:{{ q.appColor }};background:{{ q.appBg }};border:1px solid {{ q.appBorder }};border-radius:6px;padding:4px 12px;cursor:pointer" style-hover="background:#16211a">Approve</div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- CONTRADICTION -->
+        <sc-if value="{{ right.showContra }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:13px 14px">
+            <sc-if value="{{ contra.present }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;padding:9px 11px;background:#0f0b13;border:1px solid #2b2138;border-radius:8px;margin-bottom:13px">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#9a86b4" stroke-width="1.9" style="flex:0 0 auto"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 4.3 3 17a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path></svg>
+                  <div><div style="font-size:12px;color:#c3b6d6;font-weight:600">Engine escalation — genuine conflict</div><div style="font-size:10.5px;color:#8b7fa0;margin-top:1px">{{ contra.od }} · no automatic resolution permitted</div></div>
+                </div>
+                <div style="font-size:11px;color:#8b93a0;line-height:1.5;margin-bottom:12px">Two authorities disagree on whether {{ contra.railcard }} applies to this flow. Select which governs — the engine will <span style="color:#adb6c4">not</span> pick a default.</div>
+
+                <!-- option A -->
+                <div onClick="{{ contra.onPickA }}" style="border:1.5px solid {{ contra.aBorder }};border-radius:9px;padding:11px 12px;margin-bottom:9px;cursor:pointer;background:{{ contra.aBg }}" style-hover="border-color:#493c5c">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                    <div style="width:16px;height:16px;border-radius:50%;border:2px solid {{ contra.aRing }};display:flex;align-items:center;justify-content:center"><sc-if value="{{ contra.aSel }}" hint-placeholder-val="{{ false }}"><div style="width:7px;height:7px;border-radius:50%;background:#9a86b4"></div></sc-if></div>
+                    <span style="font-size:12.5px;color:#d0d6dd;font-weight:600">{{ contra.optA.title }}</span>
+                  </div>
+                  <div style="font-size:10.5px;color:#8b93a0;line-height:1.45;margin-left:24px">{{ contra.optA.note }}</div>
+                  <div style="font-size:10px;color:#7b8390;margin-top:6px;margin-left:24px;font-family:'Source Sans 3',sans-serif">→ {{ contra.optA.result }}</div>
+                </div>
+                <!-- option B -->
+                <div onClick="{{ contra.onPickB }}" style="border:1.5px solid {{ contra.bBorder }};border-radius:9px;padding:11px 12px;margin-bottom:12px;cursor:pointer;background:{{ contra.bBg }}" style-hover="border-color:#493c5c">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                    <div style="width:16px;height:16px;border-radius:50%;border:2px solid {{ contra.bRing }};display:flex;align-items:center;justify-content:center"><sc-if value="{{ contra.bSel }}" hint-placeholder-val="{{ false }}"><div style="width:7px;height:7px;border-radius:50%;background:#9a86b4"></div></sc-if></div>
+                    <span style="font-size:12.5px;color:#d0d6dd;font-weight:600">{{ contra.optB.title }}</span>
+                  </div>
+                  <div style="font-size:10.5px;color:#8b93a0;line-height:1.45;margin-left:24px">{{ contra.optB.note }}</div>
+                  <div style="font-size:10px;color:#7b8390;margin-top:6px;margin-left:24px;font-family:'Source Sans 3',sans-serif">→ {{ contra.optB.result }}</div>
+                </div>
+
+                <sc-if value="{{ contra.resolved }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:#0a110c;border:1px solid #1b2c21;border-radius:8px">
+                    <div style="display:flex;align-items:center;gap:7px"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#6f9e86" stroke-width="2.2"><path d="M20 6 9 17l-5-5"></path></svg><span style="font-size:11px;color:#9fc0ae">Resolved — choice {{ contra.choice }} staged</span></div>
+                    <div onClick="{{ contra.onClear }}" style="font-size:10.5px;color:#7b8390;cursor:pointer" style-hover="color:#adb6c4">reopen</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ contra.unresolved }}" hint-placeholder-val="{{ true }}">
+                  <div style="padding:8px 11px;background:#130c0f;border:1px solid #2f201d;border-radius:8px;font-size:10.5px;color:#c09a90">1 fare held in <span style="font-weight:600">unresolved</span> state — excluded from clean counts until a choice is staged.</div>
+                </sc-if>
+              </div>
+            </sc-if>
+            <sc-if value="{{ contra.none }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:22px 14px;text-align:center;color:#5f6773"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#2f333a" stroke-width="1.6" style="margin-bottom:8px"><path d="M20 6 9 17l-5-5"></path></svg><div style="font-size:12px;color:#7b8390">No contradictions escalated</div><div style="font-size:10.5px;color:#5f6773;margin-top:3px">The engine resolved every flow deterministically at these parameters.</div></div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+    </aside>
+  </div>
+
+  <!-- bottom splitter -->
+  <div onPointerDown="{{ onDrag.bottom }}" style="height:5px;flex:0 0 5px;cursor:row-resize;background:#1a1c20" style-hover="background:#2f333a"></div>
+
+  <!-- ============ BOTTOM BAR ============ -->
+  <footer data-screen-label="Feed & status" style="flex:0 0 auto;height:var(--rfe-bottom,178px);display:flex;background:#0c0d0f;border-top:0;min-height:0">
+    <!-- settlement feed -->
+    <sc-if value="{{ showTicker }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:1.9 1 236px;min-width:0;display:flex;flex-direction:column;border-right:1px solid #1a1c20">
+      <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #141519">
+        <div style="width:6px;height:6px;border-radius:50%;background:{{ mode.dotColor }};animation:{{ mode.anim }}"></div>
+        <span style="font-size:10.5px;letter-spacing:.7px;color:#7b8390;font-weight:600">SETTLEMENT FEED</span>
+        <span style="font-size:9px;color:{{ mode.dotColor }};letter-spacing:.4px;border:1px solid #1b1e22;border-radius:4px;padding:1px 5px">{{ mode.label }}</span>
+        <span style="font-size:10px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ feedView.rate }}</span>
+        <div style="flex:1"></div>
+        <div onClick="{{ feedView.onPause }}" title="Pause / resume feed" style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:#8b93a0;border:1px solid #1b1e22;border-radius:5px;padding:3px 8px" style-hover="border-color:#2a2e34">
+          <sc-if value="{{ feedView.paused }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="9" height="9" fill="#8b93a0"><path d="M8 5v14l11-7z"></path></svg>resume</sc-if>
+          <sc-if value="{{ feedView.running }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" width="9" height="9" fill="#8b93a0"><rect x="6" y="5" width="4" height="14"></rect><rect x="14" y="5" width="4" height="14"></rect></svg>pause</sc-if>
+        </div>
+      </div>
+      <div style="flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:6px 12px;border-bottom:1px solid #141519;overflow-x:auto">
+        <sc-for list="{{ feedView.chips }}" as="ch" hint-placeholder-count="6">
+          <div onClick="{{ ch.onPick }}" style="font-size:10px;color:{{ ch.color }};padding:3px 9px;border-radius:12px;cursor:pointer;white-space:nowrap;border:1px solid {{ ch.border }};background:{{ ch.bg }}" style-hover="border-color:#2a2e34">{{ ch.label }}</div>
+        </sc-for>
+      </div>
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:3px 12px">
+        <sc-for list="{{ feedView.lines }}" as="f" hint-placeholder-count="6">
+          <div style="display:flex;gap:8px;align-items:center;padding:3px 0;font-family:'Source Sans 3',sans-serif;font-size:10.5px;border-bottom:1px solid #0d0e11">
+            <div style="width:5px;height:5px;border-radius:50%;background:{{ f.sevColor }};flex:0 0 auto"></div>
+            <span style="color:#454c56;flex:0 0 auto">{{ f.ts }}</span>
+            <span style="color:#5f6773;flex:0 0 auto;width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.source }}</span>
+            <span style="color:{{ f.color }};flex:0 0 auto;width:28px">{{ f.tag }}</span>
+            <span style="color:#98a1ae;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.text }}</span>
+            <span style="color:#3a4048;flex:0 0 auto">{{ f.lat }}</span>
+          </div>
+        </sc-for>
+        <sc-if value="{{ feedView.empty }}" hint-placeholder-val="{{ false }}"><div style="padding:14px;text-align:center;color:#5f6773;font-size:11px">No lines match this filter.</div></sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- split-ticket + anomaly mini -->
+    <div style="flex:1 1 148px;min-width:0;display:flex;flex-direction:column;border-right:1px solid #1a1c20;padding:9px 12px">
+      <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76;font-weight:600;margin-bottom:8px">DETECTED</div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <div style="display:flex;align-items:center;gap:9px"><div style="width:26px;height:26px;border-radius:6px;background:#110e08;border:1px solid #2d2617;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#c2a15c" stroke-width="2"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></div><div><div style="font-size:15px;font-weight:600;color:#c8cfd7;font-family:'Source Sans 3',sans-serif">{{ mini.anomalyStr }}</div><div style="font-size:9.5px;color:#5f6773">fare inversions</div></div></div>
+        <div style="display:flex;align-items:center;gap:9px"><div style="width:26px;height:26px;border-radius:6px;background:#0a0f0d;border:1px solid #16271f;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#6f9e86" stroke-width="2"><path d="M6 3v6l6 4 6-4V3"></path><path d="M6 21v-6M18 21v-6"></path></svg></div><div><div style="font-size:15px;font-weight:600;color:#c8cfd7;font-family:'Source Sans 3',sans-serif">{{ mini.splitStr }}</div><div style="font-size:9.5px;color:#5f6773">split opportunities</div></div></div>
+      </div>
+    </div>
+
+    <!-- aggregate counts -->
+    <div style="flex:1.5 1 208px;min-width:0;display:flex;flex-direction:column;border-right:1px solid #1a1c20;padding:9px 12px">
+      <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76;font-weight:600;margin-bottom:9px">IMPACT LEDGER</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <sc-for list="{{ ledger }}" as="l" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:8px;height:8px;border-radius:2px;background:{{ l.color }};flex:0 0 auto"></div>
+            <div ref="{{ l.ref }}" style="font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:{{ l.color }};min-width:22px">{{ l.count }}</div>
+            <div style="font-size:10px;color:#7b8390;line-height:1.1">{{ l.label }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- status + revenue -->
+    <div style="flex:1.2 1 186px;min-width:0;display:flex;flex-direction:column;padding:9px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+        <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76;font-weight:600">ENGINE STATUS</div>
+        <div style="display:flex;gap:6px">
+          <div onClick="{{ status.onSimTimeout }}" title="Simulate engine timeout" style="font-size:9.5px;color:#7b8390;border:1px solid #1b1e22;border-radius:5px;padding:3px 7px;cursor:pointer" style-hover="border-color:#2f333a">sim timeout</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <sc-if value="{{ status.computing }}" hint-placeholder-val="{{ false }}"><div style="width:13px;height:13px;border:2px solid #2a2e34;border-top-color:#8a93a3;border-radius:50%;animation:rfe-spin .7s linear infinite;flex:0 0 auto"></div></sc-if>
+        <sc-if value="{{ status.steady }}" hint-placeholder-val="{{ true }}"><div style="width:8px;height:8px;border-radius:50%;background:{{ status.dotColor }};flex:0 0 auto"></div></sc-if>
+        <div style="font-size:12.5px;color:{{ status.color }};font-weight:600">{{ status.label }}</div>
+      </div>
+      <sc-if value="{{ status.error }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 9px;background:#130c0f;border:1px solid #2f201d;border-radius:7px">
+          <span style="font-size:10.5px;color:#c09a90;flex:1;min-width:0">{{ status.errorText }}</span>
+          <div onClick="{{ status.onRetry }}" style="font-size:10.5px;color:#adb6c4;border:1px solid #23262c;border-radius:5px;padding:3px 9px;cursor:pointer;flex:0 0 auto" style-hover="background:#16181c">retry</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ status.ok }}" hint-placeholder-val="{{ true }}">
+        <div style="font-size:10.5px;color:#5f6773;line-height:1.5">{{ status.detail }}</div>
+      </sc-if>
+    </div>
+  </footer>
+
+  <!-- ============ NEW RAILCARD WIZARD ============ -->
+  <sc-if value="{{ wizard.open }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:62;background:rgba(8,9,11,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:28px">
+      <div style="width:100%;max-width:460px;background:#0f1114;border:1px solid #23262c;border-radius:16px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.6)">
+        <div style="padding:20px 22px 0">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:10px;letter-spacing:.9px;color:#5f6773">NEW RAILCARD · STEP {{ wizard.step }} OF 4</div>
+            <div onClick="{{ wizard.onCancel }}" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid #1b1e22;border-radius:7px;cursor:pointer;color:#98a1ae" style-hover="border-color:#2a2e34"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"></path></svg></div>
+          </div>
+          <div style="font-size:18px;color:#f0f2f6;font-weight:600;margin-top:6px">{{ wizard.stepTitle }}</div>
+          <div style="display:flex;gap:6px;margin-top:14px">
+            <sc-for list="{{ wizard.dots }}" as="d" hint-placeholder-count="4"><div style="flex:1;height:3px;border-radius:2px;background:{{ d.color }}"></div></sc-for>
+          </div>
+        </div>
+        <div style="padding:18px 22px 4px;min-height:158px">
+          <sc-if value="{{ wizard.isStep1 }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:11px;color:#7b8390;margin-bottom:6px">Product name</div>
+            <input value="{{ wizard.nameVal }}" onInput="{{ wizard.onName }}" placeholder="e.g. Highland Railcard" style="width:100%;background:#090a0c;border:1px solid {{ wizard.nameBorder }};border-radius:8px;color:#e7ebf0;font-size:14px;padding:10px 12px" style-focus="border-color:#2f333a" />
+            <div style="font-size:10.5px;color:#5f6773;margin-top:8px;line-height:1.5">This creates a brand-new discount product. Nothing is written to the baseline — it is staged for review.</div>
+          </sc-if>
+          <sc-if value="{{ wizard.isStep2 }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><div style="font-size:11px;color:#7b8390">Discount rate</div><div style="font-size:16px;color:#f0f2f6;font-weight:600">{{ wizard.discountStr }}</div></div>
+            <input type="range" min="0" max="60" step="1" value="{{ wizard.discountVal }}" onInput="{{ wizard.onDiscount }}" style="width:100%" />
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:10px 12px;background:#090a0c;border:1px solid #191b20;border-radius:9px">
+              <div><div style="font-size:12px;color:#c3cad3">Peak validity</div><div style="font-size:10px;color:#5f6773;margin-top:1px">{{ wizard.peakLabel }}</div></div>
+              <div onClick="{{ wizard.onPeak }}" style="width:38px;height:20px;border-radius:11px;background:{{ wizard.peakBg }};position:relative;cursor:pointer;transition:background .2s;flex:0 0 auto"><div style="position:absolute;top:2px;left:{{ wizard.peakKnob }};width:16px;height:16px;border-radius:50%;background:#e7ebf0;transition:left .2s"></div></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ wizard.isStep3 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11px;color:#7b8390;margin-bottom:6px">Scheme area</div>
+            <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px;margin-bottom:14px">
+              <sc-for list="{{ wizard.clusterOpts }}" as="c" hint-placeholder-count="3"><div onClick="{{ c.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ c.color }}"><sc-if value="{{ c.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if><span style="position:relative">{{ c.label }}</span></div></sc-for>
+            </div>
+            <div style="font-size:11px;color:#7b8390;margin-bottom:6px">Rounding rule</div>
+            <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px;margin-bottom:14px">
+              <sc-for list="{{ wizard.roundOpts }}" as="r" hint-placeholder-count="4"><div onClick="{{ r.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ r.color }}"><sc-if value="{{ r.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if><span style="position:relative">{{ r.label }}</span></div></sc-for>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><div style="font-size:11px;color:#7b8390">Min-fare floor</div><div style="font-size:13px;color:#c3cad3">{{ wizard.minFloorStr }}</div></div>
+            <input type="range" min="50" max="75" step="1" value="{{ wizard.minFloorVal }}" onInput="{{ wizard.onFloor }}" style="width:100%" />
+          </sc-if>
+          <sc-if value="{{ wizard.isStep4 }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#090a0c;border:1px solid #191b20;border-radius:10px;padding:14px 15px">
+              <div style="font-size:16px;color:#f0f2f6;font-weight:600">{{ wizard.reviewName }}</div>
+              <div style="font-size:11.5px;color:#8b93a0;margin-top:6px;line-height:1.5">{{ wizard.reviewParams }}</div>
+            </div>
+            <div style="font-size:10.5px;color:#5f6773;margin-top:12px;line-height:1.5">On create, this railcard is applied to the model and the impact recomputes live. It stays in staging — the baseline is never edited.</div>
+          </sc-if>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 22px 20px">
+          <div onClick="{{ wizard.onBack }}" style="font-size:12px;color:{{ wizard.backColor }};cursor:{{ wizard.backCursor }};padding:8px 4px">Back</div>
+          <sc-if value="{{ wizard.showNext }}" hint-placeholder-val="{{ true }}"><div onClick="{{ wizard.onNext }}" style="background:#e7ebf0;color:#0c0d0f;font-size:12.5px;font-weight:600;padding:9px 20px;border-radius:9px;cursor:pointer" style-hover="background:#ffffff">Continue</div></sc-if>
+          <sc-if value="{{ wizard.showCreate }}" hint-placeholder-val="{{ false }}"><div onClick="{{ wizard.onCreate }}" style="background:#6f9e86;color:#0a120c;font-size:12.5px;font-weight:600;padding:9px 20px;border-radius:9px;cursor:pointer" style-hover="background:#7fae96">Create railcard</div></sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ IMPACT REPORT OVERLAY ============ -->
+  <sc-if value="{{ showReport }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:60;background:rgba(8,9,11,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:28px">
+      <div style="width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;background:#fbfbf9;border-radius:18px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.5);color:#1c1c1e">
+        <div style="flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:26px 28px 20px">
+          <div style="min-width:0">
+            <div style="font-size:10.5px;letter-spacing:.8px;color:#a2a29c">IMPACT REPORT</div>
+            <div style="font-size:22px;color:#1c1c1e;font-weight:600;margin-top:5px;letter-spacing:-.2px">{{ report.title }}</div>
+            <div style="font-size:12.5px;color:#77776f;margin-top:5px">{{ report.params }}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex:0 0 auto">
+            <div onClick="{{ report.onPrint }}" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#3a3a3c;border:1px solid #e2e2dd;border-radius:9px;padding:8px 13px;cursor:pointer" style-hover="background:#f1f1ed"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M6 14h12v8H6z"></path></svg>Print</div>
+            <div onClick="{{ report.onClose }}" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid #e2e2dd;border-radius:9px;cursor:pointer;color:#77776f" style-hover="background:#f1f1ed"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"></path></svg></div>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:4px 28px 24px">
+          <div style="display:flex;gap:26px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid #e8e7e2;margin-bottom:22px">
+            <div><div style="font-size:9.5px;letter-spacing:.5px;color:#a2a29c">SNAPSHOT</div><div style="font-size:12.5px;color:#3a3a3c;margin-top:3px">{{ report.snapshot }}</div></div>
+            <div><div style="font-size:9.5px;letter-spacing:.5px;color:#a2a29c">GENERATED</div><div style="font-size:12.5px;color:#3a3a3c;margin-top:3px">{{ report.generated }}</div></div>
+            <div><div style="font-size:9.5px;letter-spacing:.5px;color:#a2a29c">DISPOSITION</div><div style="font-size:12.5px;color:#3a3a3c;margin-top:3px">staging · baseline read-only</div></div>
+          </div>
+          <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:12px">AGGREGATE · {{ report.total }} AFFECTED FARES</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:26px">
+            <sc-for list="{{ report.buckets }}" as="b" hint-placeholder-count="4">
+              <div style="background:#ffffff;border:1px solid #edece7;border-radius:13px;padding:14px 15px">
+                <div style="font-size:27px;font-weight:600;color:#1c1c1e;letter-spacing:-.5px">{{ b.count }}</div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:5px"><div style="width:6px;height:6px;border-radius:50%;background:{{ b.color }}"></div><span style="font-size:11.5px;color:#77776f">{{ b.label }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:12px">REVENUE {{ report.revLabel }}</div>
+          <div style="background:#ffffff;border:1px solid #edece7;border-radius:13px;padding:18px;margin-bottom:26px">
+            <div style="display:flex;align-items:baseline;gap:10px"><div style="font-size:30px;font-weight:600;color:#1c1c1e;letter-spacing:-.5px">{{ report.revStr }}</div><div style="font-size:10px;color:#9a7b32;border:1px solid #e0d3ad;border-radius:5px;padding:1px 6px">EST</div></div>
+            <div style="display:flex;gap:22px;margin-top:14px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:7px"><span style="font-size:9.5px;color:#fbfbf9;background:#1c1c1e;border-radius:4px;padding:2px 6px;font-weight:600">EXACT</span><span style="font-size:13px;color:#1c1c1e;font-weight:500">{{ report.revExact }}</span><span style="font-size:11px;color:#a2a29c">{{ report.exactPct }}% feed-derived</span></div>
+              <div style="display:flex;align-items:center;gap:7px"><span style="font-size:9.5px;color:#9a7b32;border:1px dashed #d8c79a;border-radius:4px;padding:1px 6px">EST</span><span style="font-size:13px;color:#1c1c1e;font-weight:500">{{ report.revEst }}</span><span style="font-size:11px;color:#a2a29c">{{ report.estPct }}% modelled</span></div>
+            </div>
+          </div>
+          <sc-if value="{{ report.hasBreaches }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:10px">COMPLIANCE BREACHES</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:26px">
+              <sc-for list="{{ report.breaches }}" as="b" hint-placeholder-count="2">
+                <div style="background:#ffffff;border:1px solid #edece7;border-radius:11px;padding:12px 14px">
+                  <div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:13px;color:#1c1c1e;font-weight:600">{{ b.od }}</span><span style="font-size:12.5px;color:#b0574a">{{ b.after }} &lt; {{ b.floor }}</span></div>
+                  <div style="font-size:11px;color:#8a8a82;margin-top:4px">{{ b.cite }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ report.hasAnoms }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:10px">FARE INVERSIONS</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:26px">
+              <sc-for list="{{ report.anomalies }}" as="a" hint-placeholder-count="2">
+                <div style="background:#ffffff;border:1px solid #edece7;border-radius:11px;padding:12px 14px">
+                  <div style="font-size:13px;color:#2c2c2e">{{ a.text }}</div>
+                  <div style="font-size:11px;color:#8a8a82;margin-top:4px">{{ a.detail }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ report.hasSplits }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:10px">SPLIT-TICKET OPPORTUNITIES</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:26px">
+              <sc-for list="{{ report.splits }}" as="s" hint-placeholder-count="2">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#ffffff;border:1px solid #edece7;border-radius:11px;padding:12px 14px">
+                  <div style="min-width:0"><span style="font-size:13px;color:#1c1c1e">{{ s.od }}</span> <span style="font-size:11px;color:#a2a29c">via {{ s.via }}</span></div>
+                  <div style="display:flex;align-items:center;gap:9px;flex:0 0 auto"><span style="font-size:11px;color:{{ s.vColor }}">{{ s.vLabel }}</span><span style="font-size:13px;color:#3f7d63;font-weight:600">save {{ s.save }}</span></div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ report.contradiction }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:10px">CONTRADICTION</div>
+            <div style="background:#ffffff;border:1px solid #edece7;border-radius:11px;padding:13px 14px">
+              <div style="font-size:13px;color:#1c1c1e;font-weight:600">{{ report.contradiction.od }}</div>
+              <div style="font-size:11.5px;color:#6d5f8c;margin-top:4px">{{ report.contradiction.status }}</div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="flex:0 0 auto;padding:16px 28px;border-top:1px solid #e8e7e2;font-size:11px;color:#a2a29c;line-height:1.5">Generated from {{ report.snapshot }} · figures marked EXACT are feed-derived; EST are modelled and never shown to the penny. Dispositions remain in staging.</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ BOOT / ERROR OVERLAY ============ -->
+  <sc-if value="{{ notReady }}" hint-placeholder-val="{{ true }}">
+    <div style="position:fixed;inset:0;background:#08090b;z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div style="width:26px;height:26px;border:1px solid #2f333a;border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative"><div style="width:10px;height:10px;border:1.5px solid #adb6c4;border-radius:50%"></div></div>
+        <div style="font-weight:600;font-size:16px;letter-spacing:2px;color:#f0f2f6">MERIDIAN</div>
+      </div>
+      <sc-if value="{{ engineError }}" hint-placeholder-val="">
+        <div style="color:#c17f6e;font-size:12px">{{ engineError }}</div>
+      </sc-if>
+      <sc-if value="{{ booting }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:9px;color:#7b8390;font-size:12px"><div style="width:13px;height:13px;border:2px solid #1b1e22;border-top-color:#8a93a3;border-radius:50%;animation:rfe-spin .7s linear infinite"></div>mounting fares snapshot {{ snap.id }}…</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#0c0d0f"/><circle cx="50" cy="38" r="8" fill="none" stroke="#8a93a3" stroke-width="2.5"/><line x1="50" y1="46" x2="50" y2="70" stroke="#6f9e86" stroke-width="2.5"/><circle cx="50" cy="70" r="3" fill="#c2a15c"/></svg>
+  </template>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#8a93a3&quot;,&quot;options&quot;:[&quot;#8a93a3&quot;,&quot;#8a93a3&quot;,&quot;#7e9b8f&quot;,&quot;#a98f7d&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;,&quot;label&quot;:&quot;UI accent&quot;},&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Appearance&quot;,&quot;label&quot;:&quot;Reduce motion&quot;},&quot;showTicker&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;,&quot;label&quot;:&quot;Show settlement feed ticker&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.C = { bg0:'#08090b', bg1:'#0c0d0f', bg2:'#101215', bg3:'#16181c', line:'#1a1c20', line2:'#2a2e34',
+      tx0:'#d8dde4', tx1:'#98a1ae', tx2:'#626b76', tx3:'#464d57',
+      ac:'#8a93a3', acHi:'#b3bcca', acDim:'#5f6773',
+      ok:'#6f9e86', warn:'#c2a15c', bad:'#c17f6e', viol:'#9a86b4', info:'#8a93a3', down:'#6f9e86', up:'#c2a15c' };
+    this.state = {
+      ready:false, engineError:null,
+      params:{ discountPct:34, peakOn:false, rounding:'near10', cluster:'scotland', minFloorPct:55, railcardName:'Highland Railcard', changeType:'add' },
+      includes:{ compliance:true, splits:true, performance:true, revenue:true, validity:true },
+      perfAvailable:true, feedMode:'live', feedFetchedSec:2,
+      disp:{ contradiction:null }, queueDisp:{},
+      selFlow:'ABD-EDB:OPR', selCorridor:'abd', selStep:'railcard',
+      activeRight:'prov', activeAnalysis:'blast',
+      hoverNode:null, filterStation:null,
+      computing:false, resultsCurrent:true, computeError:null, degraded:false,
+      lookup:'', lookupErr:null,
+      feed:[], animEpoch:0,
+      env:'demo', envNote:false, showReport:false, feedFilter:'all', feedPaused:false,
+      mapZoom:1, mapPan:{ x:0, y:0 },
+      activeRailcard:'highland', productMenuOpen:false, wizard:null
+    };
+    this.RAILCARDS = [
+      { id:'highland', name:'Highland Railcard', discountPct:34, peakOn:false, cluster:'scotland', minFloorPct:55, rounding:'near10', kind:'existing' },
+      { id:'tayfife', name:'Tay & Fife Rover', discountPct:20, peakOn:false, cluster:'tayfife', minFloorPct:60, rounding:'near10', kind:'existing' },
+      { id:'club50', name:'Club 50 Scotland', discountPct:25, peakOn:true, cluster:'scotland', minFloorPct:60, rounding:'near5', kind:'existing' }
+    ];
+    this._els = {}; this._impact = null; this._prevImpact = null; this._lastFareP = null; this._sizes = null;
+    this._lastAnimEpoch = -1; this._lastSelFlow = null; this._lastFareEpoch = -1;
+    this.PERF = [
+      { hc:'1H23', route:'Inverness → Edinburgh', crs:['INV','EDB'], status:'RT +2m', ok:true },
+      { hc:'1A44', route:'Aberdeen → Glasgow QS', crs:['ABD','GLC'], status:'RT', ok:true },
+      { hc:'2K09', route:'Perth → Inverness', crs:['PTH','INV'], status:'RT +6m', ok:true },
+      { hc:'1E18', route:'Edinburgh → Glasgow', crs:['EDB','GLC'], status:'CANC', ok:false },
+      { hc:'2D71', route:'Dundee → Edinburgh', crs:['DEE','EDB'], status:'RT +1m', ok:true },
+      { hc:'1S07', route:'Aberdeen → Edinburgh', crs:['ABD','EDB'], status:'RT +3m', ok:true }
+    ];
+    this._ref = {};
+    ['countTotal','revenueNum','resolvedFare','blastList','bClean','bAnomaly','bBreach','bContradiction',
+     'lClean','lAnomaly','lBreach','lContradiction','mapSvg','provList','aggList'].forEach((k) => { this._ref[k] = (el) => { this._els[k] = el; }; });
+  }
+
+  /* ---------------- lifecycle ---------------- */
+  componentDidMount() {
+    this._sizes = this.loadSizes();
+    this.applySizes();
+    this.waitEngine(0);
+    this._onResize = () => { if (!this._sizes) return; this._sizes = this.clampSizes(this._sizes); this.applySizes(); this.forceUpdate(); };
+    window.addEventListener('resize', this._onResize);
+    this._feedTimer = setInterval(() => this.tickFeed(), 2600);
+    this._freshTimer = setInterval(() => { this.setState((s) => ({ feedFetchedSec: s.feedMode === 'live' ? (1 + Math.floor(Math.random()*3)) : s.feedFetchedSec + 3 })); }, 3000);
+  }
+  componentWillUnmount() { clearInterval(this._feedTimer); clearInterval(this._freshTimer); clearTimeout(this._rt); if (this._onResize) window.removeEventListener('resize', this._onResize); }
+  componentDidUpdate() {
+    if (!this._impact) return;
+    if (this.state.resultsCurrent && this.state.animEpoch !== this._lastAnimEpoch) {
+      this._lastAnimEpoch = this.state.animEpoch;
+      const prev = this._prevImpact, cur = this._impact;
+      const g = (o, k) => (o ? o.counts[k] : 0);
+      this.animNum('countTotal', g(prev,'total'), cur.counts.total, (v)=>v);
+      this.animNum('bClean', g(prev,'clean'), cur.counts.clean, (v)=>v);
+      this.animNum('bAnomaly', g(prev,'anomaly'), cur.counts.anomaly, (v)=>v);
+      this.animNum('bBreach', g(prev,'breach'), cur.counts.breach, (v)=>v);
+      this.animNum('bContradiction', g(prev,'contradiction'), cur.counts.contradiction, (v)=>v);
+      this.animNum('lClean', g(prev,'clean'), cur.counts.clean, (v)=>v);
+      this.animNum('lAnomaly', g(prev,'anomaly'), cur.counts.anomaly, (v)=>v);
+      this.animNum('lBreach', g(prev,'breach'), cur.counts.breach, (v)=>v);
+      this.animNum('lContradiction', g(prev,'contradiction'), cur.counts.contradiction, (v)=>v);
+      this.animNum('revenueNum', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBig(v));
+      this.animateBlast();
+      this.animateList('aggList', 55, 300);
+    }
+    if (this.state.selFlow !== this._lastSelFlow || this.state.animEpoch !== this._lastFareEpoch) {
+      this._lastSelFlow = this.state.selFlow; this._lastFareEpoch = this.state.animEpoch;
+      this.animateFare();
+      this.animateList('provList', 55, 300);
+    }
+  }
+
+  waitEngine(n) {
+    if (window.RFE) { this.seedFeed(); this.recompute(true); this.setState({ ready:true }); return; }
+    if (n > 80) { this.setState({ engineError:'Fare engine failed to load (fare-engine.js not reachable).' }); return; }
+    setTimeout(() => this.waitEngine(n + 1), 40);
+  }
+
+  /* ---------------- sizing / splitters ---------------- */
+  loadSizes() {
+    let d = { left:326, right:392, anah:318, bottom:178 };
+    try { const s = JSON.parse(localStorage.getItem('rfe.sizes')); if (s) d = Object.assign(d, s); } catch (e) {}
+    return this.clampSizes(d);
+  }
+  clampSizes(s) {
+    const W = window.innerWidth || 1440, minCenter = 360, sp = 10;
+    let left = Math.max(240, Math.min(s.left || 326, 560));
+    let right = Math.max(300, Math.min(s.right || 392, 680));
+    let over = (left + right + sp + minCenter) - W;
+    if (over > 0) { const rc = right - 300, t = Math.min(over, rc); right -= t; over -= t;
+      if (over > 0) { const lc = left - 240, t2 = Math.min(over, lc); left -= t2; } }
+    return { left: Math.round(left), right: Math.round(right),
+      anah: Math.max(130, Math.min(s.anah || 318, 560)), bottom: Math.max(134, Math.min(s.bottom || 178, 420)) };
+  }
+  applySizes() {
+    const s = this._sizes, r = document.documentElement.style;
+    r.setProperty('--rfe-left', s.left + 'px'); r.setProperty('--rfe-right', s.right + 'px');
+    r.setProperty('--rfe-anah', s.anah + 'px'); r.setProperty('--rfe-bottom', s.bottom + 'px');
+  }
+  startDrag(key, e) {
+    e.preventDefault();
+    const W = window.innerWidth;
+    const cfg = { left:{axis:'x',sign:1,min:240,max:Math.max(240, W - this._sizes.right - 370)},
+      right:{axis:'x',sign:-1,min:300,max:Math.max(300, W - this._sizes.left - 370)},
+      anah:{axis:'y',sign:-1,min:130,max:560}, bottom:{axis:'y',sign:-1,min:92,max:420} }[key];
+    const start = cfg.axis === 'x' ? e.clientX : e.clientY;
+    const base = this._sizes[key];
+    const move = (ev) => {
+      const p = cfg.axis === 'x' ? ev.clientX : ev.clientY;
+      let v = base + cfg.sign * (p - start);
+      v = Math.max(cfg.min, Math.min(cfg.max, v));
+      this._sizes[key] = v; this.applySizes();
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      document.body.style.cursor = ''; document.body.style.userSelect = '';
+      try { localStorage.setItem('rfe.sizes', JSON.stringify(this._sizes)); } catch (er) {}
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    document.body.style.cursor = cfg.axis === 'x' ? 'col-resize' : 'row-resize'; document.body.style.userSelect = 'none';
+  }
+
+  /* ---------------- recompute ---------------- */
+  effIncludes() { const inc = Object.assign({}, this.state.includes); if (!this.state.perfAvailable) inc.performance = false; return inc; }
+  recompute(immediate) {
+    if (!window.RFE) return;
+    const run = () => {
+      try {
+        this._prevImpact = this._impact;
+        const params = Object.assign({}, this.state.params, { withdraw: this.state.params.changeType === 'withdraw' });
+        this._impact = window.RFE.computeImpact({ params, includes: this.effIncludes(), disp: this.state.disp });
+        this.setState((s) => ({ computing:false, resultsCurrent:true, computeError:null, animEpoch:s.animEpoch + 1 }));
+      } catch (err) {
+        this.setState({ computing:false, resultsCurrent:true, computeError:'Impact engine error — showing last computed result', degraded:true });
+      }
+    };
+    clearTimeout(this._rt);
+    this.setState({ computing:true, resultsCurrent:false });
+    this._rt = setTimeout(run, immediate ? 300 : 380);
+  }
+  setParam(patch) { this.setState((s) => ({ params:Object.assign({}, s.params, patch) }), () => this.recompute()); }
+  setInclude(id) { this.setState((s) => ({ includes:Object.assign({}, s.includes, { [id]: !s.includes[id] }) }), () => this.recompute()); }
+
+  /* ---------------- interactions ---------------- */
+  selectFlow(key) { this.setState({ selFlow:key, activeRight:'prov', selStep:'railcard', lookupErr:null }); }
+  selectCorridor(id) {
+    const cor = window.RFE.CORRIDORS.find((c) => c.id === id);
+    this.setState({ selCorridor:id, selFlow:(cor ? cor.defFlow : this.state.selFlow), activeRight:'prov', selStep:'railcard', filterStation:null });
+  }
+  filterByStation(crs) { this.setState((s) => ({ filterStation: s.filterStation === crs ? null : crs, activeAnalysis:'blast' })); }
+  pickContradiction(choice) { this.setState((s) => ({ disp:{ contradiction: s.disp.contradiction === choice ? null : choice } }), () => this.recompute()); }
+  dispose(key, verdict) { this.setState((s) => ({ queueDisp:Object.assign({}, s.queueDisp, { [key]: verdict }) })); }
+  lookupSubmit() {
+    const v = (this.state.lookup || '').trim();
+    if (!v) { this.setState({ lookupErr:null }); return; }
+    const parts = v.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+    if (parts.length < 2) { this.setState({ lookupErr:'Enter two station codes, e.g. ABD-EDB' }); return; }
+    const o = parts[0], d = parts[1];
+    if (!window.RFE.ST[o]) { this.setState({ lookupErr:'Unknown station code "' + o + '"' }); return; }
+    if (!window.RFE.ST[d]) { this.setState({ lookupErr:'Unknown station code "' + d + '"' }); return; }
+    const f = window.RFE.getFlow(o, d);
+    if (!f) { this.setState({ lookupErr:'No fare record for ' + o + '→' + d + ' in this snapshot' }); return; }
+    this.setState({ lookupErr:null, selFlow:(f.o + '-' + f.d + ':' + f.products[0].code), activeRight:'prov', selStep:'flow' });
+  }
+  toggleOutage() {
+    const down = this.state.feedMode === 'live';
+    this.setState({ feedMode: down ? 'fixture' : 'live', perfAvailable: !down, degraded: down, feedFetchedSec: down ? 0 : 2 }, () => {
+      this.pushFeed(down ? { kind:'sys', text:'LIVE FEED LOST — serving cached fixture ' + window.RFE.SNAPSHOT.id }
+                         : { kind:'sys', text:'live feed reconnected — resuming stream' });
+      if (!down) this.recompute();
+    });
+  }
+  simTimeout() {
+    clearTimeout(this._rt);
+    this.setState({ computing:true, resultsCurrent:false });
+    this._rt = setTimeout(() => {
+      this.setState({ computing:false, resultsCurrent:true, computeError:'Impact engine timed out (1.1s) — retained last computed result', degraded:true });
+      this.pushFeed({ kind:'sys', text:'engine timeout — last good result retained (cached)' });
+    }, 1100);
+  }
+  retry() { this.setState({ computeError:null }); this.recompute(true); }
+
+  /* ---------------- toolbar / report / env / map interactions ---------------- */
+  openReport() { this.setState({ showReport:true }); }
+  closeReport() { this.setState({ showReport:false }); }
+  runImpact() { this.recompute(true); }
+  setEnv(e) { if (e === 'live') { this.setState({ envNote:true }); clearTimeout(this._envT); this._envT = setTimeout(() => this.setState({ envNote:false }), 3400); return; } this.setState({ env:e, envNote:false }); }
+  setFeedFilter(k) { this.setState({ feedFilter:k }); }
+  toggleFeedPause() { this.setState((s) => ({ feedPaused: !s.feedPaused })); }
+  mapZoomBy(f) { this.setState((s) => ({ mapZoom: Math.max(0.6, Math.min(3.4, s.mapZoom * f)) })); }
+  mapReset() { this.setState({ mapZoom:1, mapPan:{ x:0, y:0 } }); }
+  onMapWheel(e) { e.preventDefault(); const f = e.deltaY < 0 ? 1.12 : 0.893; this.setState((s) => ({ mapZoom: Math.max(0.6, Math.min(3.4, s.mapZoom * f)) })); }
+  startMapPan(e) {
+    if (e.button !== 0) return; const svg = this._els.mapSvg; if (!svg) return; e.preventDefault();
+    const rect = svg.getBoundingClientRect(), z = this.state.mapZoom, vbw = 150 / z, vbh = 414 / z;
+    const upp = Math.max(vbw / rect.width, vbh / rect.height);
+    const sx = e.clientX, sy = e.clientY, base = { x:this.state.mapPan.x, y:this.state.mapPan.y };
+    const move = (ev) => { this.setState({ mapPan:{ x: base.x - (ev.clientX - sx) * upp, y: base.y - (ev.clientY - sy) * upp } }); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); document.body.style.cursor = ''; };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); document.body.style.cursor = 'grabbing';
+  }
+  mapViewBox() { const z = this.state.mapZoom, p = this.state.mapPan, w = 150 / z, h = 414 / z, cx = 225 + p.x, cy = 279 + p.y;
+    return (cx - w/2).toFixed(1) + ' ' + (cy - h/2).toFixed(1) + ' ' + w.toFixed(1) + ' ' + h.toFixed(1); }
+  sevColor(s) { return { info:this.C.acDim, warn:this.C.warn, err:this.C.bad }[s] || this.C.acDim; }
+
+  /* ---- product selector + new-railcard wizard ---- */
+  toggleProductMenu() { this.setState((s) => ({ productMenuOpen: !s.productMenuOpen })); }
+  selectRailcard(id) { const r = this.RAILCARDS.find((x) => x.id === id); if (!r) return;
+    this.setState((s) => ({ activeRailcard:id, productMenuOpen:false, params:Object.assign({}, s.params, { railcardName:r.name, discountPct:r.discountPct, peakOn:r.peakOn, cluster:r.cluster, minFloorPct:r.minFloorPct, rounding:r.rounding, changeType:'add' }) }), () => this.recompute(true)); }
+  setChangeTypeAction(t) { this.setState({ productMenuOpen:false }); this.setParam({ changeType:t }); }
+  startWizard() { this.setState({ productMenuOpen:false, wizard:{ step:1, draft:{ name:'', discountPct:34, peakOn:false, cluster:'scotland', minFloorPct:55, rounding:'near10' } } }); }
+  wizardSet(patch) { this.setState((s) => ({ wizard:Object.assign({}, s.wizard, { draft:Object.assign({}, s.wizard.draft, patch) }) })); }
+  wizardStep(delta) { this.setState((s) => { const st = Math.max(1, Math.min(4, s.wizard.step + delta)); return { wizard:Object.assign({}, s.wizard, { step:st }) }; }); }
+  cancelWizard() { this.setState({ wizard:null }); }
+  createRailcard() { const d = this.state.wizard.draft, name = (d.name || '').trim() || 'New Railcard', id = 'rc' + Date.now();
+    this.RAILCARDS.push({ id, name, discountPct:d.discountPct, peakOn:d.peakOn, cluster:d.cluster, minFloorPct:d.minFloorPct, rounding:d.rounding, kind:'new' });
+    this.setState((s) => ({ wizard:null, activeRailcard:id, params:Object.assign({}, s.params, { railcardName:name, discountPct:d.discountPct, peakOn:d.peakOn, cluster:d.cluster, minFloorPct:d.minFloorPct, rounding:d.rounding, changeType:'add' }) }), () => { this.recompute(true); this.pushFeed({ kind:'sys', severity:'info', source:'SYS', text:'new railcard staged \u00b7 ' + name }); }); }
+
+  buildProduct() { const S = this.state, RFE = window.RFE;
+    const active = this.RAILCARDS.find((r) => r.id === S.activeRailcard) || this.RAILCARDS[0];
+    const isNew = active && active.kind === 'new';
+    return { name:S.params.railcardName, subLabel: isNew ? 'new railcard \u00b7 staged' : 'existing product',
+      typeLabel: S.params.changeType === 'withdraw' ? 'Withdrawing' : (S.params.changeType === 'adjust' ? 'Adjusting' : 'Adding'),
+      menuOpen:S.productMenuOpen, menuBorder:S.productMenuOpen ? '#2f333a' : '#191b20', chev:S.productMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+      onToggle:() => this.toggleProductMenu(),
+      railcards:this.RAILCARDS.map((r) => ({ name:r.name, summary:r.discountPct + '% ' + (r.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + (RFE ? RFE.CLUSTER_LABEL[r.cluster] : ''), isNew:r.kind === 'new', bg: r.id === S.activeRailcard ? '#131519' : 'transparent', dot: r.id === S.activeRailcard ? '#8a93a3' : '#3a4048', onSelect:() => this.selectRailcard(r.id) })),
+      onNew:() => this.startWizard(), onAdjust:() => this.setChangeTypeAction('adjust'), onWithdraw:() => this.setChangeTypeAction('withdraw') };
+  }
+  buildWizard() { const S = this.state, RFE = window.RFE; if (!S.wizard) return { open:false };
+    const w = S.wizard, d = w.draft;
+    const titles = ['Name your product','Set the discount','Scheme & rounding','Review & create'];
+    return { open:true, step:w.step, stepTitle:titles[w.step-1],
+      dots:[1,2,3,4].map((n) => ({ color: w.step >= n ? '#8a93a3' : '#1b1e24' })),
+      isStep1:w.step===1, isStep2:w.step===2, isStep3:w.step===3, isStep4:w.step===4,
+      nameVal:d.name, nameBorder:(w.step===1 && !(d.name||'').trim()) ? '#4a2b23' : '#191b20', onName:(e) => this.wizardSet({ name:e.target.value }),
+      discountVal:d.discountPct, discountStr:d.discountPct + '%', onDiscount:(e) => this.wizardSet({ discountPct:+e.target.value }),
+      peakOn:d.peakOn, peakLabel:d.peakOn ? 'Anytime (peak + off-peak)' : 'Off-peak only', peakBg:d.peakOn ? '#8a93a3' : '#1b1e24', peakKnob:d.peakOn ? '20px' : '2px', onPeak:() => this.wizardSet({ peakOn:!d.peakOn }),
+      clusterOpts:[['scotland','ScotRail'],['highland','Highland'],['tayfife','Tay\u00b7Fife']].map((c) => ({ label:c[1], active:d.cluster===c[0], color:d.cluster===c[0] ? '#e7ebf0' : '#7b8390', onPick:() => this.wizardSet({ cluster:c[0] }) })),
+      roundOpts:[['near10','10p'],['near5','5p'],['down10','\u219310p'],['none','None']].map((r) => ({ label:r[1], active:d.rounding===r[0], color:d.rounding===r[0] ? '#e7ebf0' : '#7b8390', onPick:() => this.wizardSet({ rounding:r[0] }) })),
+      minFloorVal:d.minFloorPct, minFloorStr:d.minFloorPct + '%', onFloor:(e) => this.wizardSet({ minFloorPct:+e.target.value }),
+      reviewName:(d.name||'').trim() || 'New Railcard', reviewParams:d.discountPct + '% ' + (d.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + (RFE ? RFE.CLUSTER_LABEL[d.cluster] : '') + ' \u00b7 rounding ' + d.rounding + ' \u00b7 floor ' + d.minFloorPct + '%',
+      showNext:w.step<4, showCreate:w.step===4, backColor:w.step>1 ? '#98a1ae' : '#3a4048', backCursor:w.step>1 ? 'pointer' : 'default',
+      onNext:() => this.wizardStep(1), onBack:() => this.wizardStep(-1), onCancel:() => this.cancelWizard(), onCreate:() => this.createRailcard() };
+  }
+
+  buildToolbar() {
+    const S = this.state, RFE = window.RFE;
+    const cor = RFE ? RFE.CORRIDORS.find((c) => c.id === S.selCorridor) : null;
+    let flowLabel = '\u2014'; try { const pk = RFE.parseKey(S.selFlow); flowLabel = RFE.ST[pk.o].name + ' \u2192 ' + RFE.ST[pk.d].name + ' \u00b7 ' + pk.code; } catch (e) {}
+    return { corridorName: cor ? cor.name : '\u2014', flowLabel,
+      onRun:() => this.runImpact(), onReport:() => this.openReport(),
+      demoActive: S.env === 'demo', liveActive: S.env === 'live', idle: !S.computing,
+      demoColor: S.env === 'demo' ? '#dfe3e9' : '#7b8390', demoWeight: S.env === 'demo' ? 600 : 400,
+      onDemo:() => this.setEnv('demo'), onLive:() => this.setEnv('live'), computing:S.computing };
+  }
+  buildFeedView() {
+    const S = this.state;
+    const chips = [['all','All'],['fare','Fares'],['perf','Perf'],['ovr','Overrides'],['policy','Policy'],['sys','System']]
+      .map((p) => { const a = S.feedFilter === p[0]; return { label:p[1], active:a, color:a?'#d0d6dd':'#7b8390', border:a?'#2a2e34':'#171a1e', bg:a?'#16181c':'transparent', onPick:() => this.setFeedFilter(p[0]) }; });
+    let lines = S.feed; if (S.feedFilter !== 'all') lines = lines.filter((f) => f.kind === S.feedFilter);
+    const view = lines.slice(0, 40).map((f) => ({ ts:f.ts, text:f.text, tag:this.feedTag(f.kind), color:this.feedColor(f.kind),
+      source:f.source || 'RSP', sevColor:this.sevColor(f.severity), lat: f.lat != null ? f.lat + 'ms' : '\u00b7', id:f.id }));
+    return { chips, lines:view, paused:S.feedPaused, running: !S.feedPaused, onPause:() => this.toggleFeedPause(),
+      rate: (S.feedMode === 'live' && !S.feedPaused) ? ('~' + (18 + (this._impact ? this._impact.counts.total : 0) % 9) + '/min') : (S.feedPaused ? 'paused' : 'idle'),
+      count:view.length, empty:view.length === 0 };
+  }
+  buildReport() {
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
+    if (!imp || !RFE) return { ready:false, onClose:() => this.closeReport() };
+    const c = imp.counts, rev = imp.revenue, withdraw = S.params.changeType === 'withdraw';
+    return { ready:true, onClose:() => this.closeReport(), onPrint:() => { try { window.print(); } catch (e) {} },
+      title:(withdraw ? 'Withdraw ' : 'Add ') + S.params.railcardName,
+      params:S.params.discountPct + '% ' + (S.params.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + RFE.CLUSTER_LABEL[S.params.cluster] + ' \u00b7 rounding ' + RFE.roundingLabel(S.params.rounding),
+      snapshot:RFE.SNAPSHOT.id + ' \u00b7 ' + RFE.SNAPSHOT.date, generated:this.nowStamp(),
+      total:c.total,
+      buckets:[{ label:'Clean', count:c.clean, color:C.ok },{ label:'Anomaly', count:c.anomaly, color:C.warn },{ label:'Breach', count:c.breach, color:C.bad },{ label:'Contradiction', count:c.contradiction, color:C.viol }],
+      revStr:RFE.fmtBig(rev.totalP), revExact:RFE.fmtBig(rev.exactP), revEst:RFE.fmtBig(rev.estP), revColor: rev.totalP < 0 ? C.down : C.up, revLabel: withdraw ? 'recovered' : 'exposure', exactPct:rev.exactShare, estPct:100 - rev.exactShare,
+      breaches:imp.breaches.map((b) => ({ od:b.oName + ' \u2192 ' + b.dName, after:RFE.fmtMoney(b.afterP), floor:RFE.fmtMoney(b.compliance.floorP), cite:b.compliance.cite })),
+      anomalies:imp.anomalies.map((a) => ({ text:a.text, detail:a.detail })),
+      splits:imp.splits.map((s) => ({ od:s.oName + ' \u2192 ' + s.dName, save:RFE.fmtMoney(s.saveP), via:s.midName, vColor: s.verified ? C.ok : C.warn, vLabel: s.verified ? 'verified' : 'unverified' })),
+      contradiction: imp.contradictions.length ? { od:imp.contradictions[0].oName + ' \u2194 ' + imp.contradictions[0].dName, resolved: S.disp.contradiction != null, status: S.disp.contradiction ? ('resolved \u00b7 choice ' + S.disp.contradiction + ' staged') : 'unresolved \u2014 decision required' } : null,
+      hasBreaches:imp.breaches.length > 0, hasAnoms:imp.anomalies.length > 0, hasSplits:imp.splits.length > 0 };
+  }
+
+  /* ---------------- feed ---------------- */
+  nowStamp() { const d = new Date(); const p = (n)=>('0'+n).slice(-2); return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+  pushFeed(line) { this.setState((s) => ({ feed:[Object.assign({ ts:this.nowStamp(), id:Math.random(), severity:'info', source:'SYS', lat:null }, line)].concat(s.feed).slice(0, 40) })); }
+  seedFeed() {
+    const S = window.RFE.SNAPSHOT;
+    const seed = [
+      { kind:'sys', severity:'info', source:'SYS', lat:42, text:'snapshot ' + S.id + ' mounted · ' + S.records.toLocaleString() + ' records' },
+      { kind:'fare', severity:'info', source:'RSP', lat:88, text:'RJFAF Δ flow 01230 DEE→EDB OPR 2205 (no change)' },
+      { kind:'perf', severity:'info', source:'DARWIN', lat:120, text:'1H23 Inverness→Edinburgh · RT +2m' },
+      { kind:'ovr', severity:'warn', source:'RSP-OVR', lat:64, text:'override OVR-4471 ABD→EDB revalidated' },
+      { kind:'policy', severity:'info', source:'RDG', lat:150, text:'RSS §4.2 eligibility check · Tay & Fife' }
+    ];
+    this.setState({ feed: seed.map((l) => Object.assign({ ts:this.nowStamp(), id:Math.random() }, l)) });
+  }
+  randomFeed() {
+    const R = window.RFE, flows = Object.values(R.FLOWS), roll = Math.random(), lat = 20 + Math.floor(Math.random()*380);
+    if (roll < 0.34) { const f = flows[Math.floor(Math.random()*flows.length)], p = f.products[0];
+      return { kind:'fare', severity:'info', source:'RSP', lat, text:'RJFAF Δ flow ' + f.seq + ' ' + f.o + '→' + f.d + ' ' + p.code + ' ' + p.baseP + ' (no change)' }; }
+    if (roll < 0.6) { const s = this.PERF[Math.floor(Math.random()*this.PERF.length)];
+      return { kind:'perf', severity: s.ok ? 'info' : 'warn', source:'DARWIN', lat, text: s.hc + ' ' + s.route + ' · ' + s.status }; }
+    if (roll < 0.76) return { kind:'ovr', severity:'warn', source:'RSP-OVR', lat, text:'override OVR-' + (4100 + Math.floor(Math.random()*400)) + ' checkpoint ok' };
+    if (roll < 0.9) return { kind:'model', severity:'info', source:'LENNON', lat, text:'uptake model refresh · ' + this.state.params.cluster + ' +' + (1 + Math.floor(Math.random()*9)/10).toFixed(1) + '%' };
+    return { kind:'policy', severity:'info', source:'RDG', lat, text:'RSS §4.2 eligibility sweep · ' + flows[Math.floor(Math.random()*flows.length)].o + '↔' + flows[Math.floor(Math.random()*flows.length)].d };
+  }
+  tickFeed() {
+    if (!this.state.ready || this.state.feedPaused) return;
+    if (this.state.feedMode !== 'live') { if (Math.random() < 0.28) this.pushFeed({ kind:'sys', severity:'warn', source:'SYS', text:'serving cached snapshot · ' + this.state.feedFetchedSec + 's stale' }); return; }
+    this.pushFeed(this.randomFeed());
+  }
+
+  /* ---------------- animation helpers ---------------- */
+  animNum(refKey, from, to, fmt) {
+    if (this.props.reduceMotion) { const el0 = this._els[refKey]; if (el0) el0.textContent = fmt(to); return; }
+    const el = this._els[refKey]; if (!el) return;
+    const t0 = performance.now(), dur = 560;
+    const step = (t) => { let k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3);
+      const v = from + (to - from) * k; el.textContent = fmt(Math.round(v)); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  animateFare() {
+    const el = this._els.resolvedFare; if (!el || !window.RFE) return;
+    let res = null; try { const pk = window.RFE.parseKey(this.state.selFlow);
+      res = window.RFE.resolve(pk.o, pk.d, pk.code, Object.assign({}, this.state.params, { withdraw:false }), this.state.disp, true); } catch (e) {}
+    if (!res) return;
+    const to = res.finalP, from = this._lastFareP == null ? to : this._lastFareP; this._lastFareP = to;
+    if (this.props.reduceMotion) { el.textContent = window.RFE.fmtMoney(to); return; }
+    const t0 = performance.now(), dur = 520;
+    const step = (t) => { let k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3);
+      el.textContent = window.RFE.fmtMoney(Math.round(from + (to - from) * k)); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  animateBlast() {
+    if (this.props.reduceMotion) return;
+    const list = this._els.blastList; if (!list) return;
+    const kids = list.children;
+    for (let i = 0; i < kids.length; i++) { const el = kids[i]; if (el.animate)
+      el.animate([{ opacity:0, transform:'translateY(7px)' }, { opacity:1, transform:'none' }],
+        { duration:340, delay:Math.min(i * 20, 560), easing:'cubic-bezier(.2,.8,.2,1)', fill:'backwards' }); }
+  }
+  animateList(refKey, stagger, dur) {
+    if (this.props.reduceMotion) return;
+    const el = this._els[refKey]; if (!el) return;
+    const kids = el.children;
+    for (let i = 0; i < kids.length; i++) { const c = kids[i]; if (c.animate)
+      c.animate([{ opacity:0, transform:'translateY(5px)' }, { opacity:1, transform:'none' }],
+        { duration:dur, delay:Math.min(i * stagger, 520), easing:'cubic-bezier(.2,.8,.2,1)', fill:'backwards' }); }
+  }
+
+  /* ---------------- color helpers ---------------- */
+  lighten(hex, amt) { amt = amt == null ? 0.3 : amt; const n = parseInt(hex.slice(1), 16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    r=Math.round(r+(255-r)*amt); g=Math.round(g+(255-g)*amt); b=Math.round(b+(255-b)*amt);
+    return '#' + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); }
+  bucketColor(b) { return { clean:this.C.ok, anomaly:this.C.warn, breach:this.C.bad, contradiction:this.C.viol }[b] || this.C.ac; }
+  verdictColor(v) { return { compliant:this.C.ok, breach:this.C.bad, 'not-regulated':this.C.tx1, pending:this.C.viol }[v] || this.C.tx1; }
+  toneColor(t) { return { clean:this.C.ok, breach:this.C.bad, anomaly:this.C.warn, contradiction:this.C.viol, info:this.C.info }[t] || this.C.ac; }
+  pathAlong(list) { const pts = list.map((c) => { const s = window.RFE.ST[c]; return s.x + ' ' + s.y; }); return 'M' + pts.join(' L'); }
+
+  /* ============================ RENDER ============================ */
+  renderVals() {
+    const C = this.C, S = this.state;
+    // apply accent prop
+    const ac = this.props.accent || '#8a93a3';
+    C.ac = ac; C.acHi = this.lighten(ac, 0.32); C.acDim = this.lighten('#08090b', 0) && ac;
+    const RFE = window.RFE;
+    const V = {
+      ready:S.ready, engineError:S.engineError, notReady:!S.ready, booting:!S.ready && !S.engineError,
+      showTicker: this.props.showTicker !== false,
+      snap: RFE ? { feed:RFE.SNAPSHOT.feed, id:RFE.SNAPSHOT.id, date:RFE.SNAPSHOT.date, records:RFE.SNAPSHOT.records.toLocaleString(), flows:RFE.SNAPSHOT.flows.toLocaleString() } : { feed:'RJFAF', id:'RJFAF_2025_0518_F', date:'2025-05-18', records:'2,214,883', flows:'47,912' },
+      refs:this._ref,
+      onDrag:{ left:(e)=>this.startDrag('left',e), right:(e)=>this.startDrag('right',e), anah:(e)=>this.startDrag('anah',e), bottom:(e)=>this.startDrag('bottom',e) },
+      feed: S.feed.map((f) => ({ ts:f.ts, text:f.text, tag:this.feedTag(f.kind), color:this.feedColor(f.kind), id:f.id }))
+    };
+    V.showAgg = (this._sizes ? (window.innerWidth - this._sizes.left - this._sizes.right - 10) : 900) >= 500;
+
+    // top-bar data mode
+    const md = S.feedMode === 'live' ? { label:'LIVE', dotColor:C.ok, anim:'rfe-pulse 2s ease-in-out infinite', fetched:'fetched ' + S.feedFetchedSec + 's ago' }
+      : { label:'FIXTURE', dotColor:C.tx2, anim:'none', fetched:'cached · ' + S.feedFetchedSec + 's stale' };
+    md.onToggle = () => this.toggleOutage();
+    V.mode = md;
+
+    const q = this.buildQueue();
+    V.staging = { approved:q.approved, held:q.held, pending:q.pending };
+
+    // status
+    let st;
+    if (S.computing) st = { computing:true, steady:false, label:'Recomputing…', color:C.warn, dotColor:C.warn, ok:false, error:false, detail:'' };
+    else if (S.computeError) st = { computing:false, steady:true, label:'Cached result', color:C.bad, dotColor:C.bad, ok:false, error:true, errorText:S.computeError };
+    else st = { computing:false, steady:true, label:'Results current', color:C.ok, dotColor:C.ok, ok:true, error:false,
+      detail:'Live-recomputed against ' + (RFE ? RFE.SNAPSHOT.id : '') + ' · ' + (this._impact ? this._impact.counts.total : 0) + ' fares resolved' };
+    st.onSimTimeout = () => this.simTimeout(); st.onRetry = () => this.retry();
+    V.status = st;
+
+    // corridors
+    V.corridors = (RFE ? RFE.CORRIDORS : []).map((c) => {
+      const active = S.selCorridor === c.id;
+      return { name:c.name, sub:c.sub, endpoints:c.path[0] + '·' + c.path[c.path.length-1],
+        active, bg: active ? '#131519' : 'transparent', border: active ? '#2f333a' : '#171a1e',
+        dot: active ? C.acHi : C.tx3, nameColor: active ? '#f0f2f6' : '#98a1ae', weight: active ? 600 : 400,
+        onSelect:() => this.selectCorridor(c.id) };
+    });
+
+    // change builder
+    V.change = this.buildChange();
+
+    // modules
+    V.modules = this.buildModules();
+    const inc = this.effIncludes();
+    V.includeQuery = ['compliance','splits','performance','revenue','validity'].filter((k) => inc[k]).join(',') || '(none)';
+
+    // lookup
+    V.lookup = { value:S.lookup, err:S.lookupErr, border: S.lookupErr ? '#4a2b23' : '#191b20',
+      onInput:(e)=>this.setState({lookup:e.target.value}), onSubmit:()=>this.lookupSubmit(),
+      onKey:(e)=>{ if(e.key==='Enter') this.lookupSubmit(); } };
+
+    // map + impact
+    V.map = this.buildMap();
+    V.impact = this.buildImpact();
+
+    // analysis
+    const at = this.buildAnalysisTabs();
+    V.analysisTabs = at.tabs; V.analysis = at.state;
+    V.blast = this.buildBlast();
+    V.compliance = this.buildCompliance();
+    V.anomalies = this.buildAnomalies();
+    V.splits = this.buildSplits();
+    V.performance = this.buildPerformance();
+    V.revenue = this.buildRevenue();
+
+    // right tabs
+    V.rightTabs = this.buildRightTabs();
+    V.right = { showProv:S.activeRight==='prov', showQueue:S.activeRight==='queue', showContra:S.activeRight==='contra' };
+    V.prov = this.buildProvenance();
+    V.queue = q;
+    V.contra = this.buildContradiction();
+
+    // bottom mini + ledger
+    const cts = this._impact ? this._impact.counts : { clean:0,anomaly:0,breach:0,contradiction:0 };
+    V.ledger = [
+      { label:'clean', count:cts.clean, color:C.ok, ref:this._ref.lClean },
+      { label:'anomaly', count:cts.anomaly, color:C.warn, ref:this._ref.lAnomaly },
+      { label:'breach', count:cts.breach, color:C.bad, ref:this._ref.lBreach },
+      { label:'contradiction', count:cts.contradiction, color:C.viol, ref:this._ref.lContradiction }
+    ];
+    V.mini = { anomalyStr:String(this._impact ? this._impact.anomalies.length : 0), splitStr:String(this._impact ? this._impact.splits.length : 0) };
+
+    V.tb = this.buildToolbar();
+    V.feedView = this.buildFeedView();
+    V.report = this.buildReport();
+    V.product = this.buildProduct();
+    V.wizard = this.buildWizard();
+    V.env = S.env; V.envNote = S.envNote; V.showReport = S.showReport;
+    V.map.onWheel = (e) => this.onMapWheel(e); V.map.onPanStart = (e) => this.startMapPan(e);
+    V.map.onZoomIn = () => this.mapZoomBy(1.25); V.map.onZoomOut = () => this.mapZoomBy(0.8);
+    V.map.onReset = () => this.mapReset(); V.map.zoomLabel = Math.round(S.mapZoom * 100) + '%';
+    return V;
+  }
+
+  feedTag(k) { return { fare:'FARE', perf:'PERF', ovr:'OVR', model:'MDL', policy:'POL', sys:'SYS' }[k] || 'LOG'; }
+  feedColor(k) { return { fare:this.C.ac, perf:this.C.info, ovr:this.C.warn, model:this.C.tx1, policy:this.C.viol, sys:this.C.bad }[k] || this.C.tx1; }
+
+  buildChange() {
+    const C = this.C, p = this.state.params;
+    const seg = (opts, cur, on) => opts.map((o) => ({ label:o.label, active:cur===o.id, color:cur===o.id?'#f0f2f6':'#7b8390', weight:cur===o.id?600:400, onPick:()=>on(o.id) }));
+    return {
+      typeOpts: seg([{id:'add',label:'Add railcard'},{id:'adjust',label:'Adjust discount'},{id:'withdraw',label:'Withdraw'}], p.changeType, (id)=>this.setParam({changeType:id})),
+      railcardName:p.railcardName, onName:(e)=>this.setState((s)=>({params:Object.assign({},s.params,{railcardName:e.target.value})}), ()=>this.recompute()),
+      discountVerb: p.changeType==='withdraw' ? 'Discount being withdrawn' : 'Discount rate',
+      discountPct:p.discountPct, discountStr:p.discountPct + '%', onDiscount:(e)=>this.setParam({discountPct:+e.target.value}),
+      peakOn:p.peakOn, peakLabel: p.peakOn ? 'Anytime (peak + off-peak)' : 'Off-peak only',
+      peakBg: p.peakOn ? C.ac : '#1b1e24', peakKnob: p.peakOn ? '20px' : '2px', onPeak:()=>this.setParam({peakOn:!p.peakOn}),
+      roundingOpts: seg([{id:'near10',label:'10p'},{id:'near5',label:'5p'},{id:'down10',label:'↓10p'},{id:'none',label:'None'}], p.rounding, (id)=>this.setParam({rounding:id})),
+      clusterOpts: seg([{id:'scotland',label:'ScotRail'},{id:'highland',label:'Highland'},{id:'tayfife',label:'Tay·Fife'}], p.cluster, (id)=>this.setParam({cluster:id})),
+      clusterFull: window.RFE ? window.RFE.CLUSTER_LABEL[p.cluster] : '',
+      minFloorPct:p.minFloorPct, minFloorStr:p.minFloorPct + '%', onFloor:(e)=>this.setParam({minFloorPct:+e.target.value})
+    };
+  }
+
+  buildModules() {
+    const C = this.C, S = this.state;
+    const defs = [
+      { id:'compliance', label:'Compliance', param:'include=compliance' },
+      { id:'splits', label:'Split tickets', param:'include=splits' },
+      { id:'performance', label:'Performance', param:'include=performance' },
+      { id:'revenue', label:'Revenue', param:'include=revenue' },
+      { id:'validity', label:'Validity / inversions', param:'include=validity' }
+    ];
+    return defs.map((d) => {
+      const on = S.includes[d.id];
+      const unavail = d.id === 'performance' && !S.perfAvailable;
+      let statusLabel, modeColor, modeDot;
+      if (unavail) { statusLabel = 'UNAVAIL'; modeColor = C.bad; modeDot = C.bad; }
+      else if (!on) { statusLabel = 'off'; modeColor = C.tx3; modeDot = C.tx3; }
+      else if (d.id === 'performance') { statusLabel = S.feedMode==='live'?'LIVE':'CACHED'; modeColor = S.feedMode==='live'?C.ok:C.warn; modeDot = modeColor; }
+      else { statusLabel = 'FIXTURE'; modeColor = C.tx1; modeDot = C.acDim; }
+      return { label:d.label, param:d.param, on:on && !unavail,
+        border: (on&&!unavail) ? '#23262c' : '#141519', bg:(on&&!unavail)?'#101215':'transparent', opacity: unavail?0.55:1, cursor: unavail?'not-allowed':'pointer',
+        boxBorder:(on&&!unavail)?C.ac:'#2f333a', boxBg:(on&&!unavail)?C.ac:'transparent',
+        labelColor:(on&&!unavail)?'#d0d6dd':'#7b8390', statusLabel, modeColor, modeDot,
+        onToggle:()=>{ if(!unavail) this.setInclude(d.id); } };
+    });
+  }
+
+  buildMap() {
+    const C = this.C, S = this.state, RFE = window.RFE;
+    if (!RFE) return { nodes:[], edges:[], pulses:[], legend:[], outline:'', hover:{show:false}, scopeLabel:'', scopeShort:'' };
+    const stats = this._impact ? this._impact.stationStats : {};
+    const cluster = S.params.cluster, hub = 'EDB', maxD = 300;
+    const reduce = this.props.reduceMotion;
+    const inClu = (c) => RFE.inCluster(c, cluster);
+    const corridor = RFE.CORRIDORS.find((c) => c.id === S.selCorridor);
+    const corridorSet = corridor ? corridor.path : [];
+
+    const nodes = RFE.STATIONS.map((s) => {
+      const affected = !!stats[s.id];
+      const stat = stats[s.id] || {};
+      const bucket = stat.contradiction ? 'contradiction' : stat.breach ? 'breach' : stat.anomaly ? 'anomaly' : affected ? 'clean' : null;
+      const col = bucket ? this.bucketColor(bucket) : (inClu(s.id) ? C.acDim : C.tx3);
+      const dfh = RFE.dist(s.id, hub);
+      const delay = affected ? Math.min(420, (dfh / maxD) * 420) : 0;
+      const lit = S.resultsCurrent && affected;
+      const onCorridor = corridorSet.indexOf(s.id) >= 0;
+      const r = affected ? (lit ? 3.6 + Math.min(3.6, (stat.affected || 1) * 0.6) : 2.8) : (inClu(s.id) ? 2.4 : 1.9);
+      const glow = lit && bucket && bucket !== 'clean';
+      const showLabel = affected || onCorridor || ['EDB','GLC','ABD','INV','KGX','YRK','NCL'].indexOf(s.id) >= 0;
+      return {
+        cx:s.x, cy:s.y, r, fill:col,
+        opacity: lit ? 1 : (affected ? 0.78 : (inClu(s.id) ? 0.7 : 0.4)),
+        filter: glow ? 'drop-shadow(0 0 4px ' + col + ')' : 'none',
+        transition: reduce ? 'none' : ('fill 380ms ease ' + delay + 'ms, r 420ms cubic-bezier(.2,.8,.2,1) ' + delay + 'ms, opacity 320ms ease ' + delay + 'ms'),
+        showLabel, label:s.id, labelX: s.x > 226 ? s.x + 5 : s.x - 5, anchor: s.x > 226 ? 'start' : 'end',
+        labelColor: affected ? '#c8cfd7' : (onCorridor ? '#98a1ae' : '#5f6773'),
+        labelSize: affected ? 7.6 : 6.8, labelWeight: affected ? 600 : 400,
+        selRing: S.filterStation === s.id || (S.hoverNode === s.id && affected), ringR: r + 3.5, ringColor:col,
+        onClick:() => this.filterByStation(s.id),
+        onEnter:() => this.setState({ hoverNode:s.id }), onLeave:() => this.setState({ hoverNode:null })
+      };
+    });
+
+    const edges = RFE.EDGES.map((e) => {
+      const a = RFE.ST[e[0]], b = RFE.ST[e[1]];
+      const aff = inClu(e[0]) && inClu(e[1]);
+      const dfh = Math.min(RFE.dist(e[0], hub), RFE.dist(e[1], hub));
+      const delay = aff ? Math.min(420, (dfh / maxD) * 420) : 0;
+      const lit = S.resultsCurrent && aff;
+      const hl = S.hoverNode && (e[0] === S.hoverNode || e[1] === S.hoverNode);
+      return { x1:a.x, y1:a.y, x2:b.x, y2:b.y,
+        stroke: hl ? C.acHi : (lit ? C.ac : (aff ? C.acDim : '#191c21')),
+        width: hl ? 2 : (aff ? (lit ? 1.5 : 1) : 0.7), opacity: hl ? 1 : (aff ? (lit ? 0.85 : 0.5) : 0.35),
+        transition: reduce ? 'none' : ('stroke 420ms ease ' + delay + 'ms, opacity 420ms ease ' + delay + 'ms, stroke-width 420ms ease ' + delay + 'ms') };
+    });
+
+    const pulses = [];
+    if (!reduce) {
+      if (inClu('ABD')) pulses.push({ d:this.pathAlong(['ABD','STN','MTS','ARB','DEE','LEU','KDY','INK','EDB']), dur:'8s', color:C.ac });
+      if (inClu('INV')) pulses.push({ d:this.pathAlong(['INV','AVM','KIN','BLA','PIT','DKD','PTH','STG','EDB']), dur:'9.5s', color:C.ac });
+      if (inClu('GLC')) pulses.push({ d:this.pathAlong(['GLC','EDB','INK','KDY']), dur:'7s', color:C.acHi });
+    }
+
+    // hover info
+    let hover = { show:false };
+    if (S.hoverNode) { const s = RFE.ST[S.hoverNode]; const stat = stats[S.hoverNode];
+      hover = { show:true, name:s.name, crs:s.id,
+        line1: stat ? (stat.affected + ' affected fare' + (stat.affected===1?'':'s')) : (inClu(S.hoverNode) ? 'in scheme area · no change' : 'outside scheme area'),
+        line2: stat && stat.deltaP ? ('net ' + RFE.fmtDelta(stat.deltaP) + ' per ticket') : (S.filterStation===S.hoverNode ? 'click to clear filter' : 'click to filter blast list') };
+    }
+
+    const outline = 'M182 78 C196 70 214 74 220 88 C236 84 250 96 250 110 C264 116 268 134 256 142 C266 158 260 178 246 184 C256 200 250 214 236 214 C246 236 250 262 245 300 C250 338 262 368 284 398 C298 426 296 460 282 484 C274 498 260 494 256 478 C250 452 238 442 240 412 C230 388 220 376 226 350 C214 332 200 336 194 356 C186 372 172 362 178 342 C170 318 178 302 200 302 C190 282 178 270 190 252 C178 234 168 216 180 202 C160 200 154 186 170 176 C156 166 152 148 172 142 C158 128 154 104 172 96 C160 88 168 80 182 78 Z';
+    const legend = [
+      { label:'clean', color:C.ok }, { label:'anomaly', color:C.warn }, { label:'breach', color:C.bad }, { label:'contradiction', color:C.viol }
+    ];
+    return { nodes, edges, pulses, legend, outline, hover, viewBox:this.mapViewBox(),
+      scopeLabel: 'Highland Railcard · ' + (RFE.CLUSTER_LABEL[cluster] || '') + ' · ' + (this._impact ? this._impact.counts.total : 0) + ' fares touched',
+      scopeShort: RFE.CLUSTER_LABEL[cluster] || '' };
+  }
+
+  buildImpact() {
+    const C = this.C, RFE = window.RFE, imp = this._impact;
+    if (!imp) return { total:0, buckets:[], affectedStations:0, revenueStr:'£0', journeysStr:'0', exactPct:0, estPct:0, revColor:C.tx1, scaleNote:'', scopeShort:'', revLabel:'exposure' };
+    const c = imp.counts;
+    const affStations = Object.keys(imp.stationStats).length;
+    const buckets = [
+      { label:'clean', count:c.clean, color:C.ok, pct: c.total?Math.round(c.clean/c.total*100):0, ref:this._ref.bClean },
+      { label:'anomaly', count:c.anomaly, color:C.warn, pct: c.total?Math.round(c.anomaly/c.total*100):0, ref:this._ref.bAnomaly },
+      { label:'breach', count:c.breach, color:C.bad, pct: c.total?Math.round(c.breach/c.total*100):0, ref:this._ref.bBreach },
+      { label:'contradiction', count:c.contradiction, color:C.viol, pct: c.total?Math.max(4,Math.round(c.contradiction/c.total*100)):0, ref:this._ref.bContradiction }
+    ];
+    const withdraw = this.state.params.changeType === 'withdraw';
+    const total = imp.revenue.totalP;
+    return { total:c.total, buckets, affectedStations:affStations,
+      revenueStr:RFE.fmtBig(total), journeysStr:imp.revenue.journeys.toLocaleString(),
+      revColor: total < 0 ? C.down : (total > 0 ? C.up : C.tx1),
+      revLabel: withdraw ? 'recovered' : 'exposure',
+      exactPct:imp.revenue.exactShare, estPct:100 - imp.revenue.exactShare,
+      scopeShort: RFE.CLUSTER_LABEL[this.state.params.cluster],
+      scaleNote:'Node size scales with per-station fare count; fan-out ripples outward from the Edinburgh hub in geographic distance order.' };
+  }
+
+  buildAnalysisTabs() {
+    const C = this.C, S = this.state, inc = this.effIncludes(), imp = this._impact;
+    const defs = [
+      { id:'blast', label:'Blast radius', on:true, badge: imp?imp.counts.total:0, badgeTone:'ac' },
+      { id:'compliance', label:'Compliance', on:inc.compliance, badge: imp?imp.counts.breach:0, badgeTone:'bad' },
+      { id:'anomalies', label:'Anomalies', on:inc.validity, badge: imp?imp.anomalies.length:0, badgeTone:'warn' },
+      { id:'splits', label:'Split tickets', on:inc.splits, badge: imp?imp.splits.length:0, badgeTone:'info' },
+      { id:'performance', label:'Performance', on:inc.performance && S.perfAvailable, badge:0, badgeTone:'ac' },
+      { id:'revenue', label:'Revenue', on:inc.revenue, badge:0, badgeTone:'ac' }
+    ];
+    const badgeColor = { ac:C.acHi, bad:C.bad, warn:C.warn, info:C.info };
+    const tabs = defs.map((d) => {
+      const active = S.activeAnalysis === d.id;
+      const showBadge = d.badge > 0;
+      return { label:d.label, active, off: !d.on,
+        opacity: d.on ? 1 : 0.5, color: active ? '#f0f2f6' : (d.on ? '#98a1ae' : '#5f6773'), weight: active ? 600 : 400,
+        showBadge, badge:d.badge, badgeColor: badgeColor[d.badgeTone], badgeBg:'#090a0c',
+        onSelect:() => this.setState({ activeAnalysis:d.id }) };
+    });
+    const act = defs.find((d) => d.id === S.activeAnalysis) || defs[0];
+    const activeOff = !act.on;
+    const perfUnavail = S.activeAnalysis === 'performance' && !S.perfAvailable;
+    const state = {
+      showBlast: S.activeAnalysis==='blast', showCompliance:S.activeAnalysis==='compliance' && act.on,
+      showAnomalies:S.activeAnalysis==='anomalies' && act.on, showSplits:S.activeAnalysis==='splits' && act.on,
+      showPerformance:S.activeAnalysis==='performance' && act.on, showRevenue:S.activeAnalysis==='revenue' && act.on,
+      activeOff,
+      offTitle: perfUnavail ? 'Performance feed unavailable' : (act.label + ' module is off'),
+      offBody: perfUnavail ? 'The live performance source dropped out. Split-ticket calling-pattern verification falls back to unverified until it reconnects.'
+        : 'This analysis is excluded from the ?include= request. Toggle it on in the left rail to compute and display it.',
+      offToggle: !perfUnavail, onEnable:() => this.setInclude(S.activeAnalysis)
+    };
+    return { tabs, state };
+  }
+
+  buildBlast() {
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
+    if (!imp) return { rows:[], count:0, filter:null };
+    let rows = imp.rows.slice();
+    if (S.filterStation) rows = rows.filter((r) => r.o === S.filterStation || r.d === S.filterStation);
+    const ord = { contradiction:0, breach:1, anomaly:2, clean:3 };
+    rows.sort((a, b) => (ord[a.bucket] - ord[b.bucket]) || (Math.abs(b.deltaP||0) - Math.abs(a.deltaP||0)));
+    let maxAbs = 1; rows.forEach((r) => { if (Math.abs(r.deltaP||0) > maxAbs) maxAbs = Math.abs(r.deltaP||0); });
+    const out = rows.map((r, i) => {
+      const col = this.bucketColor(r.bucket);
+      const dcol = r.deltaP == null ? C.tx2 : (r.deltaP < 0 ? C.down : C.up);
+      const pct = r.deltaP == null ? 0 : Math.round(Math.abs(r.deltaP) / maxAbs * 46);
+      const sel = S.selFlow === r.key;
+      return { key:r.key, od:r.oName + ' → ' + r.dName, code:r.code, km:r.km + ' km',
+        beforeStr:RFE.fmtMoney(r.beforeP), afterStr: r.afterP==null?'—':RFE.fmtMoney(r.afterP),
+        deltaStr: r.deltaP==null?'held':RFE.fmtDelta(r.deltaP), deltaColor:dcol,
+        barPct:pct, barColor:col, barDelay:(Math.min(i*18,500))+'ms',
+        verdictLabel:r.compliance.label, verdictColor:this.verdictColor(r.verdict), verdictBorder: r.verdict==='breach'?'#3c2620':(r.verdict==='pending'?'#2b2138':'#1b1e24'),
+        bucketColor:col, rowBg: sel?'#121418':'transparent', edge: sel?col:'transparent',
+        onSelect:() => this.selectFlow(r.key) };
+    });
+    return { rows:out, count:out.length, filter:S.filterStation, filterName: S.filterStation?RFE.ST[S.filterStation].name:'', onClearFilter:() => this.setState({filterStation:null}) };
+  }
+
+  buildCompliance() {
+    const RFE = window.RFE, imp = this._impact;
+    if (!imp) return { compliantN:0, breachN:0, notRegN:0, breaches:[], hasBreaches:false, noBreaches:true };
+    let compliantN=0, notRegN=0;
+    imp.rows.forEach((r) => { if (r.verdict==='compliant') compliantN++; else if (r.verdict==='not-regulated') notRegN++; });
+    const breaches = imp.breaches.map((b) => ({ od:b.oName + ' → ' + b.dName, afterStr:RFE.fmtMoney(b.afterP), floorStr:RFE.fmtMoney(b.compliance.floorP), cite:b.compliance.cite, onSelect:() => this.selectFlow(b.key) }));
+    return { compliantN, breachN:imp.breaches.length, notRegN, breaches, hasBreaches:breaches.length>0, noBreaches:breaches.length===0 };
+  }
+
+  buildAnomalies() {
+    const imp = this._impact;
+    if (!imp) return { count:0, items:[], has:false, none:true };
+    const items = imp.anomalies.map((a) => ({ text:a.text, detail:a.detail, cause:a.cause, kind:a.kind, onSelect:() => this.selectFlow(a.farKey) }));
+    return { count:items.length, items, has:items.length>0, none:items.length===0 };
+  }
+
+  buildSplits() {
+    const C = this.C, RFE = window.RFE, imp = this._impact;
+    if (!imp) return { count:0, items:[], has:false, none:true };
+    const items = imp.splits.map((s) => ({ od:s.oName + ' → ' + s.dName, saveStr:RFE.fmtMoney(s.saveP), throughStr:RFE.fmtMoney(s.throughP),
+      leg1:RFE.fmtMoney(s.aP), leg2:RFE.fmtMoney(s.bP), sumStr:RFE.fmtMoney(s.sumP), midName:s.midName,
+      verifyNote:s.verifyNote, vColor: s.verified?C.ok:C.warn }));
+    return { count:items.length, items, has:items.length>0, none:items.length===0 };
+  }
+
+  buildPerformance() {
+    const C = this.C, S = this.state;
+    const modeLabel = S.feedMode==='live' ? 'LIVE' : 'CACHED';
+    const modeColor = S.feedMode==='live' ? C.ok : C.warn;
+    const services = this.PERF.map((p) => ({ hc:p.hc, route:p.route, status:p.status, color: p.ok ? (p.status==='RT'?C.ok:C.warn) : C.bad }));
+    return { services, modeLabel, modeColor, modeDot:modeColor, fetched: S.feedMode==='live' ? ('RT · ' + S.feedFetchedSec + 's ago') : ('stale ' + S.feedFetchedSec + 's') };
+  }
+
+  buildRevenue() {
+    const C = this.C, RFE = window.RFE, imp = this._impact;
+    if (!imp) return { totalStr:'£0', exactStr:'£0', estStr:'£0', exactPct:0, estPct:0, journeysStr:'0', color:C.tx1, note:'', label:'exposure' };
+    const withdraw = this.state.params.changeType === 'withdraw';
+    const r = imp.revenue;
+    return { totalStr:RFE.fmtBig(r.totalP), exactStr:RFE.fmtBig(r.exactP), estStr:RFE.fmtBig(r.estP),
+      exactPct:r.exactShare, estPct:100 - r.exactShare, journeysStr:r.journeys.toLocaleString(),
+      color: r.totalP < 0 ? C.down : (r.totalP > 0 ? C.up : C.tx1), label: withdraw ? 'recovered' : 'exposure',
+      note:'EXACT portion is settled LENNON railcard sales on flows with an existing comparable railcard. EST portion is modelled uptake — never shown to the penny.' };
+  }
+
+  buildRightTabs() {
+    const C = this.C, S = this.state, imp = this._impact;
+    const contraN = imp ? imp.counts.contradiction : 0;
+    const unresolved = contraN > 0 && S.disp.contradiction == null;
+    const defs = [
+      { id:'prov', label:'Provenance', badge:0 },
+      { id:'queue', label:'Queue', badge: this.buildQueue().pending },
+      { id:'contra', label:'Contradiction', badge: contraN, tone: unresolved ? 'viol' : 'ok' }
+    ];
+    return defs.map((d) => { const active = S.activeRight === d.id;
+      return { label:d.label, active, color: active?'#f0f2f6':'#98a1ae', weight: active?600:400,
+        showBadge: d.badge>0, badge:d.badge, badgeColor: d.tone==='viol'?C.viol:(d.id==='contra'?C.ok:C.acHi), badgeBg:'#090a0c',
+        onSelect:() => this.setState({ activeRight:d.id }) };
+    });
+  }
+
+  buildProvenance() {
+    const C = this.C, S = this.state, RFE = window.RFE;
+    if (!RFE) return { steps:[], selLabel:'', finalStr:'£0' };
+    const pk = RFE.parseKey(S.selFlow);
+    let res, base;
+    try {
+      res = RFE.resolve(pk.o, pk.d, pk.code, Object.assign({}, S.params, { withdraw:false }), S.disp, true);
+      base = RFE.resolve(pk.o, pk.d, pk.code, Object.assign({}, S.params, { withdraw:false }), S.disp, false);
+    } catch (e) { res = null; }
+    if (!res) return { steps:[], selLabel:S.selFlow, finalStr:'—', productName:'', beforeStr:'—', deltaStr:'', scopeNote:'unknown flow' };
+    const steps = res.steps.map((st, i) => {
+      const term = st.terminal;
+      return { key:st.key, label:st.label, note:st.note,
+        cite: st.cite, outStr: st.outP==null?'—':RFE.fmtMoney(st.outP),
+        outColor: term ? C.ok : (st.active ? '#dbe0e7' : '#5f6773'),
+        labelColor: st.active || term ? '#d0d6dd' : '#7b8390',
+        dotColor: term ? C.ok : (st.active ? C.ac : '#2f333a'), dotFill: st.active||term ? (term?C.ok:C.ac) : '#0c0d0f',
+        cardBg: (S.selStep===st.key) ? '#121418' : '#0c0d10', cardBorder: (S.selStep===st.key) ? '#2f333a' : '#15171b',
+        lineColor: st.active ? C.line2 : C.line, showLine: i < res.steps.length - 1,
+        onClick:() => this.setState({ selStep:st.key }) };
+    });
+    const sel = res.steps.find((s) => s.key === S.selStep) || res.steps[0];
+    const deltaP = base ? (res.finalP - base.finalP) : 0;
+    const scopeNote = !res.inScheme ? 'outside scheme area' : (res.unresolved ? 'contradiction — unresolved' : (res.railcardExcluded ? 'railcard excluded on this flow' : 'in ' + RFE.CLUSTER_LABEL[S.params.cluster]));
+    return { selLabel:RFE.ST[pk.o].name + ' → ' + RFE.ST[pk.d].name, productName:res.prod.name, scopeNote,
+      finalStr:RFE.fmtMoney(res.finalP), beforeStr: base?RFE.fmtMoney(base.finalP):'—',
+      deltaStr: deltaP?RFE.fmtDelta(deltaP):'no change', deltaColor: deltaP<0?C.down:(deltaP>0?C.up:C.tx2),
+      steps, stepLabel: sel?sel.label:'', hasSource: !!(sel && sel.source), noSource: !(sel && sel.source),
+      source: sel && sel.source ? { title:sel.source.title, lines:sel.source.lines } : null };
+  }
+
+  buildQueue() {
+    const C = this.C, S = this.state, imp = this._impact;
+    if (!imp) return { items:[], approved:0, held:0, pending:0 };
+    const c = imp.counts, qd = S.queueDisp;
+    const items = [];
+    const withdraw = S.params.changeType === 'withdraw';
+    items.push({ key:'main', title:(withdraw?'Withdraw ':'Apply ') + S.params.railcardName, tone:'clean', count:c.clean,
+      sub:c.clean + ' clean fares · ' + S.params.discountPct + '% ' + (S.params.peakOn?'anytime':'off-peak'), blocked:false });
+    if (c.breach > 0) items.push({ key:'breach', title:'Compliance breaches', tone:'breach', count:c.breach,
+      sub:c.breach + ' protected-fare floor breach' + (c.breach===1?'':'es'), detail:'Approving stages an exception request — it does not waive the regulated cap.', blocked:false });
+    if (c.anomaly > 0) items.push({ key:'anomaly', title:'Fare inversions', tone:'anomaly', count:c.anomaly,
+      sub:imp.anomalies.length + ' inversion' + (imp.anomalies.length===1?'':'s') + ' across ' + c.anomaly + ' fare', blocked:false });
+    if (c.contradiction > 0) { const resolved = S.disp.contradiction != null;
+      items.push({ key:'contradiction', title:'Contradiction — Perth ↔ Inverness', tone:'contradiction', count:c.contradiction,
+        sub: resolved ? ('Resolved · choice ' + S.disp.contradiction + ' staged') : 'Escalated — decision required', blocked: !resolved }); }
+    if (imp.splits.length) items.push({ key:'splits', title:'Split-ticket exposure', tone:'info', count:imp.splits.length,
+      sub:imp.splits.length + ' opportunit' + (imp.splits.length===1?'y':'ies') + ' surfaced', detail:'Informational — surfaced for revenue-protection review.', blocked:false });
+
+    let approved=0, held=0, pending=0;
+    items.forEach((it) => {
+      const disp = it.blocked ? 'blocked' : (qd[it.key] || 'pending');
+      if (disp==='approved') approved++; else if (disp==='held') held++; else pending++;
+      const tColor = this.toneColor(it.tone);
+      Object.assign(it, {
+        tColor, border: it.blocked?'#2b2138':'#171a1e', bg:'#0c0d10', countBg:'#090a0c',
+        hasDetail: !!it.detail, actionable: !it.blocked, blocked: it.blocked,
+        dispColor: disp==='approved'?C.ok:(disp==='held'?C.warn:C.tx2),
+        dispLabel: disp==='approved'?'Approved → staging':(disp==='held'?'Held':'Pending disposition'),
+        appColor: disp==='approved'?C.ok:'#9fc0ae', appBg: disp==='approved'?'#142019':'#0e130f', appBorder: disp==='approved'?'#264534':'#1b2c21',
+        holdColor: disp==='held'?C.warn:'#8b93a0', holdBorder: disp==='held'?'#574828':'#23262c',
+        onApprove:() => this.dispose(it.key,'approved'), onHold:() => this.dispose(it.key,'held'),
+        onGoResolve:() => this.setState({ activeRight:'contra' })
+      });
+    });
+    return { items, approved, held, pending };
+  }
+
+  buildContradiction() {
+    const C = this.C, S = this.state, imp = this._impact;
+    if (!imp || imp.contradictions.length === 0) return { present:false, none:true };
+    const cd = imp.contradictions[0];
+    const choice = S.disp.contradiction;
+    const sel = (id) => choice === id;
+    return { present:true, none:false, od:cd.oName + ' ↔ ' + cd.dName, railcard:S.params.railcardName,
+      optA:cd.optA, optB:cd.optB, choice, resolved: choice != null, unresolved: choice == null,
+      aSel:sel('A'), bSel:sel('B'),
+      aBorder: sel('A')?'#493c5c':'#211b2c', bBorder: sel('B')?'#493c5c':'#211b2c',
+      aBg: sel('A')?'#130e1b':'#0c0912', bBg: sel('B')?'#130e1b':'#0c0912',
+      aRing: sel('A')?C.viol:'#3c3548', bRing: sel('B')?C.viol:'#3c3548',
+      onPickA:() => this.pickContradiction('A'), onPickB:() => this.pickContradiction('B'), onClear:() => this.pickContradiction(choice) };
+  }
+}
+</script>
+</body>
+</html>
