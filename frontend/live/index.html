@@ -26,6 +26,10 @@
   @keyframes rfe-blink{0%,100%{opacity:1}50%{opacity:.28}}
   @keyframes rfe-shimmer{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}
   @keyframes rfe-breathe{0%,100%{opacity:.1}50%{opacity:.6}}
+  /* empty-state dimming: opacity only — filter/transform here would break
+     the map's position:fixed fullscreen mode */
+  .rfe-dimable{transition:opacity .45s ease}
+  .rfe-dim{opacity:.35;pointer-events:none}
 </style>
 <script src="assets/gb-outline.js"></script>
 <script src="rfe.api.js"></script>
@@ -105,9 +109,9 @@
     <!-- guided-flow stage strip: ① scope → ② author → ③ review → ④ approve -->
     <div style="display:flex;align-items:center;gap:2px;flex:0 0 auto">
       <sc-for list="{{ stages }}" as="sg" hint-placeholder-count="4">
-        <div onClick="{{ sg.onSelect }}" style="display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:14px;cursor:pointer;border:1px solid {{ sg.border }};background:{{ sg.bg }}" style-hover="border-color:#2f333a">
-          <span style="font-family:'Source Sans 3',sans-serif;font-size:9.5px;font-weight:700;color:{{ sg.nColor }}">{{ sg.n }}</span>
-          <span style="font-size:11px;color:{{ sg.color }};font-weight:{{ sg.weight }}">{{ sg.label }}</span>
+        <div onClick="{{ sg.onSelect }}" style="display:flex;align-items:center;gap:6px;padding:{{ sg.pad }};border-radius:14px;cursor:pointer;border:1px solid {{ sg.border }};background:{{ sg.bg }}" style-hover="border-color:#2f333a">
+          <span style="font-family:'Source Sans 3',sans-serif;font-size:{{ sg.nfs }};font-weight:700;color:{{ sg.nColor }}">{{ sg.n }}</span>
+          <span style="font-size:{{ sg.fs }};color:{{ sg.color }};font-weight:{{ sg.weight }}">{{ sg.label }}</span>
         </div>
         <sc-if value="{{ sg.showArrow }}" hint-placeholder-val="{{ true }}">
           <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#3a4048" stroke-width="2" style="flex:0 0 auto"><path d="m9 6 6 6-6 6"></path></svg>
@@ -231,11 +235,23 @@
           </sc-if>
         </div>
         </sc-if>
+        <!-- front door: the one bright action on the empty stage -->
+        <sc-if value="{{ ui.proposeCta }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:11px">
+            <div onClick="{{ ui.onPropose }}" style="display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid #24382e;border-radius:8px;cursor:pointer;background:linear-gradient(180deg,#0f1512,#0c0f0d)" style-hover="border-color:#35513f">
+              <div style="width:24px;height:24px;border-radius:7px;background:#12211a;border:1px solid #24382e;display:flex;align-items:center;justify-content:center;flex:0 0 auto"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#6f9e86" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg></div>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:12.5px;color:#a9c9b7;font-weight:600">Propose a change</div>
+                <div style="font-size:10px;color:#5f6f66">author the railcard, then run its impact</div>
+              </div>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#4f6e5d" stroke-width="2" style="flex:0 0 auto"><path d="m9 6 6 6-6 6"></path></svg>
+            </div>
+          </div>
+        </sc-if>
       </div>
       </sc-if>
 
-      <!-- ② AUTHOR: change builder (author/review/approve stages) -->
-      <sc-if value="{{ ui.showBuilder }}" hint-placeholder-val="{{ false }}">
+      <!-- ② AUTHOR: wizard shortcut (the form itself is centre-stage) -->
       <sc-if value="{{ ui.authorCta }}" hint-placeholder-val="{{ false }}">
         <div style="padding:13px 14px 0">
           <div onClick="{{ product.onNew }}" style="display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid #24382e;border-radius:8px;cursor:pointer;background:linear-gradient(180deg,#0f1512,#0c0f0d)" style-hover="border-color:#35513f">
@@ -249,13 +265,138 @@
         </div>
       </sc-if>
 
-      <!-- change builder -->
+      <!-- ②′ read-only change summary during review/approve -->
+      <sc-if value="{{ ui.showSummary }}" hint-placeholder-val="{{ false }}">
       <div style="padding:13px 14px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">PROPOSED CHANGE</div>
-          <div style="font-size:9.5px;color:#5f6773;border:1px solid #1b1e22;border-radius:4px;padding:2px 6px">staged</div>
+          <div onClick="{{ summary.onEdit }}" style="font-size:10.5px;color:#8fb3a0;cursor:pointer" style-hover="color:#a9c9b7">edit</div>
         </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ summary.rows }}" as="r" hint-placeholder-count="7">
+            <div style="display:flex;justify-content:space-between;gap:10px;font-size:11px">
+              <span style="color:#5f6773;flex:0 0 auto">{{ r.k }}</span>
+              <span style="color:#c3cad3;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.v }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
 
+      <!-- ③ analysis modules (?include=) — review/approve stages -->
+      <sc-if value="{{ ui.showModules }}" hint-placeholder-val="{{ true }}">
+      <div style="height:1px;background:#141519"></div>
+
+      <div style="padding:13px 14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+          <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">ANALYSIS MODULES</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <sc-for list="{{ modules }}" as="m" hint-placeholder-count="5">
+            <div onClick="{{ m.onToggle }}" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid {{ m.border }};border-radius:7px;cursor:{{ m.cursor }};background:{{ m.bg }};opacity:{{ m.opacity }}" style-hover="border-color:#2a2e34">
+              <div style="width:15px;height:15px;border-radius:4px;border:1.5px solid {{ m.boxBorder }};background:{{ m.boxBg }};flex:0 0 auto;display:flex;align-items:center;justify-content:center">
+                <sc-if value="{{ m.on }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#0c0d0f" stroke-width="3.4"><path d="M5 12.5 10 17l9-10"></path></svg></sc-if>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:{{ m.labelColor }}">{{ m.label }}</div>
+                <div style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ m.param }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;flex:0 0 auto">
+                <div style="width:6px;height:6px;border-radius:50%;background:{{ m.modeDot }}"></div>
+                <div style="font-size:9px;letter-spacing:.4px;color:{{ m.modeColor }};min-width:44px;text-align:right">{{ m.statusLabel }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:10px;padding:8px 10px;background:#090a0c;border:1px solid #15171b;border-radius:7px">
+          <div style="font-size:9px;color:#4f5762;letter-spacing:.5px;margin-bottom:3px">REQUEST</div>
+          <div style="font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#7b8390;word-break:break-all">GET /impact?<span style="color:#adb6c4">include=</span>{{ includeQuery }}</div>
+        </div>
+      </div>
+      </sc-if>
+    </aside>
+
+    <!-- col splitter 1 -->
+    <div onPointerDown="{{ onDrag.left }}" style="cursor:col-resize;background:#1a1c20;position:relative" style-hover="background:#2f333a">
+      <div style="position:absolute;inset:0 -3px"></div>
+    </div>
+
+    <!-- ---------- CENTER ---------- -->
+    <section style="min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 5px var(--rfe-anah,318px);background:#08090b">
+
+      <!-- ① VERDICT STRIP — the change's one-line verdict. Always mounted
+           (height-collapsed when empty) so the height transition survives. -->
+      <div style="min-width:0;overflow:hidden;background:#0d0f12;border-bottom:1px solid #1a1c20;height:{{ verdictBar.h }};transition:height .35s cubic-bezier(.22,.61,.36,1)">
+        <sc-if value="{{ verdictBar.empty }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;padding:0 14px;height:46px;min-width:0">
+            <span style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">NO IMPACT COMPUTED</span>
+            <span style="font-size:11px;color:#5f6773;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ verdictBar.emptyHint }}</span>
+            <div style="flex:1"></div>
+            <button onClick="{{ verdictBar.ctaGo }}" style="flex:0 0 auto;background:#12211a;border:1px solid #24382e;color:#a9c9b7;font-size:11px;font-weight:600;padding:6px 13px;border-radius:6px;cursor:pointer" style-hover="border-color:#35513f">{{ verdictBar.ctaLabel }}</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ verdictBar.ready }}" hint-placeholder-val="{{ true }}">
+        <div ref="{{ refs.verdictStrip }}" style="display:flex;align-items:center;gap:10px;padding:0 14px;height:46px;min-width:0">
+          <div style="min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <span style="font-size:12.5px;color:#e7ebf0;font-weight:600">{{ verdictBar.changeLine }}</span>
+            <span style="font-size:11px;color:#5f6773"> · {{ verdictBar.scopeLine }}</span>
+          </div>
+          <div style="width:1px;height:16px;background:#1e2126;flex:0 0 auto"></div>
+          <div style="display:flex;align-items:baseline;gap:5px;flex:0 0 auto">
+            <span ref="{{ refs.vsFares }}" style="font-family:'Source Sans 3',sans-serif;font-size:16px;font-weight:600;color:#e7ebf0">{{ verdictBar.faresN }}</span>
+            <span style="font-size:10px;color:#5f6773">fares affected</span>
+          </div>
+          <sc-for list="{{ verdictBar.chips }}" as="ch" hint-placeholder-count="4">
+            <div onClick="{{ ch.onGo }}" style="flex:0 0 auto;font-size:10.5px;color:{{ ch.color }};border:1px solid {{ ch.border }};border-radius:12px;padding:3px 10px;cursor:pointer;opacity:{{ ch.opacity }};white-space:nowrap" style-hover="border-color:#2f333a">{{ ch.label }}</div>
+          </sc-for>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:baseline;gap:6px;flex:0 0 auto">
+            <span ref="{{ refs.vsRev }}" style="font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:{{ verdictBar.revColor }}">{{ verdictBar.revStr }}</span>
+            <span style="font-size:10px;color:#5f6773">{{ verdictBar.revSub }}</span>
+            <sc-if value="{{ verdictBar.est }}" hint-placeholder-val="{{ false }}"><span style="font-size:8.5px;letter-spacing:.5px;color:#c2a15c;border:1px solid #3a3220;border-radius:4px;padding:1px 5px">EST</span></sc-if>
+          </div>
+          <!-- decision bar — approve = merge, hold = keep pending -->
+          <sc-if value="{{ verdictBar.dec.show }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto">
+              <sc-if value="{{ verdictBar.dec.busy }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:6px"><div style="width:11px;height:11px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .7s linear infinite"></div><span style="font-size:10.5px;color:#98a1ae">staging…</span></div>
+              </sc-if>
+              <sc-if value="{{ verdictBar.dec.escalated }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ verdictBar.dec.onResolve }}" style="display:flex;align-items:center;gap:6px;cursor:pointer;border:1px solid #40292a;border-radius:6px;padding:5px 10px;background:#150e0f" style-hover="border-color:#5a3a3b">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#c98a86" stroke-width="2.2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>
+                  <span style="font-size:10.5px;color:#c98a86;font-weight:600">contradiction — resolve to approve</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ verdictBar.dec.approved }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#6f9e86" stroke-width="2.4"><path d="M20 6 9 17l-5-5"></path></svg><span style="font-size:10.5px;color:#9fc0ae">{{ verdictBar.dec.note }}</span></div>
+              </sc-if>
+              <sc-if value="{{ verdictBar.dec.held }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:10.5px;color:#c2a15c">{{ verdictBar.dec.note }}</span>
+              </sc-if>
+              <sc-if value="{{ verdictBar.dec.canHold }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ verdictBar.dec.onHold }}" style="flex:0 0 auto;background:transparent;border:1px solid #2a2e34;color:#98a1ae;font-size:11px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer" style-hover="border-color:#3a4048;background:#101215">Hold</button>
+              </sc-if>
+              <sc-if value="{{ verdictBar.dec.canApprove }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ verdictBar.dec.onApprove }}" style="flex:0 0 auto;background:#12211a;border:1px solid #24382e;color:#a9c9b7;font-size:11px;font-weight:600;padding:6px 13px;border-radius:6px;cursor:pointer" style-hover="border-color:#35513f">Approve → staging</button>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+        </sc-if>
+      </div>
+
+      <!-- CENTER TOP: map + aggregate impact -->
+      <div data-screen-label="Blast radius map" style="position:relative;min-height:0;min-width:0;overflow:hidden;display:flex;border-bottom:0">
+        <!-- ② AUTHOR ON STAGE — builder relocated from the left rail; bindings
+             are global (product.*, change.*). Map stays mounted (dimmed) beneath. -->
+        <sc-if value="{{ ui.authorOnStage }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;z-index:7;background:rgba(8,9,11,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 20px">
+            <div style="width:100%;max-width:560px;background:#0f1114;border:1px solid #23262c;border-radius:14px;box-shadow:0 30px 90px rgba(0,0,0,.6)">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px 11px;border-bottom:1px solid #16181c">
+                <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600;flex:0 0 auto">② AUTHOR THE CHANGE</div>
+                <div style="font-size:10px;color:#5f6773;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">applies to · {{ verdictBar.scopeLine }}</div>
+              </div>
+              <div style="padding:13px 16px 14px">
         <!-- product selector -->
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
           <span style="font-size:9px;letter-spacing:.5px;color:#7b8390;background:#101215;border:1px solid #1b1e22;border-radius:4px;padding:2px 6px">{{ product.typeLabel }}</span>
@@ -349,82 +490,19 @@
           <input type="range" min="50" max="75" step="1" value="{{ change.minFloorPct }}" onInput="{{ change.onFloor }}" style="width:100%" />
           <div style="font-size:9.5px;color:#4f5762;margin-top:4px">Discounted fare cannot fall below this % of the protected fare.</div>
         </div>
-      </div>
-      </sc-if>
-
-      <!-- ③ analysis modules (?include=) — review/approve stages -->
-      <sc-if value="{{ ui.showModules }}" hint-placeholder-val="{{ true }}">
-      <div style="height:1px;background:#141519"></div>
-
-      <div style="padding:13px 14px 16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
-          <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">ANALYSIS MODULES</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          <sc-for list="{{ modules }}" as="m" hint-placeholder-count="5">
-            <div onClick="{{ m.onToggle }}" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid {{ m.border }};border-radius:7px;cursor:{{ m.cursor }};background:{{ m.bg }};opacity:{{ m.opacity }}" style-hover="border-color:#2a2e34">
-              <div style="width:15px;height:15px;border-radius:4px;border:1.5px solid {{ m.boxBorder }};background:{{ m.boxBg }};flex:0 0 auto;display:flex;align-items:center;justify-content:center">
-                <sc-if value="{{ m.on }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#0c0d0f" stroke-width="3.4"><path d="M5 12.5 10 17l9-10"></path></svg></sc-if>
               </div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12px;color:{{ m.labelColor }}">{{ m.label }}</div>
-                <div style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ m.param }}</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:5px;flex:0 0 auto">
-                <div style="width:6px;height:6px;border-radius:50%;background:{{ m.modeDot }}"></div>
-                <div style="font-size:9px;letter-spacing:.4px;color:{{ m.modeColor }};min-width:44px;text-align:right">{{ m.statusLabel }}</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px 13px;border-top:1px solid #16181c">
+                <div onClick="{{ ui.onBackScope }}" style="font-size:11px;color:#7b8390;cursor:pointer" style-hover="color:#98a1ae">← back to scope</div>
+                <div onClick="{{ tb.onRun }}" style="display:flex;align-items:center;gap:7px;background:#12211a;border:1px solid #24382e;border-radius:7px;padding:7px 15px;cursor:pointer" style-hover="border-color:#35513f">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="#a9c9b7"><path d="M8 5v14l11-7z"></path></svg>
+                  <span style="font-size:12px;color:#a9c9b7;font-weight:600">Run impact</span>
+                </div>
               </div>
             </div>
-          </sc-for>
-        </div>
-        <div style="margin-top:10px;padding:8px 10px;background:#090a0c;border:1px solid #15171b;border-radius:7px">
-          <div style="font-size:9px;color:#4f5762;letter-spacing:.5px;margin-bottom:3px">REQUEST</div>
-          <div style="font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#7b8390;word-break:break-all">GET /impact?<span style="color:#adb6c4">include=</span>{{ includeQuery }}</div>
-        </div>
-      </div>
-      </sc-if>
-    </aside>
-
-    <!-- col splitter 1 -->
-    <div onPointerDown="{{ onDrag.left }}" style="cursor:col-resize;background:#1a1c20;position:relative" style-hover="background:#2f333a">
-      <div style="position:absolute;inset:0 -3px"></div>
-    </div>
-
-    <!-- ---------- CENTER ---------- -->
-    <section style="min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 5px var(--rfe-anah,318px);background:#08090b">
-
-      <!-- ① VERDICT STRIP — the change's one-line verdict. Always mounted
-           (height-collapsed when empty) so the height transition survives. -->
-      <div style="min-width:0;overflow:hidden;background:#0d0f12;border-bottom:1px solid #1a1c20;height:{{ verdictBar.h }};transition:height .35s cubic-bezier(.22,.61,.36,1)">
-        <div style="display:flex;align-items:center;gap:10px;padding:0 14px;height:46px;min-width:0">
-          <div style="min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            <span style="font-size:12.5px;color:#e7ebf0;font-weight:600">{{ verdictBar.changeLine }}</span>
-            <span style="font-size:11px;color:#5f6773"> · {{ verdictBar.scopeLine }}</span>
           </div>
-          <div style="width:1px;height:16px;background:#1e2126;flex:0 0 auto"></div>
-          <div style="display:flex;align-items:baseline;gap:5px;flex:0 0 auto">
-            <span ref="{{ refs.vsFares }}" style="font-family:'Source Sans 3',sans-serif;font-size:16px;font-weight:600;color:#e7ebf0">{{ verdictBar.faresN }}</span>
-            <span style="font-size:10px;color:#5f6773">fares affected</span>
-          </div>
-          <sc-for list="{{ verdictBar.chips }}" as="ch" hint-placeholder-count="4">
-            <div onClick="{{ ch.onGo }}" style="flex:0 0 auto;font-size:10.5px;color:{{ ch.color }};border:1px solid {{ ch.border }};border-radius:12px;padding:3px 10px;cursor:pointer;opacity:{{ ch.opacity }};white-space:nowrap" style-hover="border-color:#2f333a">{{ ch.label }}</div>
-          </sc-for>
-          <div style="flex:1"></div>
-          <div style="display:flex;align-items:baseline;gap:6px;flex:0 0 auto">
-            <span ref="{{ refs.vsRev }}" style="font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:{{ verdictBar.revColor }}">{{ verdictBar.revStr }}</span>
-            <span style="font-size:10px;color:#5f6773">{{ verdictBar.revSub }}</span>
-            <sc-if value="{{ verdictBar.est }}" hint-placeholder-val="{{ false }}"><span style="font-size:8.5px;letter-spacing:.5px;color:#c2a15c;border:1px solid #3a3220;border-radius:4px;padding:1px 5px">EST</span></sc-if>
-          </div>
-          <sc-if value="{{ verdictBar.showApprove }}" hint-placeholder-val="{{ false }}">
-            <button onClick="{{ verdictBar.onApprove }}" style="flex:0 0 auto;background:#12211a;border:1px solid #24382e;color:#a9c9b7;font-size:11px;font-weight:600;padding:6px 13px;border-radius:6px;cursor:pointer" style-hover="border-color:#35513f">Continue to approve →</button>
-          </sc-if>
-        </div>
-      </div>
-
-      <!-- CENTER TOP: map + aggregate impact -->
-      <div data-screen-label="Blast radius map" style="min-height:0;min-width:0;overflow:hidden;display:flex;border-bottom:0">
+        </sc-if>
         <!-- map -->
-        <div style="flex:1 1 300px;min-width:0;overflow:hidden;background:radial-gradient(120% 90% at 42% 20%,#0c0e12 0%,#08090b 62%);{{ map.wrapStyle }}">
+        <div class="rfe-dimable {{ ui.dimMap }}" style="flex:1 1 300px;min-width:0;overflow:hidden;background:radial-gradient(120% 90% at 42% 20%,#0c0e12 0%,#08090b 62%);{{ map.wrapStyle }}">
           <!-- title overlay -->
           <div style="position:absolute;top:12px;left:14px;z-index:3">
             <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">BLAST RADIUS — SPATIAL FAN-OUT</div>
@@ -622,7 +700,7 @@
 
         <!-- aggregate impact panel -->
         <sc-if value="{{ showAgg }}" hint-placeholder-val="{{ true }}">
-        <div style="flex:0 1 290px;min-width:0;border-left:1px solid #1a1c20;background:#0c0d0f;overflow-y:auto;overflow-x:hidden;padding:13px 14px">
+        <div class="rfe-dimable {{ ui.dimAgg }}" style="flex:0 1 290px;min-width:0;border-left:1px solid #1a1c20;background:#0c0d0f;overflow-y:auto;overflow-x:hidden;padding:13px 14px">
           <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600;margin-bottom:10px">AGGREGATE IMPACT</div>
           <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
             <div ref="{{ refs.countTotal }}" style="font-size:40px;font-weight:600;color:#f0f2f6;line-height:1;font-family:'Source Sans 3',sans-serif">{{ impact.total }}</div>
@@ -661,13 +739,21 @@
           <div style="font-size:9.5px;color:#454c56;line-height:1.5">{{ impact.scaleNote }}</div>
         </div>
         </sc-if>
+
+        <!-- empty-state hint — always mounted so the fade survives; inert when transparent -->
+        <div style="position:absolute;inset:0;z-index:5;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:{{ ui.hintOp }};transition:opacity .45s ease">
+          <div style="background:#0f1114;border:1px solid #1e2126;border-radius:10px;padding:14px 22px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.45)">
+            <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600">NO IMPACT COMPUTED</div>
+            <div style="font-size:11px;color:#5f6773;margin-top:5px;line-height:1.5">propose a change, run its impact —<br/>the blast radius lights up here</div>
+          </div>
+        </div>
       </div>
 
       <!-- row splitter -->
       <div onPointerDown="{{ onDrag.anah }}" style="cursor:row-resize;background:#1a1c20" style-hover="background:#2f333a"></div>
 
       <!-- CENTER BOTTOM: analysis tabs -->
-      <div data-screen-label="Analysis" style="min-height:0;display:flex;flex-direction:column;background:#0c0d0f;border-top:0">
+      <div data-screen-label="Analysis" class="rfe-dimable {{ ui.dimAnalysis }}" style="min-height:0;display:flex;flex-direction:column;background:#0c0d0f;border-top:0">
         <!-- tab bar -->
         <div style="flex:0 0 auto;display:flex;align-items:stretch;border-bottom:1px solid #1a1c20;background:#0d0e11;padding:0 4px;overflow-x:auto">
           <sc-for list="{{ analysisTabs }}" as="t" hint-placeholder-count="6">
@@ -989,7 +1075,7 @@
     <div onPointerDown="{{ onDrag.right }}" style="cursor:col-resize;background:#1a1c20" style-hover="background:#2f333a"></div>
 
     <!-- ---------- RIGHT: PROVENANCE / QUEUE / CONTRADICTION ---------- -->
-    <aside data-screen-label="Provenance / Queue / Contradiction" style="min-width:0;min-height:0;display:flex;flex-direction:column;background:#0c0d0f">
+    <aside data-screen-label="Provenance / Queue / Contradiction" class="rfe-dimable {{ ui.dimRight }}" style="min-width:0;min-height:0;display:flex;flex-direction:column;background:#0c0d0f">
       <!-- tabs -->
       <div style="flex:0 0 auto;display:flex;border-bottom:1px solid #1a1c20;background:#0d0e11">
         <sc-for list="{{ rightTabs }}" as="t" hint-placeholder-count="3">
@@ -1439,7 +1525,10 @@ class Component extends DCLogic {
       mapFull:false, stationDetail:null,
       // Guided flow: ① scope → ② author → ③ review → ④ approve.
       // scopeKind/selToc feed buildChangeRequest via fare-engine's _scopeFromRoot().
-      stage:'scope', scopeKind:'corridor', selToc:null
+      stage:'scope', scopeKind:'corridor', selToc:null,
+      // hasRun: has the analyst explicitly run impact this session? Boot
+      // pre-warms _impact, so _impact alone cannot distinguish the front door.
+      hasRun:false, approvedCardId:null
     };
     // Camera lives OUTSIDE React state: wheel/drag write the SVG viewBox
     // imperatively (zero re-renders per mousemove); templates read it via
@@ -1457,7 +1546,7 @@ class Component extends DCLogic {
     this._lastAnimEpoch = -1; this._lastSelFlow = null; this._lastFareEpoch = -1;
     this._ref = {};
     ['countTotal','revenueNum','resolvedFare','blastList','bClean','bAnomaly','bBreach','bContradiction',
-     'vsFares','vsRev','mapSvg','provList','aggList'].forEach((k) => { this._ref[k] = (el) => { this._els[k] = el; }; });
+     'vsFares','vsRev','verdictStrip','mapSvg','provList','aggList'].forEach((k) => { this._ref[k] = (el) => { this._els[k] = el; }; });
   }
 
   /* ---------------- lifecycle ---------------- */
@@ -1505,6 +1594,8 @@ class Component extends DCLogic {
       // the corridor centroid as the staggered lighting lands.
       if (this._dramatic) {
         this._dramatic = false;
+        // The verdict lands first, then the camera pulls out to the fan-out.
+        this.animateList('verdictStrip', 40, 240);
         this.flyTo({ z:1, x:0, y:0 }, 650);
         this.fireRadialWave();
       }
@@ -1682,6 +1773,8 @@ class Component extends DCLogic {
       { id:'approve', n:'4', label:'Approve' }
     ];
     const idx = defs.findIndex((d) => d.id === S.stage);
+    // Before the first run the stepper IS the narrative — let it breathe.
+    const empty = !(this._impact && S.hasRun);
     return defs.map((d, i) => {
       const active = i === idx, done = i < idx;
       return { label:d.label, n: done ? '✓' : d.n, showArrow: i < defs.length - 1,
@@ -1689,6 +1782,9 @@ class Component extends DCLogic {
         nColor: done ? '#6f9e86' : (active ? '#e7ebf0' : '#5f6773'),
         color: active ? '#f0f2f6' : (done ? '#98a1ae' : '#626b76'),
         weight: active ? 600 : 400,
+        pad: empty ? '7px 14px' : '5px 11px',
+        fs: empty ? '12px' : '11px',
+        nfs: empty ? '10.5px' : '9.5px',
         onSelect:() => this.setStage(d.id) };
     });
   }
@@ -1728,8 +1824,16 @@ class Component extends DCLogic {
      never disagree with the aggregate panel, tabs, or report modal. */
   buildVerdictBar() {
     const S = this.state, imp = this._impact, RFE = window.RFE, C = this.C;
-    if (!RFE || !imp) return { h:'0px', changeLine:'', scopeLine:'', faresN:'0', chips:[],
-      revStr:'', revSub:'', revColor:C.tx1, est:false, showApprove:false, onApprove:null };
+    const ready = !!(RFE && imp && S.hasRun);
+    if (!ready) {
+      const inAuthor = S.stage === 'author';
+      return { h:'46px', empty:true, ready:false, changeLine:'', scopeLine:'', faresN:'0', chips:[],
+        revStr:'', revSub:'', revColor:C.tx1, est:false, dec:{ show:false },
+        emptyHint: inAuthor ? 'author the change, then run its impact'
+                            : 'the change\u2019s verdict lands here — affected fares, checks, revenue exposure',
+        ctaLabel: inAuthor ? 'Run impact' : 'Propose a change →',
+        ctaGo: inAuthor ? (() => this.runImpact()) : (() => this.setStage('author')) };
+    }
     const v = imp.verdict, rev = imp.revenue, p = S.params;
     const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : 'Add');
     const changeLine = verb + ' ' + p.railcardName + ' · ' + p.discountPct + '% ' + (p.peakOn ? 'peak-valid' : 'off-peak');
@@ -1751,16 +1855,51 @@ class Component extends DCLogic {
     if (v.splitsOpened != null) chip(v.splitsOpened, v.splitsOpened === 1 ? 'split opened' : 'splits opened', C.warn, () => this.setState({ activeAnalysis:'splits' }));
     else off('splits', 'splits');
     chip(v.contradictions, v.contradictions === 1 ? 'contradiction' : 'contradictions', C.bad, () => this.setState({ activeRight:'contra' }));
+    // Decision phase is DERIVED from staging state — no parallel state to drift.
+    const qd = S.queueDisp.main;
+    const phase = S.proposing ? 'busy'
+      : (S.escalation ? 'escalated'
+      : (qd === 'approved' ? 'approved' : (qd === 'held' ? 'held' : 'idle')));
+    const dec = {
+      show: S.stage === 'review' || S.stage === 'approve',
+      busy: phase === 'busy', escalated: phase === 'escalated',
+      approved: phase === 'approved', held: phase === 'held',
+      canHold: phase === 'idle',
+      canApprove: phase === 'idle' || phase === 'held',
+      note: phase === 'approved' ? ('card ' + (S.approvedCardId || '—') + ' → staging · baseline unchanged')
+        : (phase === 'held' ? ('card ' + (S.mainCardId || '—') + ' held pending') : ''),
+      onApprove:() => { this.setStage('approve'); this.dispose('main','approved'); },
+      onHold:() => this.holdChange(),
+      onResolve:() => this.setState({ activeRight:'contra' }),
+    };
     return {
-      h:'46px', changeLine, scopeLine,
+      h:'46px', ready:true, empty:false, changeLine, scopeLine,
       faresN: v.affectedTotal.toLocaleString(),
       chips,
       revStr: v.revenue ? RFE.fmtBigDir(rev.totalP) : '',
       revSub: v.revenue ? 'net/yr' : 'revenue off',
       revColor: v.revenue ? (rev.totalP < 0 ? C.down : (rev.totalP > 0 ? C.up : C.tx1)) : '#5f6773',
       est: !!(v.revenue && v.revenue.est),
-      showApprove: S.stage === 'review',
-      onApprove:() => this.setStage('approve'),
+      dec,
+    };
+  }
+
+  // Read-only card in the left rail at review/approve — the change under review.
+  buildChangeSummary() {
+    const S = this.state, p = S.params, RFE = window.RFE;
+    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : 'Add');
+    const cor = ((RFE && RFE.CORRIDORS) || []).find((c) => c.id === S.selCorridor);
+    return {
+      rows: [
+        { k:'change', v: verb + ' · ' + p.railcardName },
+        { k:'discount', v: p.discountPct + '%' },
+        { k:'validity', v: p.peakOn ? 'peak-valid' : 'off-peak only' },
+        { k:'rounding', v: (RFE && RFE.roundingLabel) ? RFE.roundingLabel(p.rounding) : p.rounding },
+        { k:'scheme area', v: (RFE && RFE.CLUSTER_LABEL && RFE.CLUSTER_LABEL[p.cluster]) || p.cluster },
+        { k:'min-fare floor', v: p.minFloorPct + '% of protected fare' },
+        { k:'scope', v: S.scopeKind === 'toc' ? ('TOC ' + (S.selToc || '—')) : (cor ? cor.name : '—') },
+      ],
+      onEdit:() => this.setStage('author'),
     };
   }
 
@@ -1815,7 +1954,7 @@ class Component extends DCLogic {
     this.setState({ proposing:true });
     const onApproved = (cardId) => (res2) => {
       if (res2.kind !== 'accepted') { this._onEscalation(res2); return; }
-      this.setState((s) => ({ proposing:false, escalation:null, mainCardId:null,
+      this.setState((s) => ({ proposing:false, escalation:null, mainCardId:null, approvedCardId:cardId,
         queueDisp:Object.assign({}, s.queueDisp, { main:'approved' }) }));
       this.pushFeed({ kind:'policy', severity:'info', source:'STAG',
         text:'card ' + cardId + ' approved → staging layer (baseline untouched)' });
@@ -1839,6 +1978,32 @@ class Component extends DCLogic {
       this.pushFeed({ kind:'sys', severity:'warn', source:'STAG',
         text:'staging propose failed — ' + (e && e.message ? e.message : 'network error') });
     });
+  }
+  // Hold = propose only. The card sits pending in the queue; nothing is
+  // approved and the baseline is untouched (approval is a separate act).
+  holdChange() {
+    const S = this.state;
+    if (S.proposing || !window.RFE || !window.RFE.proposeChange) return;
+    if (S.mainCardId) {
+      this.setState((s) => ({ queueDisp:Object.assign({}, s.queueDisp, { main:'held' }) }));
+      return;
+    }
+    const input = { params:S.params, includes:this.effIncludes(), disp:S.disp };
+    this.setState({ proposing:true });
+    window.RFE.proposeChange(input, S.selCorridor, null)
+      .then((res) => {
+        if (res.kind !== 'accepted') { this._onEscalation(res); return; }
+        this.setState((s) => ({ proposing:false, mainCardId:res.card.card_id,
+          queueDisp:Object.assign({}, s.queueDisp, { main:'held' }) }));
+        this.pushFeed({ kind:'policy', severity:'info', source:'STAG',
+          text:'card ' + res.card.card_id + ' proposed — held pending (baseline untouched)' });
+        this.refreshStaging();
+      })
+      .catch((e) => {
+        this.setState({ proposing:false });
+        this.pushFeed({ kind:'sys', severity:'warn', source:'STAG',
+          text:'staging propose failed — ' + (e && e.message ? e.message : 'network error') });
+      });
   }
   _onEscalation(res) {
     const esc = window.RFE_ADAPT.adaptEscalation(res);
@@ -1946,7 +2111,14 @@ class Component extends DCLogic {
   /* ---------------- toolbar / report / env / map interactions ---------------- */
   openReport() { this.setState({ showReport:true }); }
   closeReport() { this.setState({ showReport:false }); }
-  runImpact() { this._dramatic = true; this.recompute(true); }
+  runImpact() {
+    this._dramatic = true;
+    this.setState({ hasRun:true });
+    const st = this.state.stage;
+    // From scope/author the run IS the stage advance (setStage recomputes).
+    if (st === 'scope' || st === 'author') this.setStage('review');
+    else this.recompute(true);
+  }
   setEnv(e) {
     if (e === this.state.env) return;
     // Real env switch: X-Fares-Mode header on every fetch (HSP live vs
@@ -2359,16 +2531,28 @@ class Component extends DCLogic {
       return { label:o.label, active, color: active ? '#e7ebf0' : '#7b8390', weight: active ? 600 : 400,
         onPick:() => this.setScopeKind(o.kind) };
     });
+    // Single flow-state: everything on screen derives from stage + hasImpact.
+    const hasImpact = !!this._impact && S.hasRun;
     V.ui = {
-      showScope: S.stage === 'scope',
-      showBuilder: S.stage !== 'scope',
+      showScope: S.stage === 'scope' || S.stage === 'author',
+      proposeCta: S.stage === 'scope',
+      authorCta: S.stage === 'author',
+      authorOnStage: S.stage === 'author',
+      showSummary: S.stage === 'review' || S.stage === 'approve',
       showModules: S.stage === 'review' || S.stage === 'approve',
       isCorridor: S.scopeKind === 'corridor',
       isToc: S.scopeKind === 'toc',
       tocsEmpty: S.scopeKind === 'toc' && V.tocList.length === 0,
-      authorCta: S.stage === 'author',
+      hintOp: (!hasImpact && S.stage !== 'author') ? '1' : '0',
+      dimMap: hasImpact ? '' : 'rfe-dim',
+      dimAgg: hasImpact ? '' : 'rfe-dim',
+      dimAnalysis: hasImpact ? '' : 'rfe-dim',
+      dimRight: hasImpact ? '' : 'rfe-dim',
+      onPropose:() => this.setStage('author'),
+      onBackScope:() => this.setStage('scope'),
     };
     V.verdictBar = this.buildVerdictBar();
+    V.summary = this.buildChangeSummary();
 
     // change builder
     V.change = this.buildChange();
