@@ -1,0 +1,47 @@
+{
+  "_instructions": "nr_rail_kg = standard-class kgCO2e/passenger one-way, nr_car_kg = car ICE comparator. Filled 2026-07-03 from the RDG Green Travel Data calculator backend (the engine behind the National Rail carbon calculator iframe): POST https://www.raildeliverygroup.com/index.php?option=com_ajax&plugin=Carboncalculator&action=data&format=json with origin/destination station names. Raw responses snapshotted in data/carbon_oracle_responses/. Re-run tools/validate_demand_carbon.py after any refresh.",
+  "corridors": [
+    {
+      "name": "Manchester Piccadilly - London Euston (demo, WCML electric)",
+      "origin_crs": "MAN",
+      "dest_crs": "EUS",
+      "nr_rail_kg": 6.13,
+      "nr_car_kg": 61.06
+    },
+    {
+      "name": "Norwich - Sheringham (regional diesel)",
+      "origin_crs": "NRW",
+      "dest_crs": "SHM",
+      "nr_rail_kg": 5.3,
+      "nr_car_kg": 10.36
+    },
+    {
+      "name": "Woking - London Waterloo (short commuter)",
+      "origin_crs": "WOK",
+      "dest_crs": "WAT",
+      "nr_rail_kg": 1.04,
+      "nr_car_kg": 8.76
+    },
+    {
+      "name": "Birmingham New Street - Edinburgh (long cross-country)",
+      "origin_crs": "BHM",
+      "dest_crs": "EDB",
+      "nr_rail_kg": 28.59,
+      "nr_car_kg": 100.43
+    },
+    {
+      "name": "Brighton - London Victoria",
+      "origin_crs": "BTN",
+      "dest_crs": "VIC",
+      "nr_rail_kg": 3.53,
+      "nr_car_kg": 17.15
+    },
+    {
+      "name": "Leeds - London Kings Cross",
+      "origin_crs": "LDS",
+      "dest_crs": "KGX",
+      "nr_rail_kg": 6.47,
+      "nr_car_kg": 62.72
+    }
+  ]
+}

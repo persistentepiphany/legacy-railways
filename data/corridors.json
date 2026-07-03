@@ -1,0 +1,432 @@
+{
+  "corridors": [
+    {
+      "id": "man-eus",
+      "name": "Manchester \u2013 London Euston",
+      "sub": "Avanti West Coast \u00b7 WCML",
+      "origin_crs": "MAN",
+      "origin_nlc": "2968",
+      "dest_crs": "EUS",
+      "dest_nlc": "1444",
+      "default_ticket": "SOR",
+      "toc": "VT",
+      "path_crs": [
+        "MAN",
+        "SPT",
+        "MAC",
+        "SOT",
+        "STA",
+        "RGL",
+        "LTV",
+        "TAM",
+        "NUN",
+        "RUG",
+        "MKC",
+        "LBZ",
+        "WFJ",
+        "EUS"
+      ]
+    },
+    {
+      "id": "liv-yrk",
+      "name": "Liverpool \u2013 York",
+      "sub": "TransPennine Express",
+      "origin_crs": "LIV",
+      "origin_nlc": "2246",
+      "dest_crs": "YRK",
+      "dest_nlc": "8263",
+      "default_ticket": "SOR",
+      "toc": "TP",
+      "path_crs": [
+        "LIV",
+        "HUY",
+        "NLW",
+        "MAN",
+        "SYB",
+        "GNF",
+        "MSN",
+        "SWT",
+        "HUD",
+        "DEW",
+        "BTL",
+        "MLY",
+        "LDS",
+        "CRG",
+        "GRF",
+        "EGF",
+        "MIK",
+        "CHF",
+        "ULL",
+        "YRK"
+      ]
+    },
+    {
+      "id": "edb-kgx",
+      "name": "Edinburgh \u2013 London Kings Cross",
+      "sub": "LNER \u00b7 East Coast Main Line",
+      "origin_crs": "EDB",
+      "origin_nlc": "9328",
+      "dest_crs": "KGX",
+      "dest_nlc": "6121",
+      "default_ticket": "SOR",
+      "toc": "GR",
+      "path_crs": [
+        "EDB",
+        "DUN",
+        "BWK",
+        "ALM",
+        "MPT",
+        "NCL",
+        "DHM",
+        "DAR",
+        "NTR",
+        "THI",
+        "YRK",
+        "DON",
+        "RET",
+        "NNG",
+        "GRA",
+        "PBO",
+        "HIT",
+        "SVG",
+        "KGX"
+      ]
+    },
+    {
+      "id": "abd-edb",
+      "name": "Aberdeen \u2013 Edinburgh",
+      "sub": "ScotRail \u00b7 Fife circle",
+      "origin_crs": "ABD",
+      "origin_nlc": "8976",
+      "dest_crs": "EDB",
+      "dest_nlc": "9328",
+      "default_ticket": "SOR",
+      "toc": "SR",
+      "path_crs": [
+        "ABD",
+        "STN",
+        "MTS",
+        "ARB",
+        "DEE",
+        "LEU",
+        "KDY",
+        "INK",
+        "EDB"
+      ]
+    },
+    {
+      "id": "edb-glc",
+      "name": "Edinburgh \u2013 Glasgow Central",
+      "sub": "ScotRail \u00b7 E&G corridor",
+      "origin_crs": "EDB",
+      "origin_nlc": "9328",
+      "dest_crs": "GLC",
+      "dest_nlc": "9813",
+      "default_ticket": "SOR",
+      "toc": "SR",
+      "path_crs": [
+        "EDB",
+        "HYM",
+        "LIN",
+        "FKK",
+        "LNZ",
+        "GLQ",
+        "GLC"
+      ]
+    },
+    {
+      "id": "inv-edb",
+      "name": "Inverness \u2013 Edinburgh",
+      "sub": "ScotRail \u00b7 Highland Main Line",
+      "origin_crs": "INV",
+      "origin_nlc": "8649",
+      "dest_crs": "EDB",
+      "dest_nlc": "9328",
+      "default_ticket": "SOR",
+      "toc": "SR",
+      "path_crs": [
+        "INV",
+        "AVM",
+        "KIN",
+        "BLA",
+        "PIT",
+        "DKD",
+        "PTH",
+        "STG",
+        "EDB"
+      ]
+    },
+    {
+      "id": "cdf-bri",
+      "name": "Cardiff \u2013 Bristol Temple Meads",
+      "sub": "GWR \u00b7 Great Western",
+      "origin_crs": "CDF",
+      "origin_nlc": "3899",
+      "dest_crs": "BRI",
+      "dest_nlc": "3231",
+      "default_ticket": "SOR",
+      "toc": "GW",
+      "path_crs": [
+        "CDF",
+        "NWP",
+        "STJ",
+        "BPW",
+        "FIT",
+        "BRI"
+      ]
+    },
+    {
+      "id": "pnz-pad",
+      "name": "Penzance \u2013 London Paddington",
+      "sub": "GWR \u00b7 Cornish Riviera",
+      "origin_crs": "PNZ",
+      "origin_nlc": "3526",
+      "dest_crs": "PAD",
+      "dest_nlc": "3087",
+      "default_ticket": "SOR",
+      "toc": "GW",
+      "path_crs": [
+        "PNZ",
+        "TRU",
+        "SAU",
+        "PAR",
+        "LSK",
+        "PLY",
+        "TOT",
+        "NTA",
+        "EXD",
+        "TVP",
+        "TAU",
+        "CLC",
+        "WSB",
+        "NBY",
+        "RDG",
+        "PAD"
+      ]
+    },
+    {
+      "id": "bhm-eus",
+      "name": "Birmingham \u2013 London Euston",
+      "sub": "Avanti West Coast \u00b7 WCML south",
+      "origin_crs": "BHM",
+      "origin_nlc": "1127",
+      "dest_crs": "EUS",
+      "dest_nlc": "1444",
+      "default_ticket": "SOR",
+      "toc": "VT",
+      "path_crs": [
+        "BHM",
+        "BHI",
+        "COV",
+        "RUG",
+        "MKC",
+        "LBZ",
+        "WFJ",
+        "EUS"
+      ]
+    },
+    {
+      "id": "lds-kgx",
+      "name": "Leeds \u2013 London Kings Cross",
+      "sub": "LNER \u00b7 ECML branch",
+      "origin_crs": "LDS",
+      "origin_nlc": "8487",
+      "dest_crs": "KGX",
+      "dest_nlc": "6121",
+      "default_ticket": "SOR",
+      "toc": "GR",
+      "path_crs": [
+        "LDS",
+        "WKF",
+        "DON",
+        "RET",
+        "NNG",
+        "GRA",
+        "PBO",
+        "SVG",
+        "KGX"
+      ]
+    },
+    {
+      "id": "ncl-kgx",
+      "name": "Newcastle \u2013 London Kings Cross",
+      "sub": "LNER \u00b7 East Coast Main Line",
+      "origin_crs": "NCL",
+      "origin_nlc": "7728",
+      "dest_crs": "KGX",
+      "dest_nlc": "6121",
+      "default_ticket": "SOR",
+      "toc": "GR",
+      "path_crs": [
+        "NCL",
+        "DHM",
+        "DAR",
+        "YRK",
+        "DON",
+        "PBO",
+        "SVG",
+        "KGX"
+      ]
+    },
+    {
+      "id": "man-bhm",
+      "name": "Manchester \u2013 Birmingham New Street",
+      "sub": "CrossCountry \u00b7 north\u2013south",
+      "origin_crs": "MAN",
+      "origin_nlc": "2968",
+      "dest_crs": "BHM",
+      "dest_nlc": "1127",
+      "default_ticket": "SOR",
+      "toc": "XC",
+      "path_crs": [
+        "MAN",
+        "SPT",
+        "MAC",
+        "SOT",
+        "STA",
+        "WVH",
+        "BHM"
+      ]
+    },
+    {
+      "id": "bri-pad",
+      "name": "Bristol Temple Meads \u2013 London Paddington",
+      "sub": "GWR \u00b7 Great Western Main Line",
+      "origin_crs": "BRI",
+      "origin_nlc": "3231",
+      "dest_crs": "PAD",
+      "dest_nlc": "3087",
+      "default_ticket": "SOR",
+      "toc": "GW",
+      "path_crs": [
+        "BRI",
+        "BTH",
+        "SWI",
+        "RDG",
+        "PAD"
+      ]
+    },
+    {
+      "id": "cdf-pad",
+      "name": "Cardiff \u2013 London Paddington",
+      "sub": "GWR \u00b7 South Wales Main Line",
+      "origin_crs": "CDF",
+      "origin_nlc": "3899",
+      "dest_crs": "PAD",
+      "dest_nlc": "3087",
+      "default_ticket": "SOR",
+      "toc": "GW",
+      "path_crs": [
+        "CDF",
+        "NWP",
+        "STJ",
+        "BPW",
+        "SWI",
+        "RDG",
+        "PAD"
+      ]
+    },
+    {
+      "id": "rdg-pad",
+      "name": "Reading \u2013 London Paddington",
+      "sub": "GWR \u00b7 Thames Valley commuter",
+      "origin_crs": "RDG",
+      "origin_nlc": "3149",
+      "dest_crs": "PAD",
+      "dest_nlc": "3087",
+      "default_ticket": "SOR",
+      "toc": "GW",
+      "path_crs": [
+        "RDG",
+        "SLO",
+        "PAD"
+      ]
+    },
+    {
+      "id": "btn-vic",
+      "name": "Brighton \u2013 London Victoria",
+      "sub": "Southern \u00b7 Brighton Main Line",
+      "origin_crs": "BTN",
+      "origin_nlc": "5268",
+      "dest_crs": "VIC",
+      "dest_nlc": "5426",
+      "default_ticket": "SOR",
+      "toc": "SN",
+      "path_crs": [
+        "BTN",
+        "HHE",
+        "GTW",
+        "ECR",
+        "VIC"
+      ]
+    },
+    {
+      "id": "gtw-vic",
+      "name": "Gatwick Airport \u2013 London Victoria",
+      "sub": "Gatwick Express \u00b7 airport shuttle",
+      "origin_crs": "GTW",
+      "origin_nlc": "5416",
+      "dest_crs": "VIC",
+      "dest_nlc": "5426",
+      "default_ticket": "SOR",
+      "toc": "GX",
+      "path_crs": [
+        "GTW",
+        "ECR",
+        "VIC"
+      ]
+    },
+    {
+      "id": "not-stp",
+      "name": "Nottingham \u2013 London St Pancras",
+      "sub": "East Midlands Railway \u00b7 MML",
+      "origin_crs": "NOT",
+      "origin_nlc": "1826",
+      "dest_crs": "STP",
+      "dest_nlc": "1555",
+      "default_ticket": "SOR",
+      "toc": "EM",
+      "path_crs": [
+        "NOT",
+        "LEI",
+        "LTN",
+        "STP"
+      ]
+    },
+    {
+      "id": "shf-stp",
+      "name": "Sheffield \u2013 London St Pancras",
+      "sub": "East Midlands Railway \u00b7 MML north",
+      "origin_crs": "SHF",
+      "origin_nlc": "6691",
+      "dest_crs": "STP",
+      "dest_nlc": "1555",
+      "default_ticket": "SOR",
+      "toc": "EM",
+      "path_crs": [
+        "SHF",
+        "DBY",
+        "LEI",
+        "LTN",
+        "STP"
+      ]
+    },
+    {
+      "id": "nrw-lst",
+      "name": "Norwich \u2013 London Liverpool Street",
+      "sub": "Greater Anglia \u00b7 Great Eastern Main Line",
+      "origin_crs": "NRW",
+      "origin_nlc": "7309",
+      "dest_crs": "LST",
+      "dest_nlc": "6965",
+      "default_ticket": "SOR",
+      "toc": "LE",
+      "path_crs": [
+        "NRW",
+        "IPS",
+        "CHM",
+        "LST"
+      ]
+    }
+  ]
+}

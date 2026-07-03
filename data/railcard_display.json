@@ -1,0 +1,24 @@
+{
+  "whitelist": [
+    { "code": "YNG", "display": "16-25 Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "Age 16-25 or mature student", "national": true },
+    { "code": "SRN", "display": "Senior Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "Age 60+", "national": true },
+    { "code": "2TR", "display": "Two Together Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "Two named adults travelling together", "national": true },
+    { "code": "FAM", "display": "Family & Friends Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "Up to 4 adults + 4 children", "national": true },
+    { "code": "NEW", "display": "Network Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "South-east England off-peak", "national": false },
+    { "code": "VET", "display": "Veterans Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "HM Forces veterans", "national": true },
+    { "code": "DIP", "display": "Disabled Persons (1yr)", "hint_pct": 34, "off_peak_only": false, "sub": "1-year Disabled Persons", "national": true },
+    { "code": "DIV", "display": "Disabled Persons (3yr)", "hint_pct": 34, "off_peak_only": false, "sub": "3-year Disabled Persons", "national": true },
+    { "code": "DIC", "display": "Disabled Child", "hint_pct": 60, "off_peak_only": false, "sub": "Registered disabled child", "national": true },
+    { "code": "HCT", "display": "Highland Concession Card", "hint_pct": 34, "off_peak_only": true, "sub": "Highland concessionary", "national": false },
+    { "code": "HRC", "display": "Highland Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "Highland residents", "national": false },
+    { "code": "GCO", "display": "GC Senior Railcard", "hint_pct": 34, "off_peak_only": true, "sub": "Grand Central senior", "national": false },
+    { "code": "JO4", "display": "JobCentre+ Discount", "hint_pct": 50, "off_peak_only": false, "sub": "JobCentre travel discount", "national": true },
+    { "code": "BB2", "display": "Student Discount", "hint_pct": 25, "off_peak_only": true, "sub": "Student beans / STA travel", "national": false },
+    { "code": "BCU", "display": "BCU Student", "hint_pct": 25, "off_peak_only": true, "sub": "Birmingham City Uni student", "national": false },
+    { "code": "LUS", "display": "18+ Student Oyster", "hint_pct": 30, "off_peak_only": false, "sub": "TfL 18+ student", "national": false },
+    { "code": "UO2", "display": "WMT Student", "hint_pct": 25, "off_peak_only": true, "sub": "West Midlands student", "national": false },
+    { "code": "W25", "display": "Student Beans 25", "hint_pct": 25, "off_peak_only": true, "sub": "Student Beans partner discount", "national": false },
+    { "code": "WSC", "display": "TfW Student", "hint_pct": 25, "off_peak_only": true, "sub": "Transport for Wales student", "national": false },
+    { "code": "VLC", "display": "Avanti Student", "hint_pct": 25, "off_peak_only": true, "sub": "Avanti student card", "national": false }
+  ]
+}

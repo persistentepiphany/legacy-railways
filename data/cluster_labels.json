@@ -1,0 +1,29 @@
+{
+  "clusters": {
+    "national": {
+      "label": "National (all stations)",
+      "sub": "Every NLC in the .LOC snapshot",
+      "member_counties": ["*"]
+    },
+    "scotrail_regional": {
+      "label": "ScotRail regional",
+      "sub": "Stations in Scottish counties",
+      "member_counties": ["AB", "AN", "AR", "AY", "BE", "BW", "CA", "CB", "DN", "DU", "EL", "FI", "IN", "KA", "KC", "LK", "MO", "OR", "PH", "RC", "RO", "RX", "SL", "SN", "ST", "SU", "WL"]
+    },
+    "wcml_north": {
+      "label": "West Coast Main Line (north)",
+      "sub": "Euston ↔ Glasgow spine + branches",
+      "member_crs": ["EUS", "WFJ", "MKC", "RUG", "COV", "BHM", "STA", "CRE", "STO", "MAC", "SPT", "MAN", "PRE", "LAN", "OXN", "PNR", "CAR", "LOC", "MOT", "GLC", "LIV"]
+    },
+    "ecml": {
+      "label": "East Coast Main Line",
+      "sub": "Kings Cross ↔ Edinburgh spine",
+      "member_crs": ["KGX", "SVG", "HIT", "PBO", "GRA", "NNG", "RET", "DON", "YRK", "DAR", "DHM", "NCL", "BWK", "EDB", "LDS", "WKF"]
+    },
+    "gwml_south": {
+      "label": "Great Western Main Line",
+      "sub": "Paddington ↔ Penzance + South Wales",
+      "member_crs": ["PAD", "RDG", "DID", "SWI", "BPW", "BRI", "TAU", "EXD", "PLY", "TRU", "PNZ", "CDF", "NWP", "SWA", "OXF", "CPM"]
+    }
+  }
+}

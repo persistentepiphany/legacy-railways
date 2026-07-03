@@ -34,12 +34,23 @@ private_keys.json
 # Local pre-overhaul backups of frontend files
 frontend/_archive/
 
-# Data — NEVER commit the feed snapshot or the regulation map data dumps
-data/
+# Data — NEVER commit the feed snapshot or the regulation map data dumps.
+# Directory contents are ignored with a glob (not `data/`) so that
+# re-inclusions below actually work — with a directory-level ignore
+# Git refuses to descend and !data/foo.json has no effect.
+data/*
 *.zip
 *.tar.gz
 !/feed.tar.gz
 data_railway/
+# … but the tiny curated JSON metadata IS version-controlled — the
+# API reads it at startup and the Dockerfile bakes it into the image.
+!data/corridors.json
+!data/railcard_display.json
+!data/cluster_labels.json
+!data/classification_corridor.json
+!data/easement_predicates.json
+!data/carbon_oracle_template.json
 
 # Personal planning + scratch experiment scripts (not part of the project)
 PLAN.md

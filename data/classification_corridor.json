@@ -1,0 +1,61 @@
+{
+  "results": [
+    {
+      "case": "MAN<->EUS Off-Peak Return",
+      "classification": "Regulated",
+      "description": "OFF-PEAK R",
+      "fare_pence": 5650,
+      "rule": "\u00a71: Off-Peak Return on long-distance flow + Std class",
+      "ticket_code": "SVR"
+    },
+    {
+      "case": "SOT<->MAN Off-Peak Return",
+      "classification": "Regulated",
+      "description": "OFF-PEAK R",
+      "fare_pence": 2220,
+      "rule": "\u00a71: Off-Peak Return on long-distance flow + Std class",
+      "ticket_code": "SVR"
+    },
+    {
+      "case": "MAN<->EUS Anytime Return",
+      "classification": "NOT regulated",
+      "description": "ANYTIME R",
+      "fare_pence": 14000,
+      "rule": "\u00a71: Standard walk-up not on regulated list (e.g. anytime single)",
+      "ticket_code": "SOR"
+    },
+    {
+      "case": "MAN<->EUS Advance",
+      "classification": "NOT regulated",
+      "description": "ADVANCE",
+      "fare_pence": 3600,
+      "rule": "\u00a71: Advance fare (.TTY DESCRIPTION says ADVANCE)",
+      "ticket_code": "C1S"
+    },
+    {
+      "case": "MAN<->EUS First Class Rtn",
+      "classification": "MISSING",
+      "description": "ANYTIME 1R",
+      "fare_pence": null,
+      "rule": "ticket not on this corridor in .FFL \u2014 honest gap, not a guess",
+      "ticket_code": "FOR"
+    }
+  ],
+  "stations": {
+    "EUS": {
+      "county": "",
+      "desc": "LONDON EUSTON",
+      "nlc": "1444"
+    },
+    "MAN": {
+      "county": "",
+      "desc": "MANCHESTER PIC",
+      "nlc": "2968"
+    },
+    "SOT": {
+      "county": "",
+      "desc": "STOKE ON TRENT",
+      "nlc": "1314"
+    }
+  }
+}
