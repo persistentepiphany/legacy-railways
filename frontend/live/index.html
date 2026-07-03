@@ -247,6 +247,21 @@
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#4f6e5d" stroke-width="2" style="flex:0 0 auto"><path d="m9 6 6 6-6 6"></path></svg>
             </div>
           </div>
+          <!-- landing list: changes already in the staging layer -->
+          <sc-if value="{{ stagingList.has }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:13px">
+              <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600;margin-bottom:7px">IN STAGING</div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <sc-for list="{{ stagingList.rows }}" as="sr" hint-placeholder-count="0">
+                  <div onClick="{{ sr.onOpen }}" style="display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid #171a1e;border-radius:7px;cursor:pointer" style-hover="border-color:#2a2e34">
+                    <div style="width:5px;height:5px;border-radius:50%;background:{{ sr.dot }};flex:0 0 auto"></div>
+                    <span style="font-size:11px;color:#98a1ae;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">{{ sr.label }}</span>
+                    <span style="font-size:9.5px;color:{{ sr.stateColor }};flex:0 0 auto">{{ sr.state }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
         </sc-if>
       </div>
       </sc-if>
@@ -1516,7 +1531,7 @@ class Component extends DCLogic {
       includes:{ compliance:true, splits:true, performance:true, revenue:true, validity:true, demand:false, carbon:false },
       perfAvailable:true, feedMode:'live', feedFetchedSec:2,
       disp:{ contradiction:null }, queueDisp:{},
-      escalation:null, proposing:false, mainCardId:null, stagingCounts:{ approved:0, pending:0 },
+      escalation:null, proposing:false, mainCardId:null, stagingCounts:{ approved:0, pending:0 }, stagingRows:[],
       selFlow:'ABD-EDB:OPR', selCorridor:'abd', selStep:'railcard',
       activeRight:'prov', activeAnalysis:'blast',
       hoverNode:null, filterStation:null,
@@ -1952,7 +1967,11 @@ class Component extends DCLogic {
   refreshStaging() {
     if (!window.RFE || !window.RFE.fetchStaging) return;
     window.RFE.fetchStaging().then((st) => {
-      this.setState({ stagingCounts:{ approved:(st.approved || []).length, pending:(st.pending || []).length } });
+      const row = (state) => (c) => ({ id:c.card_id,
+        label:(c.change && c.change.description) || c.card_id, state });
+      const rows = (st.approved || []).map(row('approved')).concat((st.pending || []).map(row('pending')));
+      this.setState({ stagingRows:rows,
+        stagingCounts:{ approved:(st.approved || []).length, pending:(st.pending || []).length } });
     }).catch(() => {});
   }
   proposeMain(contradictionChoice) {
@@ -2560,6 +2579,13 @@ class Component extends DCLogic {
     };
     V.verdictBar = this.buildVerdictBar();
     V.summary = this.buildChangeSummary();
+    V.stagingList = {
+      has: S.stagingRows.length > 0,
+      rows: S.stagingRows.slice(0, 5).map((r) => ({ label:r.label, state:r.state,
+        dot: r.state === 'approved' ? this.C.ok : this.C.warn,
+        stateColor: r.state === 'approved' ? this.C.ok : this.C.warn,
+        onOpen:() => this.setState({ activeRight:'queue' }) })),
+    };
 
     // change builder
     V.change = this.buildChange();
