@@ -358,6 +358,36 @@ def test_approve_re_checks_against_approved_cards() -> None:
     )
 
 
+def test_approve_honours_recorded_choice_b() -> None:
+    """A card accepted at propose time WITH an explicit 'B' pick must be
+    approvable even though it still conflicts with the approved card the
+    analyst overrode — the human picked, we recorded, approve() must not
+    re-escalate the same contradiction."""
+    c1 = _change(railcard_code="STA")
+    i1 = _impact(c1, _affected_fare(flow_id="X", new_pence=6700))
+    r1 = propose(StagingLayer.empty(), c1, i1)
+    assert isinstance(r1, Accepted)
+    r1a = approve(r1.layer, r1.card.card_id)
+    assert isinstance(r1a, Accepted)
+
+    c2 = _change(railcard_code="STB")
+    i2 = _impact(c2, _affected_fare(flow_id="X", new_pence=8000))
+    esc = propose(r1a.layer, c2, i2)
+    assert isinstance(esc, Escalation)
+
+    c2_picked = ChangeRequest(
+        **{**c2.__dict__, "contradiction_choice": {"X:SVR": "B"}}
+    )
+    i2b = _impact(c2_picked, _affected_fare(flow_id="X", new_pence=8000))
+    r2 = propose(r1a.layer, c2_picked, i2b)
+    assert isinstance(r2, Accepted)
+    r2a = approve(r2.layer, r2.card.card_id)
+    assert isinstance(r2a, Accepted), (
+        "approve() must honour the card's recorded contradiction_choice"
+    )
+    assert len(r2a.layer.approved) == 2
+
+
 # --- Slow: baseline non-mutation (the architectural proof) ------------------
 
 

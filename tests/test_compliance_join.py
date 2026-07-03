@@ -14,9 +14,11 @@ Three slices:
     DISCOUNT_CATEGORY '03' (SVR Off-Peak Return, the headline regulated
     walk-up) so the regulated/compliant path is exercised end-to-end.
 
-The deliberate-breach scenario lives in the FAST slice — it constructs an
-AffectedFare with new_price_pence above an in-memory cap, avoiding the
-need to invent a `raise_price` ChangeRequest kind (scope creep).
+The deliberate-breach scenario is covered twice: a FAST unit slice that
+constructs an AffectedFare above an in-memory cap, and a @slow end-to-end
+slice using the `raise_price` ChangeRequest kind (the cockpit's "Fare
+rise" change type) — a rise on SVR/OPR is exactly what the §3 freeze
+forbids, so it must produce organic breaches.
 
 Run with:   pytest tests/test_compliance_join.py
             pytest tests/test_compliance_join.py -m slow
@@ -166,6 +168,44 @@ def test_check_compliance_compliant_when_below_cap() -> None:
         corridor_origin_nlc=MAN_PICC_NLC, corridor_dest_nlc=EUSTON_NLC,
     )
     assert verdict.status == "compliant"
+
+
+def test_check_compliance_discount_on_pricier_route_not_breach() -> None:
+    """The §4 fallback map cap is the corridor-CHEAPEST fare per ticket, so
+    a fare on a pricier route sits above it even before the change. Its own
+    current price is its fallback baseline: a discount must be compliant,
+    reported against the effective cap max(map cap, old price)."""
+    entry = RegulationEntry(
+        origin_nlc=MAN_PICC_NLC, dest_nlc=EUSTON_NLC, ticket_code="SVR",
+        regulated=True, cap_price_2025_pence=5650, citation=_citation(),
+    )
+    regmap = _regmap_with(entry)
+    # Route-00129 SVR: 16740p discounted to 11145p — above the corridor-
+    # cheapest 5650p cap but a decrease against its own price.
+    fare = _affected_fare(old_pence=16740, new_pence=11145)
+    verdict = check_compliance(
+        fare, regmap,
+        corridor_origin_nlc=MAN_PICC_NLC, corridor_dest_nlc=EUSTON_NLC,
+    )
+    assert verdict.status == "compliant"
+    assert verdict.cap_price_2025_pence == 16740  # effective cap = old price
+
+
+def test_check_compliance_increase_on_pricier_route_still_breach() -> None:
+    """The effective cap only lifts to the fare's own current price — an
+    INCREASE above that price still breaches the 0% freeze."""
+    entry = RegulationEntry(
+        origin_nlc=MAN_PICC_NLC, dest_nlc=EUSTON_NLC, ticket_code="SVR",
+        regulated=True, cap_price_2025_pence=5650, citation=_citation(),
+    )
+    regmap = _regmap_with(entry)
+    fare = _affected_fare(old_pence=16740, new_pence=17000)
+    verdict = check_compliance(
+        fare, regmap,
+        corridor_origin_nlc=MAN_PICC_NLC, corridor_dest_nlc=EUSTON_NLC,
+    )
+    assert verdict.status == "breach"
+    assert verdict.cap_price_2025_pence == 16740
 
 
 def test_check_compliance_not_regulated_for_advance() -> None:
@@ -413,12 +453,11 @@ def test_regulated_scope_svr_rows_classify_with_off_peak_return_citation(
     breach}, never not_regulated) and cite §1 Off-Peak Return — proves the
     regmap join hit and used the right rule.
 
-    Whether an individual SVR row is compliant or breach depends on the
-    §4 cap-fallback: the cap is the CHEAPEST current SVR on the corridor,
-    so more expensive SVR routes whose discounted price still exceeds the
-    cheapest SVR are flagged as breach (an artifact of the fallback, not
-    a real freeze violation). This is acknowledged in the regulation map
-    notes and is the v2 fix (source the true 1 Mar 2025 reference)."""
+    The map's §4 fallback cap is the CHEAPEST current SVR on the corridor,
+    but the check uses max(map cap, the row's own old price) as the
+    effective cap — so a discounted SVR on a pricier route is compliant
+    (its own current price is its fallback baseline), not a false breach.
+    Sourcing the true 1 Mar 2025 reference remains the v2 fix."""
     svr_rows = [
         f for f in regulated_scope_report.canonical_affected
         if f.ticket_code == "SVR"
@@ -482,6 +521,95 @@ def test_regulated_scope_breach_carries_full_evidence(
         assert fare.compliance.citation is not None
         assert "BREACH" in fare.compliance.explanation
         assert str(fare.compliance.cap_price_2025_pence) in fare.compliance.explanation
+
+
+# --- raise_price: the organic-breach path -------------------------------------
+
+
+@pytest.fixture(scope="module")
+def raise_change() -> ChangeRequest:
+    """A 5% across-the-board rise on the walk-up scope (cats '01','03','08').
+    SVR/OPR are regulated under §1 and any increase breaches the 0% freeze
+    (effective cap = max(map cap, the fare's own old price))."""
+    return ChangeRequest(
+        kind="raise_price",
+        railcard_code="RSE",
+        discount_pct=0.05,
+        discount_categories=("01", "03", "08"),
+        corridor_origin_nlc=MAN_PICC_NLC,
+        corridor_dest_nlc=EUSTON_NLC,
+        peak_valid=True,
+        description="Raise walk-up fares 5% on MAN->EUS",
+    )
+
+
+@pytest.fixture(scope="module")
+def raise_report(feed_paths: FeedPaths, raise_change: ChangeRequest) -> ImpactReport:
+    return compute_impact(raise_change, feed_paths)
+
+
+def test_raise_price_math_is_an_increase() -> None:
+    """apply_synthetic_railcard with kind='raise_price' must move the price
+    UP by floor(old * pct) before rounding — sign-flipped railcard math."""
+    from src.impact.synthetic_railcard import apply_synthetic_railcard
+
+    change = ChangeRequest(
+        kind="raise_price",
+        railcard_code="RSE",
+        discount_pct=0.05,
+        discount_categories=("01",),
+        corridor_origin_nlc=MAN_PICC_NLC,
+        corridor_dest_nlc=EUSTON_NLC,
+        peak_valid=False,
+        description="unit-test rise",
+        rounding_rule="none",
+    )
+    new, step = apply_synthetic_railcard(10000, change)
+    assert new == 10500
+    assert step.step == "synthetic_railcard_apply"
+    assert step.detail["kind"] == "raise_price"
+
+
+@pytest.mark.slow
+def test_raise_price_produces_organic_breaches(raise_report: ImpactReport) -> None:
+    """A rise on the regulated walk-ups MUST come back as breaches: every
+    regulated row's new price exceeds its own old price (the §4 effective
+    cap), so regulated_count == breach_count > 0. This is the red-card demo
+    scenario the cockpit's 'Fare rise' change type drives."""
+    assert raise_report.compliance is not None
+    comp = raise_report.compliance
+    assert comp.regulated_count > 0, "rise scope must touch SVR/OPR"
+    assert comp.breach_count == comp.regulated_count, (
+        "every regulated row under a rise must breach the 0% freeze; "
+        f"regulated={comp.regulated_count}, breaches={comp.breach_count}"
+    )
+    for fare in comp.breaches:
+        assert fare.old_price_pence is not None
+        assert fare.new_price_pence is not None
+        assert fare.new_price_pence > fare.old_price_pence
+        assert fare.compliance is not None
+        assert fare.compliance.status == "breach"
+        assert "BREACH" in fare.compliance.explanation
+
+
+@pytest.mark.slow
+def test_raise_price_skips_rlc_collision_check(feed_paths: FeedPaths) -> None:
+    """raise_price creates no railcard, so a code that exists in .RLC must
+    NOT be rejected (the collision check is add_railcard-only)."""
+    from src.impact.change_request import validate_against_feed
+
+    change = ChangeRequest(
+        kind="raise_price",
+        railcard_code="YNG",   # a real .RLC code — would fail for add_railcard
+        discount_pct=0.05,
+        discount_categories=("01",),
+        corridor_origin_nlc=MAN_PICC_NLC,
+        corridor_dest_nlc=EUSTON_NLC,
+        peak_valid=False,
+        description="rise with a feed railcard code",
+    )
+    outcome = validate_against_feed(change, feed_paths)
+    assert outcome.ok, f"unexpected errors: {outcome.errors}"
 
 
 # --- Disclosure invariants --------------------------------------------------

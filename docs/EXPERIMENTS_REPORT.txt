@@ -1,0 +1,97 @@
+Experiment battery — feed: RJFAF805.FFL
+Run at: 2026-06-30 15:23:11
+
+======================================================================
+BATTERY 1: BRFares oracle replay
+======================================================================
+  brfares_man_eus.json             rlc=(adult)    rows=300  match=90   mismatch=0   quar=210  err=0
+  brfares_man_eus_2tr.json         rlc=2TR        rows=213  match=88   mismatch=0   quar=125  err=0
+  brfares_man_eus_dis.json         rlc=DIS        rows=213  match=88   mismatch=0   quar=125  err=0
+  brfares_man_eus_fam.json         rlc=FAM        rows=146  match=69   mismatch=0   quar=77   err=0
+  brfares_man_eus_srn.json         rlc=SRN        rows=213  match=88   mismatch=0   quar=125  err=0
+  brfares_man_eus_yng.json         rlc=YNG        rows=207  match=82   mismatch=0   quar=125  err=0
+
+  TOTAL: 6 files, 1292 priced rows
+         match=505  mismatch=0  quarantined=787  errors=0
+         match rate on resolved fares: 100.00%  (505/505)
+
+======================================================================
+BATTERY 2: Adversarial / messy-input battery
+======================================================================
+  [ValueError       ] NLC too short                    origin_nlc must be 4 alnum chars, got '296'
+  [ValueError       ] NLC too long                     origin_nlc must be 4 alnum chars, got '29688'
+  [ValueError       ] NLC with symbols                 origin_nlc must be 4 alnum chars, got '29!8'
+  [ValueError       ] dest NLC blank                   dest_nlc must be 4 alnum chars, got ''
+  [ValueError       ] ticket too short                 ticket_code must be 3 alnum chars, got 'SO'
+  [ValueError       ] ticket too long                  ticket_code must be 3 alnum chars, got 'SORX'
+  [ValueError       ] ticket with symbols              ticket_code must be 3 alnum chars, got 'S O'
+  [ValueError       ] route too short                  route_code must be 5 alnum chars, got '123'
+  [ValueError       ] route too long                   route_code must be 5 alnum chars, got '123456'
+  [ValueError       ] route empty                      route_code must be 5 alnum chars, got ''
+  [typed:no_flow      ] ghost corridor                   price=None
+  [typed:no_flow      ] self loop                        price=None
+  [typed:no_fare      ] nonexistent ticket               price=None
+  [typed:no_fare      ] nonexistent ticket #2            price=None
+  [typed:no_fare      ] unknown railcard ZZZ             price=None
+  [typed:no_fare      ] unknown railcard 999             price=None
+  [typed:resolved     ] unknown route 99999              price=38600
+  [typed:no_flow      ] dest=00000 zeros                 price=None
+  [typed:no_flow      ] orig=00000 zeros                 price=None
+  [typed:resolved     ] MAN-EUS SOR no railcard          price=38600
+  [typed:no_fare      ] MAN-EUS unknown ticket           price=None
+  [typed:no_fare      ] MAN-EUS CDR (cheap day)          price=None
+  [typed:no_fare      ] MAN-EUS 7DS season               price=None
+
+  TOTAL adversarial: 23
+    typed returns:     13
+    ValueError (boundary): 10
+    unexpected crashes: 0
+    silent guesses (resolved with price=None): 0
+
+======================================================================
+BATTERY 3: Full-feed sweep
+======================================================================
+  RJFAF805.FFL     size=253.30MB  records=9637698  rejects=   0  handler_crashes=  0  (147.9s)
+  RJFAF805.FSC     size=  1.21MB  records=  44731  rejects=   0  handler_crashes=  0  (19.5s)
+  RJFAF805.NFO     size= 14.79MB  records= 214388  rejects=   0  handler_crashes=  0  (1.9s)
+  RJFAF805.TTY     size=  0.44MB  records=   3855  rejects=   0  handler_crashes=  0  (0.2s)
+  RJFAF805.LOC     size= 15.38MB  records=  38988  rejects=   0  handler_crashes=  0  (0.7s)
+  RJFAF805.RLC     size=  0.07MB  records=    500  rejects=   0  handler_crashes=  0  (0.0s)
+  RJFAF805.RCM     size=  0.13MB  records=   3977  rejects=   0  handler_crashes=  0  (0.0s)
+  RJFAF805.FRR     size=  0.01MB  records=    360  rejects=   0  handler_crashes=  0  (0.0s)
+  RJFAF805.DIS     size=  0.19MB  records=   8106  rejects=   0  handler_crashes=  0  (0.0s)
+
+  TOTAL: 285.53 MB across 9 files
+         records parsed:   9952603
+         rejects (quarantined): 0
+         handler crashes / parse errors: 0
+         sweep crashes (parser exceptions escaping): 0
+
+======================================================================
+BATTERY 4: Regulation classifier stress
+======================================================================
+  [OK ] expected=True  got=True  MAN-EUS SVR  (long-dist OPR)      rule=Off-Peak Return on long-distance flow + Standard c
+  [OK ] expected=True  got=True  BHM-EUS OPR  (long-dist OPR)      rule=Off-Peak Return on long-distance flow + Standard c
+  [OK ] expected=True  got=True  Reading-EUS SDR (London-area)     rule=Anytime Day Return on London-area flow + Standard 
+  [OK ] expected=False got=False MAN-EUS SDR (long-distance)       rule=Standard walk-up not on regulated list (Anytime / 
+  [OK ] expected=True  got=True  EUS-Reading 7DS weekly            rule=Weekly+ Standard season ticket
+  [FAIL] expected=True  got=False EUS-Reading AMS annual            rule=ticket code not in .TTY — out of scope
+  [OK ] expected=False got=False Edinburgh-Glasgow SVR (Scot)      rule=devolved nation (Scotland) — 0% freeze does not ap
+  [OK ] expected=False got=False Edinburgh-Glasgow 7DS (Scot)      rule=devolved nation (Scotland) — 0% freeze does not ap
+  [OK ] expected=False got=False MAN-EUS FOR (first open)          rule=First Class — explicitly unregulated
+  [OK ] expected=False got=False MAN-EUS FOS (first single)        rule=First Class — explicitly unregulated
+  [OK ] expected=False got=False MAN-EUS SOR (anytime return)      rule=Standard walk-up not on regulated list (Anytime / 
+  [OK ] expected=False got=False MAN-EUS SOS (anytime single)      rule=Standard walk-up not on regulated list (Anytime / 
+  [OK ] expected=False got=False MAN-EUS XYZ (unknown ticket)      rule=ticket code not in .TTY — out of scope
+
+  TOTAL: 13 cases, correct=12, wrong=1, missing-TTY=2
+  Wrong classifications:
+    'EUS-Reading AMS annual': expected=True, got=False, rule=ticket code not in .TTY — out of scope
+
+======================================================================
+OVERALL SUMMARY
+======================================================================
+  BRFares oracle:     505/505 resolved fares matched (100.00%); 787 typed-quarantines; 0 resolver errors
+  Adversarial:        23 inputs, 0 crashes, 0 silent guesses, 10 boundary rejections, 13 typed returns
+  Full-feed sweep:    9952603 records parsed, 0 quarantined, 0 handler crashes (285.5 MB total)
+  Regulation:         12/13 boundary cases classified correctly

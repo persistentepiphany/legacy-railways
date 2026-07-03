@@ -47,12 +47,20 @@ class ODMRevenueEstimate:
 
     Not settlement-grade — modelled from lagged ODM. The `matched_pair_count`
     vs `unmatched_pair_count` split lets the UI show how much of the flow's
-    blast radius the ODM actually covers."""
+    blast radius the ODM actually covers.
+
+    `journeys_per_period` is the EFFECTIVE journey count attributed to this
+    product: the ODM is product-agnostic, so a pair's journeys are split
+    equally across every repriced product covering that pair (otherwise a
+    16-product corridor counts its passengers 16 times over), and scaled by
+    the adoption share when the change adds an optional discounted product.
+    The invariant `revenue_delta_pence == journeys_per_period * delta` holds
+    exactly so a UI ledger can re-multiply to the penny."""
     flow_id: str
     ticket_code: str
     matched_pair_count: int
     unmatched_pair_count: int
-    journeys_per_period: int          # summed over matched pairs
+    journeys_per_period: int          # effective journeys (see docstring)
     delta_pence_per_journey: int      # new_price - old_price
     revenue_delta_pence: int          # journeys * delta
 
@@ -69,6 +77,10 @@ class ODMRevenueBlock:
     matched_flow_count: int           # canonical rows with ≥1 matched pair
     unmatched_flow_count: int         # canonical rows with 0 matched pairs
     period_label: str                 # e.g. "ORR ODM 2023-24" (from filename)
+    # None for price changes on existing products (every journey pays the new
+    # price); set for optional-product changes (add_railcard), where only the
+    # adopting share of journeys sees the delta.
+    adoption_share: float | None
     notes: tuple[str, ...]
 
 
@@ -170,6 +182,19 @@ def _period_label_from_filename(path: Path) -> str:
     return f"ODM ({stem})"
 
 
+def _period_label_from_year_column(df, columns: list[str]) -> str | None:
+    """Prefer an in-file financial-year column over the filename: the install
+    tool names the file plain odm.csv, so 'ODM (odm)' would be a useless label.
+    ORR encodes e.g. 20222023 → rendered '2022/23'."""
+    year_col = next((c for c in columns if "year" in c.lower()), None)
+    if year_col is None:
+        return None
+    raw = str(df[year_col].iloc[0]).strip()
+    if len(raw) == 8 and raw.isdigit():
+        return f"ORR ODM {raw[:4]}/{raw[6:]}"
+    return f"ORR ODM {raw}" if raw else None
+
+
 def load_odm_index(
     csv_path: Path,
     loc: dict[str, "LocationMeta"] | None = None,
@@ -201,6 +226,8 @@ def load_odm_index(
         )
 
     cols = _infer_columns(list(df.columns))
+    period_label = (_period_label_from_year_column(df, list(df.columns))
+                    or _period_label_from_filename(csv_path))
     notes: list[str] = []
 
     # Build CRS→NLC map if needed.
@@ -291,7 +318,7 @@ def load_odm_index(
     return ODMIndex(
         by_pair=by_pair,
         by_pair_and_ticket=by_pair_and_ticket,
-        period_label=_period_label_from_filename(csv_path),
+        period_label=period_label,
         is_ticket_aware=is_ticket_aware,
         row_count=len(df),
         notes=tuple(notes),
@@ -300,12 +327,32 @@ def load_odm_index(
     )
 
 
+def load_odm_index_cached(
+    csv_path: Path,
+    loc: dict[str, "LocationMeta"] | None = None,
+) -> ODMIndex:
+    """mtime-keyed cache wrap (same policy as the feed/timetable loaders in
+    src/ingest/inspect.py): the ORR release is ~1.4M rows and reloading it on
+    every impact request would dominate the request. The key ignores `loc`
+    deliberately — it is only used for CRS→NLC remapping and is itself derived
+    from the session-fixed .LOC file."""
+    from src.ingest.inspect import _cached
+
+    def _build(path: Path) -> ODMIndex:
+        return load_odm_index(path, loc=loc)
+
+    _build.__qualname__ = "load_odm_index"
+    return _cached(csv_path, _build)
+
+
 # --- Compute -------------------------------------------------------------
 
 
 def compute_odm_revenue(
     affected_set: AffectedSet,
     odm: ODMIndex,
+    *,
+    adoption_share: float | None = None,
 ) -> ODMRevenueBlock:
     """Sum demand-weighted deltas across every canonical AffectedFare.
 
@@ -313,52 +360,86 @@ def compute_odm_revenue(
     in the ODM. If the ODM is ticket-aware, prefer the (o,d,ticket) match;
     fall back to (o,d) aggregate with a note.
 
+    Two corrections keep the total honest against real ODM data (without them
+    a 16-product corridor multiplies its passengers 16x and a railcard change
+    prices the whole network's journeys at the discount):
+
+      apportionment — the public ODM is product-agnostic, so a pair's
+        journeys are split EQUALLY across every repriced product covering
+        that pair. Equal split is a named assumption (no public sales-mix
+        data), disclosed in notes. Ticket-aware (o,d,ticket) matches are
+        exact and never shared.
+
+      adoption_share — for changes that ADD an optional discounted product
+        (add_railcard), only the adopting share of journeys sees the delta;
+        the caller passes the same eligible-share assumption the demand
+        block uses, so the two blocks tell one story. None = every journey
+        pays the new price (raise_price semantics).
+
     Deltas come straight from `new_price_pence - old_price_pence`, so the
     sign convention (discounts → negative) matches `revenue.py`."""
+    priced = [f for f in affected_set.canonical
+              if f.old_price_pence is not None and f.new_price_pence is not None]
+
+    # Pass 1 — how many repriced products share each (o, d) pair. Only pairs
+    # resolved through the product-agnostic by_pair map need apportioning.
+    pair_product_count: dict[tuple[str, str], int] = {}
+    for fare in priced:
+        for (o, d) in fare.blast_radius_pairs:
+            if odm.is_ticket_aware and (o, d, fare.ticket_code) in odm.by_pair_and_ticket:
+                continue
+            if (o, d) in odm.by_pair:
+                pair_product_count[(o, d)] = pair_product_count.get((o, d), 0) + 1
+
     estimates: list[ODMRevenueEstimate] = []
     matched_flow_count = 0
     unmatched_flow_count = 0
     ticket_aggregation_used = False
+    apportioned = False
 
-    for fare in affected_set.canonical:
-        if fare.old_price_pence is None or fare.new_price_pence is None:
-            # Non-resolved rows carry no delta; skip cleanly.
-            continue
+    for fare in priced:
         delta = fare.new_price_pence - fare.old_price_pence
 
-        journeys = 0
+        journeys_eff = 0.0
         matched = 0
         unmatched = 0
         for (o, d) in fare.blast_radius_pairs:
-            pair_journeys: int | None = None
-            if odm.is_ticket_aware:
-                pair_journeys = odm.by_pair_and_ticket.get((o, d, fare.ticket_code))
-                if pair_journeys is None and (o, d) in odm.by_pair:
-                    # Fall back to ticket-aggregated demand.
-                    pair_journeys = odm.by_pair[(o, d)]
+            pair_journeys: float | None = None
+            if odm.is_ticket_aware and (o, d, fare.ticket_code) in odm.by_pair_and_ticket:
+                pair_journeys = float(odm.by_pair_and_ticket[(o, d, fare.ticket_code)])
+            elif (o, d) in odm.by_pair:
+                sharers = pair_product_count.get((o, d), 1)
+                pair_journeys = odm.by_pair[(o, d)] / sharers
+                if odm.is_ticket_aware:
                     ticket_aggregation_used = True
-            else:
-                pair_journeys = odm.by_pair.get((o, d))
+                if sharers > 1:
+                    apportioned = True
 
             if pair_journeys is None:
                 unmatched += 1
             else:
-                journeys += pair_journeys
+                journeys_eff += pair_journeys
                 matched += 1
+
+        if adoption_share is not None:
+            journeys_eff *= adoption_share
 
         if matched > 0:
             matched_flow_count += 1
         else:
             unmatched_flow_count += 1
 
+        # Round journeys first, then multiply, so the ledger invariant
+        # revenue == journeys x delta re-multiplies exactly in the UI.
+        journeys_int = round(journeys_eff)
         estimates.append(ODMRevenueEstimate(
             flow_id=fare.flow_id,
             ticket_code=fare.ticket_code,
             matched_pair_count=matched,
             unmatched_pair_count=unmatched,
-            journeys_per_period=journeys,
+            journeys_per_period=journeys_int,
             delta_pence_per_journey=delta,
-            revenue_delta_pence=journeys * delta,
+            revenue_delta_pence=journeys_int * delta,
         ))
 
     total = sum(e.revenue_delta_pence for e in estimates)
@@ -368,6 +449,19 @@ def compute_odm_revenue(
         "One ODM journey ≠ one booking; the ODM is annual + product-agnostic; "
         "figures are NOT settlement-grade and MUST NOT be quoted as revenue.",
     ]
+    if apportioned:
+        notes.append(
+            "ODM journeys are product-agnostic: each pair's journeys were "
+            "split equally across the repriced products covering it (named "
+            "ASSUMPTION — no public sales-mix data), so passengers are "
+            "counted once, not once per product."
+        )
+    if adoption_share is not None:
+        notes.append(
+            f"optional-product change: journeys scaled by adoption share "
+            f"{adoption_share:.0%} (the demand block's eligible-share "
+            "assumption) — only adopters see the new price."
+        )
     if ticket_aggregation_used:
         notes.append(
             "some flows fell back to ticket-aggregated demand (ODM had no row "
@@ -387,6 +481,7 @@ def compute_odm_revenue(
         matched_flow_count=matched_flow_count,
         unmatched_flow_count=unmatched_flow_count,
         period_label=odm.period_label,
+        adoption_share=adoption_share,
         notes=tuple(notes),
     )
 
@@ -397,4 +492,5 @@ __all__ = [
     "ODMRevenueEstimate",
     "compute_odm_revenue",
     "load_odm_index",
+    "load_odm_index_cached",
 ]

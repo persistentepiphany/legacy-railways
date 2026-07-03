@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, TypeVar
@@ -584,14 +585,26 @@ def _cache_key(path: Path, builder: Callable[..., object]) -> tuple[str, int, in
     return (str(path.resolve()), st.st_mtime_ns, st.st_size, builder.__qualname__)
 
 
+# Per-key build locks: without them, N concurrent first requests each run the
+# multi-minute .FFL parse (cache stampede), starving the API thread pool.
+_CACHE_LOCKS: dict[tuple[str, int, int, str], threading.Lock] = {}
+_CACHE_LOCKS_GUARD = threading.Lock()
+
+
 def _cached(path: Path, builder: Callable[[Path], _T]) -> _T:
     key = _cache_key(path, builder)
     hit = _CACHE.get(key)
     if hit is not None:
         return hit  # type: ignore[return-value]
-    out = builder(path)
-    _CACHE[key] = out
-    return out
+    with _CACHE_LOCKS_GUARD:
+        lock = _CACHE_LOCKS.setdefault(key, threading.Lock())
+    with lock:
+        hit = _CACHE.get(key)
+        if hit is not None:
+            return hit  # type: ignore[return-value]
+        out = builder(path)
+        _CACHE[key] = out
+        return out
 
 
 def _iter_ffl_records(feed_path: Path) -> Iterator[tuple[int, str, dict[str, str]]]:
@@ -675,22 +688,31 @@ class LocationMeta:
 
 @dataclass(frozen=True)
 class FFLIndexes:
-    """Two indexes built from one .FFL pass. Used by the resolver instead of
+    """Indexes built from one .FFL pass. Used by the resolver instead of
     re-scanning the file per query."""
     flows_by_pair: dict[tuple[str, str], list[FlowRecord]]
     fares_by_flow: dict[str, list[FareRecord]]
+    # {fare-TOC code -> flows}. Same FlowRecord objects as flows_by_pair
+    # (pointers only, ~7MB extra); powers operator-scoped ChangeRequests.
+    flows_by_toc: dict[str, list[FlowRecord]]
 
 
 def load_ffl_indexes(feed_path: Path) -> FFLIndexes:
     """Single-pass FFL build: index of F-records by (origin,dest) and
     T-records by FLOW_ID. Cached on (path, mtime, size); subsequent calls in
-    the same process are O(1)."""
+    the same process are O(1).
+
+    Deliberately NO on-disk pickle layer: measured on RJFAF805 (9.6M lines),
+    unpickling the 1.1GB index (411s) is slower than reparsing (192s) — the
+    per-record `raw` dicts dominate both. The warm cost is paid once per
+    process; /api/health tells the UI when it's done."""
     return _cached(Path(feed_path), _build_ffl_indexes)
 
 
 def _build_ffl_indexes(feed_path: Path) -> FFLIndexes:
     flows: dict[tuple[str, str], list[FlowRecord]] = {}
     fares: dict[str, list[FareRecord]] = {}
+    by_toc: dict[str, list[FlowRecord]] = {}
     for line_no, kind, rec in _iter_ffl_records(feed_path):
         if kind == "FFL.F":
             key = (rec["ORIGIN_CODE"], rec["DESTINATION_CODE"])
@@ -706,6 +728,7 @@ def _build_ffl_indexes(feed_path: Path) -> FFLIndexes:
                 flow_id=rec["FLOW_ID"],
                 raw=rec,
             ))
+            by_toc.setdefault(rec["TOC"], []).append(flows[key][-1])
         elif kind == "FFL.T":
             try:
                 pence = int(rec["FARE"])
@@ -719,7 +742,7 @@ def _build_ffl_indexes(feed_path: Path) -> FFLIndexes:
                 restriction_code=rec["RESTRICTION_CODE"].strip(),
                 raw=rec,
             ))
-    return FFLIndexes(flows_by_pair=flows, fares_by_flow=fares)
+    return FFLIndexes(flows_by_pair=flows, fares_by_flow=fares, flows_by_toc=by_toc)
 
 
 def load_loc_meta(loc_path: Path) -> dict[str, LocationMeta]:
@@ -1188,6 +1211,110 @@ def _build_ticket_type_meta(tty_path: Path) -> dict[str, TtyRecord]:
             )
             latest_start[code] = start_key
     return out
+
+
+@dataclass(frozen=True)
+class TocRecord:
+    """One F-record from a .TOC: fare-TOC code -> operator name.
+
+    The .FFL carries 3-char fare-TOC codes (e.g. 'NTH', 'GWR'); the 2-char id
+    is the timetable TOC (e.g. 'NT') used elsewhere (corridors.json)."""
+    line_no: int
+    fare_toc: str      # 3-char, joins to FlowRecord.toc
+    toc_2char: str     # 2-char timetable id; may be blank
+    name: str
+
+
+def load_toc_meta(toc_path: Path) -> dict[str, TocRecord]:
+    """Build {fare-TOC code -> TocRecord} from a .TOC. Cached on (path, mtime, size)."""
+    return _cached(Path(toc_path), _build_toc_meta)
+
+
+def _build_toc_meta(toc_path: Path) -> dict[str, TocRecord]:
+    out: dict[str, TocRecord] = {}
+    with toc_path.open("r", encoding="latin-1") as fh:
+        for i, raw in enumerate(fh, start=1):
+            line = raw.rstrip("\r\n")
+            if not line or line.startswith("/"):
+                continue
+            # .TOC rows have no 'R' prefix: RECORD_TYPE at pos 1 ('F'=TOC,
+            # 'T'=fare-TOC map row). Only F rows carry the operator name.
+            if _slice(line, 1, 1) != "F" or len(line) < 7:
+                continue
+            code = _slice(line, 2, 3).strip()
+            if not code:
+                continue
+            out[code] = TocRecord(
+                line_no=i,
+                fare_toc=code,
+                toc_2char=_slice(line, 5, 2).strip(),
+                name=_slice(line, 7, 30).strip(),
+            )
+    return out
+
+
+# --- Raw feed lines for provenance -----------------------------------------
+# A provenance step cites `line N of <file>`; the SOURCE RECORD inspector
+# wants the original fixed-width line. linecache would keep the whole file's
+# lines resident (~900MB for the 253MB .FFL) so we use a sparse offset table:
+# the byte offset of every 10,000th line (~8KB for 9.6M lines), then seek and
+# scan at most 10,000 lines (~500KB) per lookup.
+
+_OFFSET_STRIDE = 10_000
+
+
+@dataclass(frozen=True)
+class _LineOffsets:
+    stride: int
+    offsets: tuple[int, ...]  # offsets[k] = byte offset of line k*stride + 1
+
+
+def _build_line_offsets(path: Path) -> _LineOffsets:
+    offsets = [0]
+    line = 0
+    pos = 0
+    with path.open("rb") as fh:
+        while True:
+            chunk = fh.read(4 << 20)
+            if not chunk:
+                break
+            idx = 0
+            while True:
+                nl = chunk.find(b"\n", idx)
+                if nl == -1:
+                    break
+                line += 1
+                if line % _OFFSET_STRIDE == 0:
+                    offsets.append(pos + nl + 1)
+                idx = nl + 1
+            pos += len(chunk)
+    return _LineOffsets(stride=_OFFSET_STRIDE, offsets=tuple(offsets))
+
+
+def raw_feed_line(path: Path, line_no: int) -> str | None:
+    """Return raw line `line_no` (1-based, newline stripped) of a feed file,
+    or None if out of range. O(1) memory; offset table cached per file."""
+    if line_no < 1:
+        return None
+    try:
+        table: _LineOffsets = _cached(Path(path), _build_line_offsets)
+    except OSError:
+        return None
+    k = (line_no - 1) // table.stride
+    if k >= len(table.offsets):
+        return None
+    try:
+        with path.open("rb") as fh:
+            fh.seek(table.offsets[k])
+            for _ in range(line_no - 1 - k * table.stride):
+                if not fh.readline():
+                    return None
+            raw = fh.readline()
+    except OSError:
+        return None
+    if not raw:
+        return None
+    return raw.rstrip(b"\r\n").decode("latin-1")
 
 
 def find_fares(feed_path: Path, flow_id: str) -> list[FareRecord]:

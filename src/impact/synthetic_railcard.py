@@ -31,6 +31,23 @@ from src.resolver.resolve import ProvenanceStep
 from src.impact.change_request import ChangeRequest
 
 
+def _apply_ui_rounding(pence: int, rule: str | None) -> tuple[int, str]:
+    """Apply the UI-selected rounding rule. Falls back to the historical
+    default (floor to 5p, matching BRFares) when the ChangeRequest didn't
+    override. Returns (rounded_pence, label) — the label lands in provenance
+    so a reviewer can trace which rule fired."""
+    if rule == "near5":
+        return ((pence + 2) // 5) * 5, "NEAR_5P (round to nearest 5p)"
+    if rule == "near10":
+        return ((pence + 5) // 10) * 10, "NEAR_10P (round to nearest 10p)"
+    if rule == "down10":
+        return (pence // 10) * 10, "DOWN_10P (floor to 10p band)"
+    if rule == "none":
+        return pence, "NONE (exact pence — no rounding)"
+    # No override — historical default (floor to 5p) preserved.
+    return (pence // 5) * 5, "DOWN_5P (default; matches BRFares oracle)"
+
+
 def apply_synthetic_railcard(
     adult_pence: int,
     change: ChangeRequest,
@@ -39,29 +56,59 @@ def apply_synthetic_railcard(
 
     Rule (clean and citable from one line):
         discount_pence = floor(adult_pence * discount_pct)
-        new_pence      = floor_to_5p(adult_pence - discount_pence)
+        new_pence      = round_to_rule(adult_pence - discount_pence)
+        new_pence      = max(new_pence, floor)     when the proposal sets one
 
-    Floor-to-5p mirrors the BRFares-observed rounding direction
-    (src/resolver/railcard.py:298-304). The provenance step records every
-    input so a reviewer can hand-verify (and challenge the rule)."""
-    discount = int(adult_pence * change.discount_pct)
-    raw_new = adult_pence - discount
-    new = (raw_new // 5) * 5
+    Default rounding is floor-to-5p (matches BRFares empirically). The
+    ChangeRequest's `rounding_rule` and `min_floor_pct` overrides are
+    honoured for THIS proposal only — the baseline graph is untouched
+    (CLAUDE.md: proposals are diffs into staging).
+
+    kind='raise_price' reuses the same math with the sign flipped:
+        new_pence = round_to_rule(adult_pence + floor(adult_pence * pct))
+    This is what the compliance join tests against the §3 cap — a rise on a
+    regulated ticket is exactly the breach the 0% freeze forbids."""
+    is_rise = change.kind == "raise_price"
+    delta = int(adult_pence * change.discount_pct)
+    raw_new = adult_pence + delta if is_rise else adult_pence - delta
+    new, rounding_label = _apply_ui_rounding(raw_new, change.rounding_rule)
+    floor_clamp: int | None = None
+    floor_applied = False
+    if change.min_floor_pct is not None:
+        # Floor is a fraction of the pre-discount adult fare: a UI-driven
+        # railcard cannot fall below `min_floor_pct` of the protected price.
+        floor_clamp = int(adult_pence * change.min_floor_pct)
+        if new < floor_clamp:
+            new = floor_clamp
+            floor_applied = True
     prov = ProvenanceStep(
         step="synthetic_railcard_apply",
         source="(synthetic)",
         detail={
             "railcard_code":   change.railcard_code,
+            "kind":            change.kind,
             "discount_pct":    f"{change.discount_pct:.4f}",
             "adult_pence":     str(adult_pence),
-            "discount_pence":  str(discount),
+            "discount_pence":  f"+{delta}" if is_rise else str(delta),
             "after_discount":  str(raw_new),
-            "after_round_5p":  str(new),
-            "rounding":        "DOWN_5P (customer-favourable; matches BRFares oracle for real railcards)",
+            "after_round":     str(new if not floor_applied else _apply_ui_rounding(raw_new, change.rounding_rule)[0]),
+            "rounding":        rounding_label,
+            "min_floor_pct":   f"{change.min_floor_pct:.4f}" if change.min_floor_pct is not None else "(unset)",
+            "floor_pence":     str(floor_clamp) if floor_clamp is not None else "(none)",
+            "floor_binding":   "yes" if floor_applied else "no",
+            "final":           str(new),
             "explanation":     (
-                f"synthetic '{change.railcard_code}' railcard: applied "
-                f"{change.discount_pct * 100:.1f}% off adult fare, "
-                "floored to 5p band. No .RCM min-fare floor (deferred)."
+                (
+                    f"proposed fare rise '{change.railcard_code}': applied "
+                    f"+{change.discount_pct * 100:.1f}% to adult fare, "
+                    f"rounding={rounding_label}."
+                ) if is_rise else (
+                    f"synthetic '{change.railcard_code}' railcard: applied "
+                    f"{change.discount_pct * 100:.1f}% off adult fare, "
+                    f"rounding={rounding_label}. "
+                    + ("Min-fare floor bound the result." if floor_applied
+                       else "No .RCM min-fare floor (deferred).")
+                )
             ),
         },
     )

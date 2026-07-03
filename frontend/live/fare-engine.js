@@ -47,6 +47,10 @@
   var _lastImpactRaw = null;
   var _resolveCache = new Map();
   var _resolveInflight = new Set();
+  var _cstatsCache = new Map();      // "O-D" -> corridor stats payload
+  var _cstatsInflight = new Set();
+  var _overviewCache = null;         // /api/overview payload
+  var _overviewInflight = false;
 
   /* ---- utilities ------------------------------------------------------ */
   function sigOf(o) { return JSON.stringify(o); }
@@ -95,16 +99,22 @@
     }
     // Discount must be strictly 0 < x < 1 per ChangeRequest validation.
     var pct = Math.max(1, Math.min(60, params.discountPct || 34)) / 100.0;
+    // changeType 'raise' proposes an across-the-board price rise
+    // (kind='raise_price'); every other changeType is a railcard discount.
+    var isRise = params.changeType === "raise";
     var out = {
-      kind: "add_railcard",
+      kind: isRise ? "raise_price" : "add_railcard",
       railcard_code: _proposalCode(params),
       discount_pct: pct,
-      discount_categories: ["01"],
+      // 01=Anytime, 03=Off-Peak R (SVR), 08=Super Off-Peak R (OPR): the
+      // regulated walk-ups live in 03/08, so scoping only 01 made every
+      // compliance panel read "0 regulated" (nothing regulated was touched).
+      discount_categories: ["01", "03", "08"],
       corridor_origin_nlc: corridor ? corridor.origin_nlc : "2968",
       corridor_dest_nlc: corridor ? corridor.dest_nlc : "1444",
       peak_valid: !!params.peakOn,
       description: (params.railcardName || "Cockpit proposal") +
-                   " \u00b7 " + Math.round(pct * 100) + "%",
+                   " \u00b7 " + (isRise ? "+" : "") + Math.round(pct * 100) + "%",
       rounding_rule: params.rounding || null,
       min_floor_pct: params.minFloorPct ? (params.minFloorPct / 100.0) : null,
       cluster_name: params.cluster || null,
@@ -167,10 +177,17 @@
       .filter(function (k) {
         return ["compliance","anomalies","revenue","splits","performance","revenue_odm","demand","carbon"].indexOf(k) >= 0;
       });
-    var sig = sigOf({ change: change, includes: includes });
+    // Eligible-share knob (Statistics tab slider). Read from the Component's
+    // state; backend default (15%) applies when absent. Part of the request
+    // signature so slider moves refetch, and late responses are discarded.
+    var root = window.__rfeRoot;
+    var esPct = root && root.state && typeof root.state.eligibleSharePct === "number"
+      ? root.state.eligibleSharePct : null;
+    var eligibleShare = (esPct && esPct > 0 && esPct <= 100) ? esPct / 100.0 : null;
+    var sig = sigOf({ change: change, includes: includes, es: eligibleShare });
     if (sig === _lastImpactSig && _lastImpact) return;
     _lastImpactSig = sig;
-    A.impact(change, includes).then(function (data) {
+    A.impact(change, includes, eligibleShare).then(function (data) {
       if (sig !== _lastImpactSig) return;  // late-response guard
       _lastImpactRaw = data;
       _lastImpact = ADAPT.adaptImpact(data, { stationsByNlc: _stationsByNlc });
@@ -239,6 +256,43 @@
       console.error("[rfe] /api/resolve failed for", cacheKey, e);
       _notifyUi("/api/resolve failed for " + cacheKey + " \u2014 " +
         (e && e.body && e.body.detail ? e.body.detail : (e && e.message) || "network error"));
+    });
+  }
+
+  /* ---- corridor stats + network overview (sync cache, async fetch) ----- */
+  function _fetchCorridorStats(key, oCrs, dCrs) {
+    if (_cstatsInflight.has(key)) return;
+    _cstatsInflight.add(key);
+    A.corridorStats(oCrs, dCrs).then(function (data) {
+      _cstatsInflight["delete"](key);
+      _cstatsCache.set(key, data);
+      _requestRerender();
+    }).catch(function (e) {
+      _cstatsInflight["delete"](key);
+      if (e && e.name === "AbortError") return;
+      console.error("[rfe] /api/corridor/stats failed for", key, e);
+      _cstatsCache.set(key, { error: (e && e.body && e.body.detail) || (e && e.message) || "fetch failed" });
+      _requestRerender();
+    });
+  }
+
+  function _fetchOverview() {
+    if (_overviewInflight) return;
+    _overviewInflight = true;
+    A.overview().then(function (data) {
+      _overviewInflight = false;
+      _overviewCache = data;
+      _requestRerender();
+      // Overview is computed off-thread at backend boot; poll until ready.
+      if (data && data.ready === false) {
+        setTimeout(function () { _fetchOverview(); }, 4000);
+      }
+    }).catch(function (e) {
+      _overviewInflight = false;
+      if (e && e.name === "AbortError") return;
+      console.error("[rfe] /api/overview failed", e);
+      _overviewCache = { ready: false, error: (e && e.body && e.body.detail) || (e && e.message) || "fetch failed", corridors: [], notes: [] };
+      _requestRerender();
     });
   }
 
@@ -508,6 +562,21 @@
       impactPending: function () {
         return _lastImpactSig !== null && _lastImpactSig !== _lastImpactDataSig;
       },
+      // Corridor fact sheet (Statistics tab). Returns cached payload or null
+      // while the first fetch is in flight; rerender fires when it lands.
+      corridorStats: function (oCrs, dCrs) {
+        var key = oCrs + "-" + dCrs;
+        var hit = _cstatsCache.get(key);
+        if (!hit) _fetchCorridorStats(key, oCrs, dCrs);
+        return hit || null;
+      },
+      // Network overview (Master tab). Cached; force=true refetches (staging
+      // counts overlay changes when a card is proposed/approved).
+      overview: function (force) {
+        if (force || !_overviewCache) _fetchOverview();
+        return _overviewCache;
+      },
+      invalidateOverview: function () { _overviewCache = null; },
 
       /* staging: propose returns {kind:'accepted',card,layer} | {kind:'escalation',...} */
       proposeChange: function (input, selCorridor, contradictionChoice) {
@@ -603,8 +672,11 @@
             params: { discountPct: 34, peakOn: false, rounding: "near10",
                       cluster: "national", minFloorPct: 55,
                       railcardName: "Cockpit boot" },
+            // demand is on by boot so the landing's basis-chip strip can cite
+            // the elasticity source, eligible-share assumption and modelled
+            // volume from the first render — no "off" chip on the front door.
             includes: { compliance: true, revenue: true, anomalies: true,
-                        splits: true, performance: true },
+                        splits: true, performance: true, demand: true },
             disp: {},
           }, _corridors.length ? _corridors[0].id : null);
         })

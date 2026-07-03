@@ -124,6 +124,7 @@ def build_corridor_regulation_map(
         ffl_path=feed_paths.ffl,
         loc_path=feed_paths.loc,
         tty_path=feed_paths.tty,
+        fsc_path=feed_paths.fsc,
     )
 
 
@@ -146,8 +147,13 @@ def check_compliance(
 
     Status decision (REGULATION.md §3):
       - regmap entry missing OR entry.regulated=False  → not_regulated
-      - regulated AND new_price_pence > cap            → breach
+      - regulated AND new_price_pence > effective cap  → breach
       - otherwise                                       → compliant
+
+    The effective cap is max(map cap, the fare's own old price): the map's
+    §4 fallback cap is the corridor-cheapest fare per ticket, which a
+    pricier route exceeds even pre-change; the fare's own current price is
+    its fallback baseline, so a decrease never breaches.
 
     Boundary is strict `>` — a fare priced AT the cap is compliant (the cap
     is a ceiling, not an upper-exclusive bound)."""
@@ -217,16 +223,33 @@ def check_compliance(
             ),
         )
 
-    if new_price > cap:
-        overage = new_price - cap
+    # The map's fallback cap is the cheapest current fare for this ticket
+    # ACROSS ALL ROUTES on the corridor (REGULATION.md §4 fallback). A fare
+    # on a pricier route would "exceed" that cap even before the change. The
+    # §4 fallback treats *the fare's own current price* as its frozen
+    # baseline, so the effective cap for this row is max(map cap, old price):
+    # a decrease can never breach; an increase above the fare's own current
+    # price still does (0% freeze).
+    old_price = fare.old_price_pence
+    effective_cap = cap if old_price is None else max(cap, old_price)
+    cap_note = ""
+    if effective_cap != cap:
+        cap_note = (
+            f" (map cap {cap}p is the corridor-cheapest fallback for this "
+            f"ticket; this fare's own current price {old_price}p is its "
+            "§4 fallback baseline)"
+        )
+
+    if new_price > effective_cap:
+        overage = new_price - effective_cap
         return ComplianceVerdict(
             status="breach",
-            cap_price_2025_pence=cap,
+            cap_price_2025_pence=effective_cap,
             new_price_pence=new_price,
             citation=entry.citation,
             explanation=(
                 f"BREACH: new_price {new_price}p exceeds 1 Mar 2025 cap "
-                f"{cap}p by {overage}p. Regulated under "
+                f"{effective_cap}p by {overage}p{cap_note}. Regulated under "
                 f"{entry.citation.section} ({entry.citation.rule_text}); "
                 "the 0% freeze (REGULATION.md §3) forbids any increase."
             ),
@@ -234,12 +257,13 @@ def check_compliance(
 
     return ComplianceVerdict(
         status="compliant",
-        cap_price_2025_pence=cap,
+        cap_price_2025_pence=effective_cap,
         new_price_pence=new_price,
         citation=entry.citation,
         explanation=(
-            f"compliant: new_price {new_price}p <= cap {cap}p. Regulated "
-            f"under {entry.citation.section} ({entry.citation.rule_text})."
+            f"compliant: new_price {new_price}p <= cap {effective_cap}p"
+            f"{cap_note}. Regulated under {entry.citation.section} "
+            f"({entry.citation.rule_text})."
         ),
     )
 

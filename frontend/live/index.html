@@ -337,7 +337,7 @@
     </div>
 
     <!-- ---------- CENTER ---------- -->
-    <section style="min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 5px var(--rfe-anah,318px);background:#08090b">
+    <section style="position:relative;min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 5px var(--rfe-anah,318px);background:#08090b">
 
       <!-- ① VERDICT STRIP — the change's one-line verdict. Always mounted
            (height-collapsed when empty) so the height transition survives. -->
@@ -365,9 +365,9 @@
             <div onClick="{{ ch.onGo }}" style="flex:0 0 auto;font-size:10.5px;color:{{ ch.color }};border:1px solid {{ ch.border }};border-radius:12px;padding:3px 10px;cursor:pointer;opacity:{{ ch.opacity }};white-space:nowrap" style-hover="border-color:#2f333a">{{ ch.label }}</div>
           </sc-for>
           <div style="flex:1"></div>
-          <div style="display:flex;align-items:baseline;gap:6px;flex:0 0 auto">
-            <span ref="{{ refs.vsRev }}" style="font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:{{ verdictBar.revColor }}">{{ verdictBar.revStr }}</span>
-            <span style="font-size:10px;color:#5f6773">{{ verdictBar.revSub }}</span>
+          <div title="{{ verdictBar.revTip }}" onClick="{{ verdictBar.onRevToggle }}" style="display:flex;align-items:baseline;gap:6px;flex:0 0 auto;cursor:pointer" style-hover="opacity:.85">
+            <span ref="{{ refs.vsRev }}" style="font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:{{ verdictBar.revColor }};border-bottom:1px dashed #2a2e34">{{ verdictBar.revStr }}</span>
+            <span style="font-size:10px;color:#5f6773">{{ verdictBar.revSub }} ▾</span>
             <sc-if value="{{ verdictBar.est }}" hint-placeholder-val="{{ false }}"><span style="font-size:8.5px;letter-spacing:.5px;color:#c2a15c;border:1px solid #3a3220;border-radius:4px;padding:1px 5px">EST</span></sc-if>
           </div>
           <!-- decision bar — approve = merge, hold = keep pending -->
@@ -401,8 +401,54 @@
             </div>
           </sc-if>
         </div>
+        <!-- Row 2: how-this-was-computed chip strip. Each chip cites a NAMED
+             backend field (adapter → chip label); click jumps to the tab
+             where that number was computed. Renders only when a revenue
+             block was returned, so the strip stays 46px on empty states. -->
+        <sc-if value="{{ verdictBar.hasBasisChips }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:6px;padding:0 14px;height:32px;border-top:1px solid #14161a;background:#0b0c0e;overflow-x:auto;overflow-y:hidden;min-width:0">
+            <span style="font-size:8.5px;letter-spacing:.9px;color:#464d57;font-weight:600;flex:0 0 auto">HOW THIS WAS COMPUTED</span>
+            <sc-for list="{{ verdictBar.basisChips }}" as="bc" hint-placeholder-count="4">
+              <div onClick="{{ bc.onGo }}" title="{{ bc.tip }}" style="flex:0 0 auto;font-size:10px;color:{{ bc.color }};background:{{ bc.bg }};border:1px solid {{ bc.border }};border-radius:11px;padding:3px 9px;cursor:{{ bc.cursor }};white-space:nowrap" style-hover="border-color:#2f333a">{{ bc.label }}</div>
+            </sc-for>
+          </div>
+        </sc-if>
         </sc-if>
       </div>
+
+      <!-- headline £ decomposition dropdown — anchored under the verdict strip -->
+      <sc-if value="{{ headDrop.open }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:calc({{ verdictBar.h }} + 6px);right:12px;z-index:60;width:440px;background:#0e1013;border:1px solid #23262c;border-radius:10px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:12px 14px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-family:'Source Sans 3',sans-serif;font-size:19px;font-weight:600;color:{{ headDrop.color }}">{{ headDrop.totalStr }}</span>
+              <span style="font-size:10px;color:#7b8390">{{ headDrop.basisLine }}</span>
+            </div>
+            <div onClick="{{ headDrop.onClose }}" style="font-size:12px;color:#5f6773;cursor:pointer;padding:0 3px" style-hover="color:#adb6c4">✕</div>
+          </div>
+          <div style="font-size:10.5px;color:#98a1ae;line-height:1.5;padding:7px 9px;background:#090a0c;border:1px solid #15171b;border-radius:7px;font-family:'Source Sans 3',sans-serif">{{ headDrop.formula }}</div>
+          <sc-if value="{{ headDrop.hasTop }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:9px;letter-spacing:.7px;color:#5f6773;margin:9px 0 5px">TOP CONTRIBUTORS BY |Δ| · {{ headDrop.count }} FARES TOTAL</div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <sc-for list="{{ headDrop.top }}" as="tc" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:8px;font-size:10.5px;padding:4px 8px;background:#0a0b0d;border-radius:5px">
+                  <span style="flex:1;color:#c8cfd7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tc.od }} · {{ tc.code }}</span>
+                  <span style="font-family:'Source Sans 3',sans-serif;color:#7b8390;white-space:nowrap">{{ tc.fromTo }}</span>
+                  <span style="font-family:'Source Sans 3',sans-serif;font-weight:600;color:{{ tc.deltaColor }};min-width:52px;text-align:right">{{ tc.deltaStr }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ headDrop.hasNotes }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">
+              <sc-for list="{{ headDrop.notes }}" as="n" hint-placeholder-count="2">
+                <div style="font-size:9.5px;color:#7b8390;line-height:1.5;padding:5px 8px;background:#090a0c;border:1px solid #15171b;border-radius:5px">{{ n }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div onClick="{{ headDrop.onLedger }}" style="margin-top:9px;font-size:10.5px;color:#a9c9b7;cursor:pointer;text-align:right" style-hover="color:#c4e0d0">open the full ledger — every fare, to the penny →</div>
+        </div>
+      </sc-if>
 
       <!-- CENTER TOP: map + aggregate impact -->
       <div data-screen-label="Blast radius map" style="position:relative;min-height:0;min-width:0;overflow:hidden;display:flex;border-bottom:0">
@@ -412,11 +458,28 @@
           <div style="position:absolute;inset:0;z-index:7;background:rgba(8,9,11,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 20px">
             <div style="width:100%;max-width:560px;background:#0f1114;border:1px solid #23262c;border-radius:14px;box-shadow:0 30px 90px rgba(0,0,0,.6)">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px 11px;border-bottom:1px solid #16181c">
-                <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600;flex:0 0 auto">② AUTHOR THE CHANGE</div>
+                <div style="font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600;flex:0 0 auto">{{ ui.authorHeader }}</div>
                 <div style="font-size:10px;color:#5f6773;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">applies to · {{ verdictBar.scopeLine }}</div>
               </div>
               <div style="padding:13px 16px 14px">
-        <!-- product selector -->
+        <!-- product selector — dropdown OR inline draft. The dropdown's
+             "Create new railcard…" swaps this whole card for a NAME input;
+             cancel restores it. Every other AUTHOR panel control below
+             stays live so the impact preview updates as the analyst tweaks. -->
+        <sc-if value="{{ product.drafting }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="font-size:9px;letter-spacing:.5px;color:#a9c9b7;background:#0f1b15;border:1px solid #1d322a;border-radius:4px;padding:2px 6px">NEW RAILCARD</span>
+              <span style="font-size:10.5px;color:#5f6773">drafting</span>
+            </div>
+            <div onClick="{{ product.onCancelDraft }}" style="font-size:10.5px;color:#7b8390;cursor:pointer;padding:2px 4px" style-hover="color:#adb6c4">← cancel</div>
+          </div>
+          <div style="margin-bottom:13px">
+            <input value="{{ product.draftName }}" onInput="{{ product.onDraftName }}" placeholder="{{ product.draftPlaceholder }}" style="width:100%;background:#090a0c;border:1px solid #1b1e22;border-radius:8px;color:#e7ebf0;font-size:14px;padding:10px 12px;box-sizing:border-box" style-focus="border-color:#2f333a" />
+            <div style="font-size:10px;color:#5f6773;margin-top:6px;line-height:1.5">Tune discount / peak / rounding below — the map behind updates live. Nothing lands on the baseline; on Create, this railcard is staged for approval.</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ product.notDrafting }}" hint-placeholder-val="{{ true }}">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
           <span style="font-size:9px;letter-spacing:.5px;color:#7b8390;background:#101215;border:1px solid #1b1e22;border-radius:4px;padding:2px 6px">{{ product.typeLabel }}</span>
           <span style="font-size:10.5px;color:#5f6773">product</span>
@@ -452,6 +515,7 @@
             </div>
           </sc-if>
         </div>
+        </sc-if>
 
         <!-- discount slider -->
         <div style="margin-bottom:14px">
@@ -510,12 +574,40 @@
           <div style="font-size:9.5px;color:#4f5762;margin-top:4px">Discounted fare cannot fall below this % of the protected fare.</div>
         </div>
               </div>
+              <sc-if value="{{ tb.draftHasError }}" hint-placeholder-val="{{ false }}">
+                <div style="margin:0 16px 10px;background:#1a1210;border:1px solid #3c2620;border-radius:8px;padding:9px 11px">
+                  <div style="font-size:10px;letter-spacing:.7px;color:#c17f6e;font-weight:600;margin-bottom:3px">ENGINE REJECTED THE PROPOSAL</div>
+                  <div style="font-size:10.5px;color:#b8968b;line-height:1.45">{{ tb.draftErrorText }}</div>
+                </div>
+              </sc-if>
               <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px 13px;border-top:1px solid #16181c">
                 <div onClick="{{ ui.onBackScope }}" style="font-size:11px;color:#7b8390;cursor:pointer" style-hover="color:#98a1ae">← back to scope</div>
-                <div onClick="{{ tb.onRun }}" style="display:flex;align-items:center;gap:7px;background:#12211a;border:1px solid #24382e;border-radius:7px;padding:7px 15px;cursor:pointer" style-hover="border-color:#35513f">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="#a9c9b7"><path d="M8 5v14l11-7z"></path></svg>
-                  <span style="font-size:12px;color:#a9c9b7;font-weight:600">Run impact</span>
-                </div>
+                <!-- CTA morphs when drafting: "Run impact" → "Create railcard → staging". -->
+                <sc-if value="{{ product.notDrafting }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ tb.onRun }}" style="display:flex;align-items:center;gap:7px;background:#12211a;border:1px solid #24382e;border-radius:7px;padding:7px 15px;cursor:pointer" style-hover="border-color:#35513f">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="#a9c9b7"><path d="M8 5v14l11-7z"></path></svg>
+                    <span style="font-size:12px;color:#a9c9b7;font-weight:600">Run impact</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ product.drafting }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <sc-if value="{{ tb.draftHint }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:10.5px;color:#7b8390">{{ tb.draftHint }}</span>
+                    </sc-if>
+                    <sc-if value="{{ tb.canCreate }}" hint-placeholder-val="{{ true }}">
+                      <div onClick="{{ tb.onCreateInline }}" style="display:flex;align-items:center;gap:7px;background:#12211a;border:1px solid #24382e;border-radius:7px;padding:7px 15px;cursor:pointer" style-hover="border-color:#35513f">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#a9c9b7" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg>
+                        <span style="font-size:12px;color:#a9c9b7;font-weight:600">{{ tb.createLabel }}</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ tb.creating }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:7px;background:#12211a;border:1px solid #24382e;border-radius:7px;padding:7px 15px;opacity:.8">
+                        <div style="width:11px;height:11px;border:2px solid #24382e;border-top-color:#a9c9b7;border-radius:50%;animation:rfe-spin .7s linear infinite"></div>
+                        <span style="font-size:12px;color:#a9c9b7;font-weight:600">{{ tb.createLabel }}</span>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
               </div>
             </div>
           </div>
@@ -634,9 +726,9 @@
             </div>
 
             <!-- financial / impact panel (left edge) -->
-            <div style="position:absolute;left:14px;top:92px;z-index:6;width:238px;background:rgba(12,13,15,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid #1f2228;border-radius:10px;padding:12px 14px">
+            <div style="position:absolute;left:14px;top:92px;z-index:6;width:262px;background:rgba(12,13,15,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid #1f2228;border-radius:10px;padding:12px 14px">
               <div style="font-size:9.5px;letter-spacing:1px;color:#626b76;font-weight:600">REVENUE {{ mapFull.revLabel }}</div>
-              <div style="font-size:26px;font-weight:600;color:{{ mapFull.revColor }};margin-top:3px;letter-spacing:.3px">{{ mapFull.revTotal }}</div>
+              <div title="{{ mapFull.revTip }}" style="font-size:26px;font-weight:600;color:{{ mapFull.revColor }};margin-top:3px;letter-spacing:.3px;cursor:help">{{ mapFull.revTotal }}</div>
               <div style="font-size:10px;color:#7b8390;margin-top:1px">{{ mapFull.revJourneys }}</div>
               <div style="display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:9px;background:#16181c">
                 <div style="width:{{ mapFull.revExactPct }}%;background:#6f9e86"></div>
@@ -645,6 +737,13 @@
               <div style="display:flex;justify-content:space-between;margin-top:4px">
                 <span style="font-size:9px;color:#6f9e86">{{ mapFull.revExact }} settled</span>
                 <span style="font-size:9px;color:#5f6773">{{ mapFull.revEst }} modelled</span>
+              </div>
+              <!-- basis chips (backend-cited) — same view model as aggregate panel -->
+              <div style="font-size:8.5px;letter-spacing:.7px;color:#5f6773;margin-top:11px;padding-top:9px;border-top:1px dashed #1f2228">HOW THIS WAS COMPUTED</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+                <sc-for list="{{ mapFull.basisChips }}" as="bc" hint-placeholder-count="4">
+                  <div onClick="{{ bc.onGo }}" title="{{ bc.tip }}" style="font-size:9.5px;color:{{ bc.color }};background:{{ bc.bg }};border:1px solid {{ bc.border }};border-radius:10px;padding:2px 7px;cursor:{{ bc.cursor }};white-space:nowrap" style-hover="border-color:#2f333a">{{ bc.label }}</div>
+                </sc-for>
               </div>
               <div style="height:1px;background:#1a1c20;margin:11px -14px"></div>
               <div style="font-size:9.5px;letter-spacing:1px;color:#626b76;font-weight:600">IMPACT · {{ mapFull.stations }} STATIONS</div>
@@ -740,19 +839,28 @@
             </sc-for>
           </div>
 
-          <!-- revenue headline -->
+          <!-- revenue headline + how-this-was-computed chip strip -->
           <div style="padding:11px 12px;background:#090a0c;border:1px solid #15171b;border-radius:9px;margin-bottom:11px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
               <div style="font-size:10px;letter-spacing:.6px;color:#626b76">REVENUE {{ impact.revLabel }}</div>
               <div style="font-size:8.5px;letter-spacing:.6px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px">EST</div>
             </div>
-            <div ref="{{ refs.revenueNum }}" style="font-family:'Source Sans 3',sans-serif;font-size:22px;font-weight:600;color:{{ impact.revColor }};line-height:1">{{ impact.revenueStr }}</div>
+            <div ref="{{ refs.revenueNum }}" title="{{ impact.revTip }}" onClick="{{ impact.onRevGo }}" style="font-family:'Source Sans 3',sans-serif;font-size:22px;font-weight:600;color:{{ impact.revColor }};line-height:1;cursor:pointer" style-hover="opacity:.85">{{ impact.revenueStr }}</div>
             <div style="font-size:10px;color:#5f6773;margin-top:5px">{{ impact.journeysLine }}</div>
             <div style="display:flex;gap:4px;margin-top:8px;height:5px;border-radius:3px;overflow:hidden;background:#101215">
               <div style="height:100%;width:{{ impact.exactPct }}%;background:#6f9e86;opacity:.8"></div>
               <div style="height:100%;flex:1;background:#c2a15c;opacity:.55"></div>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:9px;color:#5f6773;margin-top:4px"><span>{{ impact.exactPct }}% feed-derived</span><span>{{ impact.estPct }}% modelled</span></div>
+            <!-- basis chips: every field cited comes from a NAMED backend
+                 field via the adapter. Click a chip → jump to the tab
+                 where that number was computed. -->
+            <div style="font-size:9px;letter-spacing:.7px;color:#5f6773;margin-top:10px;padding-top:9px;border-top:1px dashed #1a1c20">HOW THIS WAS COMPUTED</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">
+              <sc-for list="{{ impact.basisChips }}" as="bc" hint-placeholder-count="4">
+                <div onClick="{{ bc.onGo }}" title="{{ bc.tip }}" style="font-size:10px;color:{{ bc.color }};background:{{ bc.bg }};border:1px solid {{ bc.border }};border-radius:11px;padding:3px 8px;cursor:{{ bc.cursor }};white-space:nowrap" style-hover="border-color:#2f333a">{{ bc.label }}</div>
+              </sc-for>
+            </div>
           </div>
 
           <div style="font-size:9.5px;color:#454c56;line-height:1.5">{{ impact.scaleNote }}</div>
@@ -997,6 +1105,15 @@
                   </sc-for>
                 </div>
               </sc-if>
+              <!-- ledger footer — the sum must meet the headline to the penny -->
+              <sc-if value="{{ revenue.hasLedger }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:8px;display:flex;align-items:center;gap:10px;padding:9px 11px;background:#0b0d10;border:1px solid #1d2126;border-radius:7px">
+                  <span style="font-size:10.5px;color:#98a1ae">{{ revenue.ledger.sumLabel }}</span>
+                  <div style="flex:1"></div>
+                  <span style="font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;color:#dbe0e7">{{ revenue.ledger.sumStr }}</span>
+                  <span style="font-size:10px;color:{{ revenue.ledger.tickColor }}">{{ revenue.ledger.reconNote }}</span>
+                </div>
+              </sc-if>
               <sc-if value="{{ revenue.hasNotes }}" hint-placeholder-val="{{ false }}">
                 <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">
                   <sc-for list="{{ revenue.notes }}" as="n" hint-placeholder-count="1">
@@ -1086,6 +1203,157 @@
             </div>
           </sc-if>
 
+          <!-- NETWORK — master overview: every corridor's baseline state -->
+          <sc-if value="{{ analysis.showNetwork }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;display:flex;flex-direction:column">
+              <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:7px 13px;border-bottom:1px solid #141519">
+                <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76">NETWORK BASELINE</div>
+                <div style="font-size:10px;color:#5f6773;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ network.statusLine }}</div>
+              </div>
+              <sc-if value="{{ network.ready }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:0 0 auto;display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(160px,2fr) 64px 90px 88px 92px;gap:8px;padding:6px 13px;border-bottom:1px solid #141519;font-size:9.5px;letter-spacing:.5px;color:#5f6773">
+                  <div>CORRIDOR</div><div>KEY FARES (BASELINE)</div><div style="text-align:right">TRAINS</div><div style="text-align:right">JOURNEYS/YR</div><div style="text-align:right">ABERRATIONS</div><div style="text-align:right">IN FLIGHT</div>
+                </div>
+                <div style="flex:1;min-height:0;overflow-y:auto">
+                  <sc-for list="{{ network.rows }}" as="nr" hint-placeholder-count="8">
+                    <div style="border-bottom:1px solid #0f1116;background:{{ nr.rowBg }}">
+                      <div onClick="{{ nr.onToggle }}" style="display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(160px,2fr) 64px 90px 88px 92px;gap:8px;align-items:center;padding:8px 13px;cursor:pointer" style-hover="background:#0f1117">
+                        <div style="min-width:0">
+                          <div style="font-size:12px;color:#c8cfd7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nr.name }}</div>
+                          <div style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ nr.od }} · {{ nr.toc }}</div>
+                        </div>
+                        <div style="font-size:10.5px;color:#8b93a0;font-family:'Source Sans 3',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="default · cheapest · dearest baseline fares">{{ nr.faresLine }}</div>
+                        <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12px;color:#adb6c4">{{ nr.trainsStr }}</div>
+                        <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12px;color:#adb6c4">{{ nr.journeysStr }}</div>
+                        <div style="text-align:right"><span style="font-size:10px;font-family:'Source Sans 3',sans-serif;color:{{ nr.aberrColor }};border:1px solid {{ nr.aberrBorder }};border-radius:9px;padding:2px 8px">{{ nr.aberrN }}</span></div>
+                        <div style="text-align:right;display:flex;justify-content:flex-end;gap:4px">
+                          <sc-if value="{{ nr.hasPending }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-family:'Source Sans 3',sans-serif;color:#c2a15c;border:1px solid #3a3220;border-radius:9px;padding:2px 7px">{{ nr.pendingN }} pending</span></sc-if>
+                          <sc-if value="{{ nr.hasApproved }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-family:'Source Sans 3',sans-serif;color:#6f9e86;border:1px solid #1d2a23;border-radius:9px;padding:2px 7px">{{ nr.approvedN }} staged</span></sc-if>
+                        </div>
+                      </div>
+                      <!-- expanded detail: aberration rows + basis notes -->
+                      <sc-if value="{{ nr.expanded }}" hint-placeholder-val="{{ false }}">
+                        <div style="padding:4px 13px 11px 13px">
+                          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px">
+                            <sc-for list="{{ nr.fares }}" as="kf" hint-placeholder-count="3">
+                              <div style="font-size:10px;color:#98a1ae;background:#0a0b0d;border:1px solid #15171b;border-radius:6px;padding:4px 8px"><span style="color:#5f6773">{{ kf.label }}</span> · {{ kf.code }} {{ kf.desc }} <span style="font-family:'Source Sans 3',sans-serif;color:#dbe0e7;font-weight:600">{{ kf.priceStr }}</span></div>
+                            </sc-for>
+                          </div>
+                          <sc-if value="{{ nr.hasAberrs }}" hint-placeholder-val="{{ false }}">
+                            <div style="font-size:9px;letter-spacing:.6px;color:#8a8064;margin-bottom:4px">BASELINE STRUCTURAL ABERRATIONS · {{ nr.scannedStr }} fares scanned</div>
+                            <div style="display:flex;flex-direction:column;gap:3px">
+                              <sc-for list="{{ nr.aberrs }}" as="ab" hint-placeholder-count="3">
+                                <div style="display:flex;align-items:center;gap:8px;font-size:10.5px;padding:5px 8px;background:#110e08;border:1px solid #2d2617;border-radius:5px">
+                                  <span style="font-size:9px;letter-spacing:.4px;color:#c2a15c;flex:0 0 auto">{{ ab.rule }}</span>
+                                  <span style="font-family:'Source Sans 3',sans-serif;color:#d3cbb6;flex:0 0 auto">{{ ab.text }}</span>
+                                  <span style="color:#8a8064;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ab.explanation }}</span>
+                                </div>
+                              </sc-for>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ nr.hasRowNotes }}" hint-placeholder-val="{{ false }}">
+                            <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">
+                              <sc-for list="{{ nr.rowNotes }}" as="n" hint-placeholder-count="2">
+                                <div style="font-size:9.5px;color:#7b8390;line-height:1.5;padding:4px 8px;background:#090a0c;border:1px solid #15171b;border-radius:5px">{{ n }}</div>
+                              </sc-for>
+                            </div>
+                          </sc-if>
+                          <div onClick="{{ nr.onOpen }}" style="margin-top:7px;font-size:10.5px;color:#a9c9b7;cursor:pointer" style-hover="color:#c4e0d0">open this corridor in the cockpit →</div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ network.hasNotes }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:9px 13px;display:flex;flex-direction:column;gap:4px">
+                      <sc-for list="{{ network.notes }}" as="n" hint-placeholder-count="2">
+                        <div style="font-size:10px;color:#7b8390;line-height:1.5;padding:6px 9px;background:#090a0c;border:1px solid #15171b;border-radius:6px">{{ n }}</div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ network.notReady }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#5f6773;font-size:11.5px">
+                  <div style="display:flex;align-items:center;gap:9px"><div style="width:12px;height:12px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .8s linear infinite"></div>{{ network.statusLine }}</div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- STATISTICS — corridor fact sheet + adjustable assumptions -->
+          <sc-if value="{{ analysis.showStats }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;overflow-y:auto;padding:12px 14px">
+              <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76;margin-bottom:9px">ROUTE FACT SHEET · {{ stats.corridorLine }}</div>
+              <sc-if value="{{ stats.loading }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:9px;padding:14px;color:#5f6773;font-size:11px"><div style="width:11px;height:11px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .8s linear infinite"></div>fetching /api/corridor/stats…</div>
+              </sc-if>
+              <sc-if value="{{ stats.hasError }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:9px 11px;background:#130c0f;border:1px solid #2f201d;border-radius:7px;font-size:10.5px;color:#c17f6e;margin-bottom:10px">corridor stats unavailable — {{ stats.error }}</div>
+              </sc-if>
+              <sc-if value="{{ stats.hasFacts }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
+                  <sc-for list="{{ stats.facts }}" as="ft" hint-placeholder-count="7">
+                    <div style="display:flex;align-items:baseline;gap:12px;padding:8px 11px;background:#090a0c;border:1px solid #15171b;border-radius:7px">
+                      <div style="flex:0 0 150px;font-size:10px;letter-spacing:.4px;color:#626b76;text-transform:uppercase">{{ ft.k }}</div>
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:12px;color:#c8cfd7;font-family:'Source Sans 3',sans-serif">{{ ft.v }}</div>
+                        <sc-if value="{{ ft.basis }}" hint-placeholder-val=""><div style="font-size:9.5px;color:#5f6773;margin-top:2px">basis: {{ ft.basis }}</div></sc-if>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <!-- live estimates for the CURRENT change -->
+              <sc-if value="{{ stats.hasEst }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76;margin-bottom:7px">ESTIMATES AT CURRENT ASSUMPTIONS <span style="font-size:8.5px;letter-spacing:.5px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px;margin-left:4px">EST</span></div>
+                <div style="display:flex;gap:9px;margin-bottom:12px">
+                  <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:10px 12px">
+                    <div style="font-size:9.5px;color:#626b76;margin-bottom:4px">DEMAND</div>
+                    <div style="font-size:14px;font-weight:600;color:#adb6c4;font-family:'Source Sans 3',sans-serif">{{ stats.est.demandStr }}</div>
+                    <div style="font-size:9.5px;color:#5f6773;margin-top:3px">{{ stats.est.demandSub }}</div>
+                  </div>
+                  <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:10px 12px">
+                    <div style="font-size:9.5px;color:#626b76;margin-bottom:4px">REVENUE</div>
+                    <div style="font-size:14px;font-weight:600;color:{{ stats.est.revColor }};font-family:'Source Sans 3',sans-serif">{{ stats.est.revStr }}</div>
+                    <div style="font-size:9.5px;color:#5f6773;margin-top:3px">{{ stats.est.revSub }}</div>
+                  </div>
+                  <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:10px 12px">
+                    <div style="font-size:9.5px;color:#626b76;margin-bottom:4px">CARBON</div>
+                    <div style="font-size:14px;font-weight:600;color:#6f9e86;font-family:'Source Sans 3',sans-serif">{{ stats.est.carbonStr }}</div>
+                  </div>
+                </div>
+              </sc-if>
+              <!-- adjustable assumption: eligible share -->
+              <div style="background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:11px 12px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                  <span style="font-size:10px;letter-spacing:.5px;color:#626b76">ELIGIBLE-SHARE ASSUMPTION · adjustable</span>
+                  <span style="font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;color:#dbe0e7">{{ stats.knob.pct }}%</span>
+                </div>
+                <input type="range" min="5" max="50" step="1" value="{{ stats.knob.pct }}" onInput="{{ stats.knob.onInput }}" style="width:100%;accent-color:#8a93a3"/>
+                <div style="font-size:9.5px;color:#5f6773;margin-top:5px;line-height:1.5">Share of corridor passengers eligible for the proposed product. Backend default 15% (demand.py). Moving the slider re-runs POST /api/impact?eligible_share=… — demand, carbon and abstraction figures recompute deterministically server-side.</div>
+              </div>
+              <!-- fixed cited assumptions -->
+              <sc-if value="{{ stats.hasFixed }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76;margin-bottom:6px">FIXED ASSUMPTIONS · cited, not adjustable</div>
+                <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+                  <sc-for list="{{ stats.fixed }}" as="fx" hint-placeholder-count="2">
+                    <div style="padding:7px 10px;background:#090a0c;border:1px solid #15171b;border-radius:6px">
+                      <div style="font-size:9.5px;color:#626b76;text-transform:uppercase;letter-spacing:.4px">{{ fx.k }}</div>
+                      <div style="font-size:10.5px;color:#98a1ae;margin-top:3px;line-height:1.5">{{ fx.v }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ stats.hasNotes }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <sc-for list="{{ stats.notes }}" as="n" hint-placeholder-count="3">
+                    <div style="font-size:10px;color:#7b8390;line-height:1.5;padding:6px 9px;background:#090a0c;border:1px solid #15171b;border-radius:6px">{{ n }}</div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
         </div>
       </div>
     </section>
@@ -1151,30 +1419,33 @@
                     <div style="font-size:10.5px;color:#7b8390;margin-top:4px;line-height:1.4">{{ s.note }}</div>
                     <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
                       <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#5f6773" stroke-width="2" style="flex:0 0 auto"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 0 1 0 10h-2"></path><path d="M8 12h8"></path></svg>
-                      <span style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.cite }}</span>
+                      <span style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0">{{ s.cite }}</span>
+                      <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#5f6773" stroke-width="2.2" style="flex:0 0 auto;transform:rotate({{ s.chev }});transition:transform .2s ease"><path d="m6 9 6 6 6-6"></path></svg>
                     </div>
+                    <!-- click-to-expand: in/out price + the raw feed record(s) behind this step -->
+                    <sc-if value="{{ s.expanded }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:8px;border-top:1px dashed #1c1f24;padding-top:7px">
+                        <div style="display:flex;align-items:center;gap:8px;font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#98a1ae">
+                          <span style="color:#5f6773">in</span><span>{{ s.inStr }}</span>
+                          <span style="color:#454c56">→</span>
+                          <span style="color:#5f6773">out</span><span style="color:{{ s.outColor }};font-weight:600">{{ s.outStr }}</span>
+                        </div>
+                        <sc-if value="{{ s.hasSrc }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-top:6px;font-size:9.5px;color:#8b93a0;font-weight:600">{{ s.srcTitle }}</div>
+                          <div style="margin-top:3px;max-height:130px;overflow:auto;background:#070809;border:1px solid #121417;border-radius:6px;padding:6px 8px">
+                            <sc-for list="{{ s.srcLines }}" as="ln" hint-placeholder-count="3">
+                              <div style="font-family:'Source Sans 3',sans-serif;font-size:10px;color:#7f96a8;line-height:1.6;white-space:pre">{{ ln }}</div>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ s.noSrc }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-top:6px;font-size:10px;color:#5f6773">pass-through — no source record for this step</div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
                   </div>
                 </div>
               </sc-for>
-            </div>
-
-            <!-- raw source inspector -->
-            <div style="margin-top:4px;border:1px solid #15171b;border-radius:8px;background:#070809;overflow:hidden">
-              <div style="display:flex;align-items:center;gap:7px;padding:8px 11px;border-bottom:1px solid #121417;background:#0b0c0e">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#7b8390" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
-                <span style="font-size:10.5px;letter-spacing:.5px;color:#7b8390">SOURCE RECORD — {{ prov.stepLabel }}</span>
-              </div>
-              <sc-if value="{{ prov.hasSource }}" hint-placeholder-val="{{ true }}">
-                <div style="padding:9px 11px;max-height:190px;overflow:auto">
-                  <div style="font-size:10px;color:#8b93a0;margin-bottom:6px;font-weight:600">{{ prov.source.title }}</div>
-                  <sc-for list="{{ prov.source.lines }}" as="ln" hint-placeholder-count="6">
-                    <div style="font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#7f96a8;line-height:1.65;white-space:pre">{{ ln }}</div>
-                  </sc-for>
-                </div>
-              </sc-if>
-              <sc-if value="{{ prov.noSource }}" hint-placeholder-val="{{ false }}">
-                <div style="padding:14px 11px;font-size:10.5px;color:#5f6773;text-align:center">This step is a pass-through — no source record to inspect.</div>
-              </sc-if>
             </div>
           </div>
         </sc-if>
@@ -1349,68 +1620,8 @@
     </div>
   </footer>
 
-  <!-- ============ NEW RAILCARD WIZARD ============ -->
-  <sc-if value="{{ wizard.open }}" hint-placeholder-val="{{ false }}">
-    <div style="position:fixed;inset:0;z-index:62;background:rgba(8,9,11,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:28px">
-      <div style="width:100%;max-width:460px;background:#0f1114;border:1px solid #23262c;border-radius:16px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.6)">
-        <div style="padding:20px 22px 0">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:10px;letter-spacing:.9px;color:#5f6773">NEW RAILCARD · STEP {{ wizard.step }} OF 4</div>
-            <div onClick="{{ wizard.onCancel }}" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid #1b1e22;border-radius:7px;cursor:pointer;color:#98a1ae" style-hover="border-color:#2a2e34"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"></path></svg></div>
-          </div>
-          <div style="font-size:18px;color:#f0f2f6;font-weight:600;margin-top:6px">{{ wizard.stepTitle }}</div>
-          <div style="display:flex;gap:6px;margin-top:14px">
-            <sc-for list="{{ wizard.dots }}" as="d" hint-placeholder-count="4"><div style="flex:1;height:3px;border-radius:2px;background:{{ d.color }}"></div></sc-for>
-          </div>
-        </div>
-        <div style="padding:18px 22px 4px;min-height:158px">
-          <sc-if value="{{ wizard.isStep1 }}" hint-placeholder-val="{{ true }}">
-            <div style="font-size:11px;color:#7b8390;margin-bottom:6px">Product name</div>
-            <input value="{{ wizard.nameVal }}" onInput="{{ wizard.onName }}" placeholder="e.g. Student Railcard" style="width:100%;background:#090a0c;border:1px solid {{ wizard.nameBorder }};border-radius:8px;color:#e7ebf0;font-size:14px;padding:10px 12px" style-focus="border-color:#2f333a" />
-            <div style="font-size:10.5px;color:#5f6773;margin-top:8px;line-height:1.5">This creates a brand-new discount product. Nothing is written to the baseline — it is staged for review.</div>
-          </sc-if>
-          <sc-if value="{{ wizard.isStep2 }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><div style="font-size:11px;color:#7b8390">Discount rate</div><div style="font-size:16px;color:#f0f2f6;font-weight:600">{{ wizard.discountStr }}</div></div>
-            <input type="range" min="0" max="60" step="1" value="{{ wizard.discountVal }}" onInput="{{ wizard.onDiscount }}" style="width:100%" />
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:10px 12px;background:#090a0c;border:1px solid #191b20;border-radius:9px">
-              <div><div style="font-size:12px;color:#c3cad3">Peak validity</div><div style="font-size:10px;color:#5f6773;margin-top:1px">{{ wizard.peakLabel }}</div></div>
-              <div onClick="{{ wizard.onPeak }}" style="width:38px;height:20px;border-radius:11px;background:{{ wizard.peakBg }};position:relative;cursor:pointer;transition:background .2s;flex:0 0 auto"><div style="position:absolute;top:2px;left:{{ wizard.peakKnob }};width:16px;height:16px;border-radius:50%;background:#e7ebf0;transition:left .2s"></div></div>
-            </div>
-          </sc-if>
-          <sc-if value="{{ wizard.isStep3 }}" hint-placeholder-val="{{ false }}">
-            <div style="font-size:11px;color:#7b8390;margin-bottom:6px">Scheme area</div>
-            <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px;margin-bottom:14px">
-              <sc-for list="{{ wizard.clusterOpts }}" as="c" hint-placeholder-count="3"><div onClick="{{ c.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ c.color }}"><sc-if value="{{ c.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if><span style="position:relative">{{ c.label }}</span></div></sc-for>
-            </div>
-            <div style="font-size:11px;color:#7b8390;margin-bottom:6px">Rounding rule</div>
-            <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px;margin-bottom:14px">
-              <sc-for list="{{ wizard.roundOpts }}" as="r" hint-placeholder-count="4"><div onClick="{{ r.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ r.color }}"><sc-if value="{{ r.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if><span style="position:relative">{{ r.label }}</span></div></sc-for>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><div style="font-size:11px;color:#7b8390">Min-fare floor</div><div style="font-size:13px;color:#c3cad3">{{ wizard.minFloorStr }}</div></div>
-            <input type="range" min="50" max="75" step="1" value="{{ wizard.minFloorVal }}" onInput="{{ wizard.onFloor }}" style="width:100%" />
-          </sc-if>
-          <sc-if value="{{ wizard.isStep4 }}" hint-placeholder-val="{{ false }}">
-            <div style="background:#090a0c;border:1px solid #191b20;border-radius:10px;padding:14px 15px">
-              <div style="font-size:16px;color:#f0f2f6;font-weight:600">{{ wizard.reviewName }}</div>
-              <div style="font-size:11.5px;color:#8b93a0;margin-top:6px;line-height:1.5">{{ wizard.reviewParams }}</div>
-            </div>
-            <div style="font-size:10.5px;color:#5f6773;margin-top:12px;line-height:1.5">On create, this railcard is proposed to the staging layer as a pending approval card and the impact recomputes live. The baseline is never edited.</div>
-            <sc-if value="{{ wizard.hasError }}" hint-placeholder-val="{{ false }}">
-              <div style="margin-top:10px;background:#1a1210;border:1px solid #3c2620;border-radius:8px;padding:9px 11px">
-                <div style="font-size:10px;letter-spacing:.7px;color:#c17f6e;font-weight:600;margin-bottom:3px">ENGINE REJECTED THE PROPOSAL</div>
-                <div style="font-size:10.5px;color:#b8968b;line-height:1.45">{{ wizard.errorText }}</div>
-              </div>
-            </sc-if>
-          </sc-if>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 22px 20px">
-          <div onClick="{{ wizard.onBack }}" style="font-size:12px;color:{{ wizard.backColor }};cursor:{{ wizard.backCursor }};padding:8px 4px">Back</div>
-          <sc-if value="{{ wizard.showNext }}" hint-placeholder-val="{{ true }}"><div onClick="{{ wizard.onNext }}" style="background:#e7ebf0;color:#0c0d0f;font-size:12.5px;font-weight:600;padding:9px 20px;border-radius:9px;cursor:pointer" style-hover="background:#ffffff">Continue</div></sc-if>
-          <sc-if value="{{ wizard.showCreate }}" hint-placeholder-val="{{ false }}"><div onClick="{{ wizard.onCreate }}" style="background:#6f9e86;color:#0a120c;font-size:12.5px;font-weight:600;padding:9px 20px;border-radius:9px;cursor:pointer" style-hover="background:#7fae96">{{ wizard.createLabel }}</div></sc-if>
-        </div>
-      </div>
-    </div>
-  </sc-if>
+  <!-- (former NEW RAILCARD WIZARD popup — removed. Drafting now happens
+       inline in the AUTHOR ON STAGE panel; see product.drafting.) -->
 
   <!-- ============ IMPACT REPORT OVERLAY ============ -->
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ false }}">
@@ -1528,19 +1739,31 @@ class Component extends DCLogic {
     this.state = {
       ready:false, engineError:null, bootStatus:null,
       params:{ discountPct:34, peakOn:false, rounding:'near10', cluster:'national', minFloorPct:55, railcardName:'Student Railcard', changeType:'add' },
-      includes:{ compliance:true, splits:true, performance:true, revenue:true, validity:true, demand:false, carbon:false },
+      includes:{ compliance:true, splits:true, performance:true, revenue:true, validity:true, demand:true, carbon:false },
       perfAvailable:true, feedMode:'live', feedFetchedSec:2,
       disp:{ contradiction:null }, queueDisp:{},
       escalation:null, proposing:false, mainCardId:null, stagingCounts:{ approved:0, pending:0 }, stagingRows:[],
       selFlow:'ABD-EDB:OPR', selCorridor:'abd', selStep:'railcard',
       activeRight:'prov', activeAnalysis:'blast',
+      // Statistics-tab knob: eligible-share % for the demand model (backend
+      // default 15). Part of the impact request signature via fare-engine.
+      eligibleSharePct:15,
+      // Headline £ dropdown (verdict strip) + expanded network-overview row.
+      headlineOpen:false, netExpanded:null,
       hoverNode:null, filterStation:null,
       computing:false, resultsCurrent:true, computeError:null, degraded:false,
       lookup:'', lookupErr:null, lookupSugs:[], lookupSugIdx:0, lookupBusy:false,
       feed:[], animEpoch:0,
       env:'demo', envNote:false, showReport:false, feedFilter:'all', feedPaused:false,
       drawerOpen:false,
-      activeRailcard:'highland', productMenuOpen:false, wizard:null,
+      activeRailcard:'highland', productMenuOpen:false,
+      // Drafting a NEW railcard inline in the AUTHOR panel (replaces the
+      // old 4-step popup wizard). Non-null == the AUTHOR panel is in
+      // "drafting a new card" mode; every discount/peak/rounding control
+      // still writes to state.params, so live impact recomputes as the
+      // analyst tweaks. Cancel restores the previously-active railcard
+      // via selectRailcard(prevActiveRailcard).
+      newRailcardDraft:null,
       mapFull:false, stationDetail:null,
       // Guided flow: ① scope → ② author → ③ review → ④ approve.
       // scopeKind/selToc feed buildChangeRequest via fare-engine's _scopeFromRoot().
@@ -1576,10 +1799,12 @@ class Component extends DCLogic {
     this.waitEngine(0);
     this._onResize = () => { if (!this._sizes) return; this._sizes = this.clampSizes(this._sizes); this.applySizes(); this.forceUpdate(); };
     window.addEventListener('resize', this._onResize);
-    // Escape unwinds map chrome: station popover first (any mode), then the
-    // expanded map. Modals (report/wizard) sit above the map and keep Escape.
+    // Escape unwinds: inline new-railcard draft first (so the analyst can
+    // bail from the AUTHOR panel's drafting mode with one key), then the
+    // report modal, then station popover, then the expanded map.
     this._onKey = (e) => {
-      if (e.key !== 'Escape' || this.state.showReport || this.state.wizard) return;
+      if (e.key !== 'Escape' || this.state.showReport) return;
+      if (this.state.newRailcardDraft) { this.cancelInlineDraft(); return; }
       if (this.state.stationDetail) this.setState({ stationDetail:null });
       else if (this.state.mapFull) this.toggleMapFull();
     };
@@ -1732,7 +1957,14 @@ class Component extends DCLogic {
   }
 
   /* ---------------- recompute ---------------- */
-  effIncludes() { const inc = Object.assign({}, this.state.includes); if (!this.state.perfAvailable) inc.performance = false; return inc; }
+  effIncludes() {
+    const inc = Object.assign({}, this.state.includes);
+    if (!this.state.perfAvailable) inc.performance = false;
+    // The Statistics tab shows demand/carbon/ODM-revenue figures — request
+    // those blocks while it's open, whatever the left-rail toggles say.
+    if (this.state.activeAnalysis === 'stats') { inc.demand = true; inc.carbon = true; inc.revenue_odm = true; }
+    return inc;
+  }
   recompute(immediate) {
     if (!window.RFE) return;
     const run = () => {
@@ -1838,6 +2070,140 @@ class Component extends DCLogic {
         onSelect:() => this.selectToc(t.code) };
     });
   }
+  /* "How this was computed" — the strip of provenance chips that sits under
+     every landing revenue headline (verdict bar, aggregate panel, map full
+     overlay). Each chip reads a NAMED backend field via the adapter — no
+     client-side pricing, no client-side journey estimates. Chip order is
+     fixed: basis → volume → methodology → services → gaps. Every chip
+     click jumps to the analysis tab where the number originates, so the
+     path from headline to provenance is one click, not tab-hunting. */
+  buildBasisChips() {
+    const C = this.C, imp = this._impact, RFE = window.RFE;
+    if (!imp || !imp.revenue || !RFE) return [];
+    const rev = imp.revenue, dem = imp.demand, perf = imp.performance;
+    const goTab = (tab) => () => this.setState({ activeAnalysis: tab });
+    const chips = [];
+
+    // BASIS — the docstring for the headline. per_flow_exposure is the honest
+    // static-demand sum (src/impact/revenue.py:27-34); per_pair_exposure is
+    // the cluster-expansion view (revenue.py:37-45: "NEVER cite as revenue").
+    if (rev.basis === 'odm_revenue') {
+      chips.push({ id:'basis', label:'basis · ODM revenue', tone:'ok', onGo:goTab('revenue'),
+        tip:'Δ × ODM journeys/period, summed over ' + rev.matchedFlows + ' matched flow(s) ('
+            + rev.unmatchedFlows + ' unmatched). Source: ' + (rev.periodLabel || 'ODM matrix') + '.' });
+    } else if (rev.basis === 'per_flow_exposure') {
+      const perPair = rev.perPairExposureP != null ? RFE.fmtBig(rev.perPairExposureP) : '—';
+      chips.push({ id:'basis', label:'basis · per-flow exposure', tone:'neutral', onGo:goTab('revenue'),
+        tip:'Sum of (new − old) over distinct repriced fares — the honest static-demand '
+            + 'exposure (src/impact/revenue.py). Per-pair figure ' + perPair + ' is the cluster '
+            + 'fan-out used for the GB-map, not revenue.' });
+    }
+
+    // VOLUME — where the "per how many journeys?" question is answered. Real
+    // ODM matched: cite period label. Modelled: cite the demand block. Neither:
+    // surface the honest "% only, no ODM loaded" state so the landing tells
+    // the viewer the volume basis is missing, instead of implying one exists.
+    if (rev.journeys != null) {
+      chips.push({ id:'volume', tone:'ok', onGo:goTab('revenue'),
+        label:rev.journeys.toLocaleString() + ' journeys · ' + (rev.periodLabel || 'per period'),
+        tip:'Absolute journey volumes from the ODM matrix, joined at flow_id + ticket_code.' });
+    } else if (dem && dem.totalNetNewJourneys != null) {
+      chips.push({ id:'volume', tone:'neutral', onGo:goTab('demand'),
+        label:RFE.fmtInt(dem.totalNetNewJourneys) + ' net-new journeys · modelled',
+        tip:'Elasticity-modelled net-new journeys across ' + dem.flowsWithVolume
+            + ' flows with ODM volume (' + dem.flowsPercentOnly + ' flows are % only).' });
+    } else if (dem) {
+      chips.push({ id:'volume', tone:'warn', onGo:goTab('demand'),
+        label:'% only · no ODM loaded',
+        tip:'No origin-destination matrix at data/odm/odm.csv, so absolute journey '
+            + 'volumes are unavailable. Drop an ORR ODM release there for modelled '
+            + 'journey counts. Demand percentages remain valid; absolute figures do not.' });
+    } else {
+      chips.push({ id:'volume', tone:'warn', onGo:goTab('demand'),
+        label:'volume basis · demand off',
+        tip:'The demand block is off, so no journey basis backs this £ figure. '
+            + 'Toggle it on in the analysis rail to see modelled volumes and elasticity sources.' });
+    }
+
+    // METHODOLOGY — cite the elasticity source and the eligible-share assumption
+    // so the viewer sees WHERE the demand-side numbers come from. demand.py's
+    // METHODOLOGY_NOTE (fixed as notes[0]) carries the full disclosure. The
+    // published elasticity_source strings are ~300 chars (framework + range
+    // + citation + derivation), so trim to the first citation-clause for the
+    // chip label; the full source lives in the tooltip.
+    if (dem) {
+      const eligiblePct = Math.round((dem.eligibleShare || 0) * 100);
+      const rawSrc = dem.primaryElasticitySource || '';
+      let srcShort = 'PDFH-framework';
+      if (rawSrc) {
+        // Prefer the citation in parentheses, e.g. "(ORR RDFE study / Systra 2021)"
+        const cite = rawSrc.match(/\(([^)]+)\)/);
+        if (cite) { srcShort = cite[1].split(/[,;]/)[0].trim(); }
+        else { srcShort = rawSrc.split(/[,;·—]/)[0].trim(); }
+        if (srcShort.length > 48) srcShort = srcShort.slice(0, 45).trim() + '…';
+      }
+      let label = 'methodology · ' + srcShort + ' · eligible share ' + eligiblePct + '%';
+      if (dem.validityWarnings) label += ' · ' + dem.validityWarnings + ' outside ±25%';
+      chips.push({ id:'methodology', tone: dem.validityWarnings ? 'warn' : 'neutral',
+        onGo:goTab('demand'), label,
+        tip:(dem.methodologyNote || '') + (rawSrc
+            ? ' Primary elasticity source: ' + rawSrc + '.'
+            : '') });
+    }
+
+    // SERVICES — HSP serviceMetrics. Freshness mode is loud because a
+    // "fixture" chip must never be mistaken for live NRDP data.
+    if (perf && perf.serviceCount != null) {
+      const modeTone = perf.mode === 'live' ? 'ok'
+        : (perf.mode === 'fixture' ? 'warn' : 'neutral');
+      const dayShort = (perf.dayType || '').toLowerCase();
+      chips.push({ id:'services', tone:modeTone, onGo:goTab('performance'),
+        label: perf.serviceCount + ' services · ' + dayShort + ' · HSP ' + (perf.mode || '—'),
+        tip:'HSP serviceMetrics for the corridor. Mode: ' + (perf.mode || 'unknown')
+            + '. Fetched at: ' + (perf.fetchedAt || 'unknown') + '.' });
+    }
+
+    // GAPS — honest disclosure counter over report.notes[] entries that
+    // announce a skipped, degraded, deferred or fixture-served result.
+    // Broad on purpose: every disclosure the backend chose to emit is worth
+    // one increment on the visible counter.
+    const gapPattern = /skipped|unavailable|no ODM|no cache|not knowable|extrapolation|truncated|deferred|failed|fallback|captured but NOT|inferred from hardcoded|synthetic|without \.RCM|fixture/i;
+    const gaps = (imp.notes || []).filter((n) => gapPattern.test(n));
+    if (gaps.length) {
+      chips.push({ id:'gaps', tone:'warn', onGo:null,
+        label: gaps.length + ' data gap' + (gaps.length === 1 ? '' : 's') + ' disclosed',
+        tip: gaps.slice(0, 3).join('  •  ') + (gaps.length > 3 ? '  •  …' : '') });
+    }
+
+    return chips.map((c) => ({
+      id: c.id, label: c.label, tip: c.tip,
+      color: c.tone === 'warn' ? C.warn : (c.tone === 'ok' ? C.ok : C.tx1),
+      border: c.tone === 'warn' ? '#3a3220' : (c.tone === 'ok' ? '#1d2a23' : '#171a1e'),
+      bg: c.tone === 'warn' ? '#171207' : (c.tone === 'ok' ? '#0d1310' : '#0c0e11'),
+      onGo: c.onGo || (() => {}),
+      cursor: c.onGo ? 'pointer' : 'default',
+    }));
+  }
+
+  /* The headline £ figure's own hover-tooltip. The tone matches buildBasisChips
+     but for the number itself — so the moment you hover you see what the sum
+     represents, without having to open a tab. */
+  buildHeadlineTip() {
+    const imp = this._impact, RFE = window.RFE;
+    if (!imp || !imp.revenue || !RFE) return '';
+    const rev = imp.revenue;
+    if (rev.basis === 'odm_revenue') {
+      return 'Δ × ODM journeys/period, summed over ' + rev.matchedFlows
+        + ' matched flow(s). Source: ' + (rev.periodLabel || 'ODM matrix') + '.';
+    }
+    if (rev.basis === 'per_flow_exposure') {
+      const perPair = rev.perPairExposureP != null ? RFE.fmtBig(rev.perPairExposureP) : '—';
+      return 'Sum of (new − old) over distinct repriced fares. Structural exposure, '
+        + 'NOT a demand-weighted forecast. Per-pair cluster-expanded figure: ' + perPair + '.';
+    }
+    return 'Revenue block not requested.';
+  }
+
   /* ① Verdict strip — the change's one-line verdict at the top of the stage.
      Every number reads the adapter's single verdict object, so the strip can
      never disagree with the aggregate panel, tabs, or report modal. */
@@ -1848,14 +2214,17 @@ class Component extends DCLogic {
       const inAuthor = S.stage === 'author';
       return { h:'46px', empty:true, ready:false, changeLine:'', scopeLine:'', faresN:'0', chips:[],
         revStr:'', revSub:'', revColor:C.tx1, est:false, dec:{ show:false },
+        onRevToggle:() => {},
         emptyHint: inAuthor ? 'author the change, then run its impact'
                             : 'the change\u2019s verdict lands here — affected fares, checks, revenue exposure',
         ctaLabel: inAuthor ? 'Run impact' : 'Propose a change →',
         ctaGo: inAuthor ? (() => this.runImpact()) : (() => this.setStage('author')) };
     }
     const v = imp.verdict, rev = imp.revenue, p = S.params;
-    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : 'Add');
-    const changeLine = verb + ' ' + p.railcardName + ' · ' + p.discountPct + '% ' + (p.peakOn ? 'peak-valid' : 'off-peak');
+    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : (p.changeType === 'raise' ? 'Raise' : 'Add'));
+    const changeLine = p.changeType === 'raise'
+      ? 'Raise walk-up fares · +' + p.discountPct + '% ' + (p.peakOn ? 'peak-valid' : 'off-peak')
+      : verb + ' ' + p.railcardName + ' · ' + p.discountPct + '% ' + (p.peakOn ? 'peak-valid' : 'off-peak');
     const cor = (RFE.CORRIDORS || []).find((c) => c.id === S.selCorridor);
     const scopeLine = S.scopeKind === 'toc' ? ('TOC ' + (S.selToc || '—')) : (cor ? cor.name : '');
     const chips = [];
@@ -1894,12 +2263,28 @@ class Component extends DCLogic {
       onHold:() => this.holdChange(),
       onResolve:() => this.setState({ activeRight:'contra' }),
     };
+    // revSub is derived from the adapter's `basis` flag — never a hardcoded
+    // string. "net/yr" was fabrication when the block was a static Δ sum.
+    const revSubMap = {
+      odm_revenue: 'revenue · ODM-weighted',
+      per_flow_exposure: 'exposure · static-demand',
+      none: 'revenue off',
+    };
+    const basis = rev && rev.basis ? rev.basis : 'none';
+    const basisChips = this.buildBasisChips();
+    // Grow the strip when chips exist so the "how this was computed" row
+    // fits below the primary verdict line. Empty state stays compact.
     return {
-      h:'46px', ready:true, empty:false, changeLine, scopeLine,
+      h: basisChips.length ? '78px' : '46px',
+      ready:true, empty:false, changeLine, scopeLine,
       faresN: v.affectedTotal.toLocaleString(),
       chips,
+      basisChips,
+      hasBasisChips: basisChips.length > 0,
       revStr: v.revenue ? RFE.fmtBigDir(rev.totalP) : '',
-      revSub: v.revenue ? 'net/yr' : 'revenue off',
+      revSub: v.revenue ? (revSubMap[basis] || revSubMap.per_flow_exposure) : revSubMap.none,
+      revTip: this.buildHeadlineTip(),
+      onRevToggle:() => this.setState((s) => ({ headlineOpen: !s.headlineOpen })),
       revColor: v.revenue ? (rev.totalP < 0 ? C.down : (rev.totalP > 0 ? C.up : C.tx1)) : '#5f6773',
       est: !!(v.revenue && v.revenue.est),
       dec,
@@ -1909,12 +2294,12 @@ class Component extends DCLogic {
   // Read-only card in the left rail at review/approve — the change under review.
   buildChangeSummary() {
     const S = this.state, p = S.params, RFE = window.RFE;
-    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : 'Add');
+    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : (p.changeType === 'raise' ? 'Raise fares' : 'Add'));
     const cor = ((RFE && RFE.CORRIDORS) || []).find((c) => c.id === S.selCorridor);
     return {
       rows: [
-        { k:'change', v: verb + ' · ' + p.railcardName },
-        { k:'discount', v: p.discountPct + '%' },
+        { k:'change', v: p.changeType === 'raise' ? 'Raise fares · +' + p.discountPct + '%' : verb + ' · ' + p.railcardName },
+        { k:'discount', v: (p.changeType === 'raise' ? '+' : '') + p.discountPct + '%' },
         { k:'validity', v: p.peakOn ? 'peak-valid' : 'off-peak only' },
         { k:'rounding', v: (RFE && RFE.roundingLabel) ? RFE.roundingLabel(p.rounding) : p.rounding },
         { k:'scheme area', v: (RFE && RFE.CLUSTER_LABEL && RFE.CLUSTER_LABEL[p.cluster]) || p.cluster },
@@ -2304,71 +2689,115 @@ class Component extends DCLogic {
     }
     this.setParam({ changeType:t });
   }
-  startWizard() { this.setState({ productMenuOpen:false, wizard:{ step:1, draft:{ name:'', discountPct:34, peakOn:false, cluster:'national', minFloorPct:55, rounding:'near10' } } }); }
-  wizardSet(patch) { this.setState((s) => ({ wizard:Object.assign({}, s.wizard, { draft:Object.assign({}, s.wizard.draft, patch) }) })); }
-  wizardStep(delta) { this.setState((s) => { const st = Math.max(1, Math.min(4, s.wizard.step + delta)); return { wizard:Object.assign({}, s.wizard, { step:st }) }; }); }
-  cancelWizard() { this.setState({ wizard:null }); }
-  createRailcard() {
-    const S = this.state; if (!S.wizard || S.wizard.creating) return;
-    const d = S.wizard.draft, name = (d.name || '').trim() || 'New Railcard';
+  /* Inline new-railcard drafting — replaces the old popup wizard.
+     The AUTHOR panel (index.html: §421-534) already renders every control
+     the wizard duplicated (discount/peak/rounding/cluster/floor). Drafting
+     mode just adds a NAME field in place of the product-selector row and
+     morphs the bottom CTA. Live impact recomputes as the analyst tweaks
+     because setParam still fires on every slider move. */
+  startInlineDraft() {
+    const S = this.state;
+    this.setState((s) => ({
+      productMenuOpen: false,
+      newRailcardDraft: {
+        name: '', prevActiveRailcard: s.activeRailcard,
+        creating: false, error: null,
+      },
+      // Blank the label so the live impact preview reads honestly as an
+      // "(unnamed)" draft until the analyst types. selectRailcard on cancel
+      // restores everything, including the label.
+      params: Object.assign({}, s.params, { railcardName: '', railcardCode: null }),
+    }));
+  }
+  setDraftName(name) {
+    // Name change does NOT trigger recompute — impact keys off params, but
+    // the synthetic railcard code only matters at propose-time. Per-keystroke
+    // backend calls would burn requests for no UX gain.
+    this.setState((s) => (s.newRailcardDraft
+      ? { newRailcardDraft: Object.assign({}, s.newRailcardDraft, { name }) }
+      : {}));
+  }
+  cancelInlineDraft() {
+    const S = this.state, prev = S.newRailcardDraft && S.newRailcardDraft.prevActiveRailcard;
+    // selectRailcard resets params from the railcard's own record — the same
+    // path used by the product dropdown — so cancel fully restores whatever
+    // the analyst had before entering drafting mode.
+    if (prev && this.RAILCARDS.find((r) => r.id === prev)) {
+      this.setState({ newRailcardDraft: null }, () => this.selectRailcard(prev));
+    } else {
+      this.setState({ newRailcardDraft: null });
+    }
+  }
+  createRailcardInline() {
+    const S = this.state, draft = S.newRailcardDraft;
+    if (!draft || draft.creating) return;
+    const name = (draft.name || '').trim();
+    if (!name) return;   // UI guard; setDraftName debounces intent
     const RFE = window.RFE;
-    const code = RFE && RFE.proposalCodeFor ? RFE.proposalCodeFor({ railcardName:name }) : null;
+    const code = RFE && RFE.proposalCodeFor ? RFE.proposalCodeFor({ railcardName: name }) : null;
     const id = code || ('rc' + Date.now());
-    const cardParams = { railcardName:name, railcardCode:code, discountPct:d.discountPct, peakOn:d.peakOn,
-      cluster:d.cluster, minFloorPct:d.minFloorPct, rounding:d.rounding, changeType:'add' };
+    // Read live params off state — analyst may have tweaked discount/etc
+    // while drafting, and those tweaks already landed in state.params via
+    // setParam (which triggered live impact preview on the map behind).
+    const p = S.params;
+    const cardParams = { railcardName: name, railcardCode: code,
+      discountPct: p.discountPct, peakOn: p.peakOn, cluster: p.cluster,
+      minFloorPct: p.minFloorPct, rounding: p.rounding, changeType: 'add' };
     if (!RFE || !RFE.proposeChange) {
-      this.setState((s) => ({ wizard:Object.assign({}, s.wizard, { error:'fare engine offline — cannot propose to staging' }) }));
+      this.setState((s) => ({ newRailcardDraft: Object.assign({}, s.newRailcardDraft,
+        { error: 'fare engine offline — cannot propose to staging' }) }));
       return;
     }
-    // Propose to the backend staging layer FIRST — the card only joins the
-    // rail once the engine accepts it as a pending approval card.
-    this.setState((s) => ({ wizard:Object.assign({}, s.wizard, { creating:true, error:null }) }));
-    RFE.proposeChange({ params:cardParams, includes:this.effIncludes(), disp:{} }, S.selCorridor, null)
+    this.setState((s) => ({ newRailcardDraft: Object.assign({}, s.newRailcardDraft,
+      { creating: true, error: null }) }));
+    RFE.proposeChange({ params: cardParams, includes: this.effIncludes(), disp: {} },
+                      S.selCorridor, null)
       .then((res) => {
-        if (res.kind !== 'accepted') { this.setState({ wizard:null }); this._onEscalation(res); return; }
-        this.RAILCARDS.push({ id, name, discountPct:d.discountPct, peakOn:d.peakOn, cluster:d.cluster,
-          minFloorPct:d.minFloorPct, rounding:d.rounding, kind:'new', proposalCode:code, cardId:res.card.card_id });
-        this.setState((s) => ({ wizard:null, activeRailcard:id, mainCardId:res.card.card_id,
-          queueDisp:Object.assign({}, s.queueDisp, { main:'pending' }),
-          params:Object.assign({}, s.params, cardParams) }), () => {
+        if (res.kind !== 'accepted') {
+          this.setState({ newRailcardDraft: null }); this._onEscalation(res); return;
+        }
+        this.RAILCARDS.push({ id, name, discountPct: p.discountPct, peakOn: p.peakOn,
+          cluster: p.cluster, minFloorPct: p.minFloorPct, rounding: p.rounding,
+          kind: 'new', proposalCode: code, cardId: res.card.card_id });
+        this.setState((s) => ({ newRailcardDraft: null, activeRailcard: id,
+          mainCardId: res.card.card_id,
+          queueDisp: Object.assign({}, s.queueDisp, { main: 'pending' }),
+          params: Object.assign({}, s.params, cardParams) }), () => {
           this.recompute(true); this.refreshStaging();
-          this.pushFeed({ kind:'policy', severity:'info', source:'STAG',
-            text:'card ' + res.card.card_id + ' proposed \u00b7 ' + name + ' (' + code + ') \u2014 awaiting approval' });
+          this.pushFeed({ kind: 'policy', severity: 'info', source: 'STAG',
+            text: 'card ' + res.card.card_id + ' proposed \u00b7 ' + name +
+                  ' (' + code + ') \u2014 awaiting approval' });
         });
       })
       .catch((e) => {
         const detail = e && e.body && e.body.detail ? String(e.body.detail)
           : (e && e.message ? e.message : 'propose failed');
-        this.setState((s) => ({ wizard:Object.assign({}, s.wizard, { creating:false, error:detail }) }));
+        this.setState((s) => ({ newRailcardDraft: Object.assign({}, s.newRailcardDraft,
+          { creating: false, error: detail }) }));
       });
   }
 
   buildProduct() { const S = this.state, RFE = window.RFE;
     const active = this.RAILCARDS.find((r) => r.id === S.activeRailcard) || this.RAILCARDS[0];
     const isNew = active && active.kind === 'new';
-    return { name:S.params.railcardName, subLabel: isNew ? 'new railcard \u00b7 staged' : 'existing product',
-      typeLabel: S.params.changeType === 'withdraw' ? 'Withdrawing' : (S.params.changeType === 'adjust' ? 'Adjusting' : 'Adding'),
+    const draft = S.newRailcardDraft;
+    return {
+      // --- mode flags (both explicit — the DC template engine has no negate) ---
+      drafting: !!draft,
+      notDrafting: !draft,
+      // --- normal (dropdown) mode fields ---
+      name:S.params.railcardName, subLabel: isNew ? 'new railcard \u00b7 staged' : 'existing product',
+      typeLabel: S.params.changeType === 'withdraw' ? 'Withdrawing' : (S.params.changeType === 'adjust' ? 'Adjusting' : (S.params.changeType === 'raise' ? 'Raising fares' : 'Adding')),
       menuOpen:S.productMenuOpen, menuBorder:S.productMenuOpen ? '#2f333a' : '#191b20', chev:S.productMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
       onToggle:() => this.toggleProductMenu(),
       railcards:this.RAILCARDS.map((r) => ({ name:r.name, summary:r.discountPct + '% ' + (r.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + (RFE ? RFE.CLUSTER_LABEL[r.cluster] : ''), isNew:r.kind === 'new', bg: r.id === S.activeRailcard ? '#131519' : 'transparent', dot: r.id === S.activeRailcard ? '#8a93a3' : '#3a4048', onSelect:() => this.selectRailcard(r.id) })),
-      onNew:() => this.startWizard(), onAdjust:() => this.setChangeTypeAction('adjust'), onWithdraw:() => this.setChangeTypeAction('withdraw') };
-  }
-  buildWizard() { const S = this.state, RFE = window.RFE; if (!S.wizard) return { open:false };
-    const w = S.wizard, d = w.draft;
-    const titles = ['Name your product','Set the discount','Scheme & rounding','Review & create'];
-    return { open:true, step:w.step, stepTitle:titles[w.step-1],
-      dots:[1,2,3,4].map((n) => ({ color: w.step >= n ? '#8a93a3' : '#1b1e24' })),
-      isStep1:w.step===1, isStep2:w.step===2, isStep3:w.step===3, isStep4:w.step===4,
-      nameVal:d.name, nameBorder:(w.step===1 && !(d.name||'').trim()) ? '#4a2b23' : '#191b20', onName:(e) => this.wizardSet({ name:e.target.value }),
-      discountVal:d.discountPct, discountStr:d.discountPct + '%', onDiscount:(e) => this.wizardSet({ discountPct:+e.target.value }),
-      peakOn:d.peakOn, peakLabel:d.peakOn ? 'Anytime (peak + off-peak)' : 'Off-peak only', peakBg:d.peakOn ? '#8a93a3' : '#1b1e24', peakKnob:d.peakOn ? '20px' : '2px', onPeak:() => this.wizardSet({ peakOn:!d.peakOn }),
-      clusterOpts:[['national','National'],['wcml_north','WCML'],['ecml','ECML'],['gwml_south','GWML']].map((c) => ({ label:c[1], active:d.cluster===c[0], color:d.cluster===c[0] ? '#e7ebf0' : '#7b8390', onPick:() => this.wizardSet({ cluster:c[0] }) })),
-      roundOpts:[['near10','10p'],['near5','5p'],['down10','\u219310p'],['none','None']].map((r) => ({ label:r[1], active:d.rounding===r[0], color:d.rounding===r[0] ? '#e7ebf0' : '#7b8390', onPick:() => this.wizardSet({ rounding:r[0] }) })),
-      minFloorVal:d.minFloorPct, minFloorStr:d.minFloorPct + '%', onFloor:(e) => this.wizardSet({ minFloorPct:+e.target.value }),
-      reviewName:(d.name||'').trim() || 'New Railcard', reviewParams:d.discountPct + '% ' + (d.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + (RFE ? RFE.CLUSTER_LABEL[d.cluster] : '') + ' \u00b7 rounding ' + d.rounding + ' \u00b7 floor ' + d.minFloorPct + '%',
-      showNext:w.step<4, showCreate:w.step===4, backColor:w.step>1 ? '#98a1ae' : '#3a4048', backCursor:w.step>1 ? 'pointer' : 'default',
-      hasError:!!w.error, errorText:w.error || '', createLabel:w.creating ? 'Proposing\u2026' : 'Create railcard',
-      onNext:() => this.wizardStep(1), onBack:() => this.wizardStep(-1), onCancel:() => this.cancelWizard(), onCreate:() => this.createRailcard() };
+      onNew:() => this.startInlineDraft(), onAdjust:() => this.setChangeTypeAction('adjust'), onWithdraw:() => this.setChangeTypeAction('withdraw'),
+      // --- inline draft mode fields (used when drafting=true) ---
+      draftName: draft ? draft.name : '',
+      draftPlaceholder: 'e.g. Student Railcard',
+      onDraftName: (e) => this.setDraftName(e.target.value),
+      onCancelDraft: () => this.cancelInlineDraft(),
+    };
   }
 
   buildToolbar() {
@@ -2380,12 +2809,29 @@ class Component extends DCLogic {
       const t = (RFE && RFE.TOCS || []).find((x) => x.code === S.selToc);
       scopeName = 'Operator \u00b7 ' + ((t && t.name) || S.selToc);
     }
+    // AUTHOR panel CTA morphs when the analyst is drafting a new railcard:
+    // "Run impact" (default) → "Create railcard → staging". The drafting
+    // branch also carries creating/error state so the inline flow needs no
+    // separate view model.
+    const draft = S.newRailcardDraft;
+    const drafting = !!draft;
+    const draftName = drafting ? (draft.name || '').trim() : '';
     return { corridorName: scopeName, flowLabel,
       onRun:() => this.runImpact(), onReport:() => this.openReport(),
       demoActive: S.env === 'demo', liveActive: S.env === 'live', idle: !S.computing,
       demoColor: S.env === 'demo' ? '#dfe3e9' : '#7b8390', demoWeight: S.env === 'demo' ? 600 : 400,
       liveColor: S.env === 'live' ? '#dfe3e9' : '#7b8390', liveWeight: S.env === 'live' ? 600 : 400,
-      onDemo:() => this.setEnv('demo'), onLive:() => this.setEnv('live'), computing:S.computing };
+      onDemo:() => this.setEnv('demo'), onLive:() => this.setEnv('live'), computing:S.computing,
+      // --- inline-draft CTA state ---
+      drafting,
+      canCreate: drafting && !!draftName && !draft.creating,
+      creating: drafting && !!draft.creating,
+      createLabel: drafting && draft.creating ? 'Proposing\u2026' : 'Create railcard \u2192 staging',
+      onCreateInline: () => this.createRailcardInline(),
+      draftHint: drafting && !draftName ? 'Name your railcard to continue.' : '',
+      draftHasError: drafting && !!draft.error,
+      draftErrorText: drafting && draft.error ? draft.error : '',
+    };
   }
   buildFeedView() {
     const S = this.state;
@@ -2403,7 +2849,8 @@ class Component extends DCLogic {
     if (!imp || !RFE) return { ready:false, onClose:() => this.closeReport() };
     const v = imp.verdict, rev = imp.revenue, withdraw = S.params.changeType === 'withdraw';
     return { ready:true, onClose:() => this.closeReport(), onPrint:() => { try { window.print(); } catch (e) {} },
-      title:(withdraw ? 'Withdraw ' : 'Add ') + S.params.railcardName,
+      title: S.params.changeType === 'raise' ? ('Fare rise \u00b7 +' + S.params.discountPct + '%')
+           : (withdraw ? 'Withdraw ' : 'Add ') + S.params.railcardName,
       params:S.params.discountPct + '% ' + (S.params.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + RFE.CLUSTER_LABEL[S.params.cluster] + ' \u00b7 rounding ' + RFE.roundingLabel(S.params.rounding),
       snapshot:RFE.SNAPSHOT.id + ' \u00b7 ' + RFE.SNAPSHOT.date, generated:this.nowStamp(),
       total:v.affectedTotal,
@@ -2576,6 +3023,8 @@ class Component extends DCLogic {
       dimRight: hasImpact ? '' : 'rfe-dim',
       onPropose:() => this.setStage('author'),
       onBackScope:() => this.setStage('scope'),
+      // Panel header morphs when the analyst is inline-drafting a new card.
+      authorHeader: S.newRailcardDraft ? '\u2461 AUTHOR NEW RAILCARD' : '\u2461 AUTHOR THE CHANGE',
     };
     V.verdictBar = this.buildVerdictBar();
     V.summary = this.buildChangeSummary();
@@ -2622,6 +3071,9 @@ class Component extends DCLogic {
     V.revenue = this.buildRevenue();
     V.demand = this.buildDemand();
     V.carbon = this.buildCarbon();
+    V.network = this.buildNetwork();
+    V.stats = this.buildStats();
+    V.headDrop = this.buildHeadlineDrop();
 
     // right tabs
     V.rightTabs = this.buildRightTabs();
@@ -2653,7 +3105,6 @@ class Component extends DCLogic {
     V.feedView = this.buildFeedView();
     V.report = this.buildReport();
     V.product = this.buildProduct();
-    V.wizard = this.buildWizard();
     V.env = S.env; V.envNote = S.envNote; V.showReport = S.showReport;
     V.map.onWheel = (e) => this.onMapWheel(e); V.map.onPanStart = (e) => this.startMapPan(e);
     V.map.onZoomIn = () => this.mapZoomBy(1.25); V.map.onZoomOut = () => this.mapZoomBy(0.8);
@@ -2668,10 +3119,10 @@ class Component extends DCLogic {
     const C = this.C, p = this.state.params;
     const seg = (opts, cur, on) => opts.map((o) => ({ label:o.label, active:cur===o.id, color:cur===o.id?'#f0f2f6':'#7b8390', weight:cur===o.id?600:400, onPick:()=>on(o.id) }));
     return {
-      typeOpts: seg([{id:'add',label:'Add railcard'},{id:'adjust',label:'Adjust discount'},{id:'withdraw',label:'Withdraw'}], p.changeType, (id)=>this.setParam({changeType:id})),
+      typeOpts: seg([{id:'add',label:'Add railcard'},{id:'adjust',label:'Adjust discount'},{id:'withdraw',label:'Withdraw'},{id:'raise',label:'Fare rise'}], p.changeType, (id)=>this.setParam({changeType:id})),
       railcardName:p.railcardName, onName:(e)=>this.setState((s)=>({params:Object.assign({},s.params,{railcardName:e.target.value})}), ()=>this.recompute()),
-      discountVerb: p.changeType==='withdraw' ? 'Discount being withdrawn' : 'Discount rate',
-      discountPct:p.discountPct, discountStr:p.discountPct + '%', onDiscount:(e)=>this.setParam({discountPct:+e.target.value}),
+      discountVerb: p.changeType==='withdraw' ? 'Discount being withdrawn' : (p.changeType==='raise' ? 'Increase rate' : 'Discount rate'),
+      discountPct:p.discountPct, discountStr:(p.changeType==='raise' ? '+' : '') + p.discountPct + '%', onDiscount:(e)=>this.setParam({discountPct:+e.target.value}),
       peakOn:p.peakOn, peakLabel: p.peakOn ? 'Anytime (peak + off-peak)' : 'Off-peak only',
       peakBg: p.peakOn ? C.ac : '#1b1e24', peakKnob: p.peakOn ? '20px' : '2px', onPeak:()=>this.setParam({peakOn:!p.peakOn}),
       roundingOpts: seg([{id:'near10',label:'10p'},{id:'near5',label:'5p'},{id:'down10',label:'↓10p'},{id:'none',label:'None'}], p.rounding, (id)=>this.setParam({rounding:id})),
@@ -2924,6 +3375,8 @@ class Component extends DCLogic {
       ],
       revTotal: RFE.fmtBigDir(rev.totalP), revColor: rev.totalP < 0 ? C.down : (rev.totalP > 0 ? C.up : C.tx1),
       revLabel: withdraw ? 'recovered' : 'exposure',
+      revTip: this.buildHeadlineTip(),
+      basisChips: this.buildBasisChips(),
       revJourneys: rev.journeys == null
         ? 'static exposure · demand-weighting off'
         : rev.journeys.toLocaleString() + ' journeys/yr modelled',
@@ -2988,7 +3441,7 @@ class Component extends DCLogic {
 
   buildImpact() {
     const C = this.C, RFE = window.RFE, imp = this._impact;
-    if (!imp) return { total:0, buckets:[], affectedStations:0, revenueStr:'£0', journeysStr:'', journeysLine:'', showJourneys:false, exactPct:0, estPct:0, revColor:C.tx1, scaleNote:'', scopeShort:'', revLabel:'exposure' };
+    if (!imp) return { total:0, buckets:[], affectedStations:0, revenueStr:'£0', journeysStr:'', journeysLine:'', showJourneys:false, exactPct:0, estPct:0, revColor:C.tx1, scaleNote:'', scopeShort:'', revLabel:'exposure', revTip:'', onRevGo:() => {}, basisChips:[] };
     // Every displayed count comes off the adapter's single verdict object —
     // the inversion line shows the DETECTION count; its bar width uses
     // implicated rows (visual weight only).
@@ -3006,6 +3459,9 @@ class Component extends DCLogic {
     const journeys = imp.revenue.journeys;
     return { total:v.affectedTotal, buckets, affectedStations:affStations,
       revenueStr:RFE.fmtBigDir(total),
+      revTip: this.buildHeadlineTip(),
+      onRevGo:() => this.setState({ activeAnalysis:'revenue' }),
+      basisChips: this.buildBasisChips(),
       journeysStr: journeys == null ? '' : journeys.toLocaleString(),
       showJourneys: journeys != null,
       // journeys==null means demand-weighting is off — say so where the
@@ -3023,7 +3479,12 @@ class Component extends DCLogic {
 
   buildAnalysisTabs() {
     const C = this.C, S = this.state, inc = this.effIncludes(), imp = this._impact;
+    // Network aberration badge: total baseline inversions across corridors
+    // (from /api/overview cache — 0 until the backend finishes computing).
+    const ov = (window.RFE && window.RFE.overview && this.state.ready) ? window.RFE.overview() : null;
+    const aberrN = (ov && ov.ready) ? ov.corridors.reduce((a, c) => a + c.aberration_count, 0) : 0;
     const defs = [
+      { id:'network', label:'Network', on:true, badge:aberrN, badgeTone:'warn' },
       { id:'blast', label:'Blast radius', on:true, badge: imp?imp.verdict.affectedTotal:0, badgeTone:'ac' },
       { id:'compliance', label:'Compliance', on:inc.compliance, badge: imp?(imp.verdict.breaches||0):0, badgeTone:'bad' },
       { id:'anomalies', label:'Anomalies', on:inc.validity, badge: imp?(imp.verdict.inversions||0):0, badgeTone:'warn' },
@@ -3031,7 +3492,8 @@ class Component extends DCLogic {
       { id:'performance', label:'Performance', on:inc.performance && S.perfAvailable, badge:0, badgeTone:'ac' },
       { id:'revenue', label:'Revenue', on:inc.revenue, badge:0, badgeTone:'ac' },
       { id:'demand', label:'Demand', on:inc.demand, badge:0, badgeTone:'ac' },
-      { id:'carbon', label:'Carbon', on:inc.carbon, badge:0, badgeTone:'ac' }
+      { id:'carbon', label:'Carbon', on:inc.carbon, badge:0, badgeTone:'ac' },
+      { id:'stats', label:'Statistics', on:true, badge:0, badgeTone:'ac' }
     ];
     const badgeColor = { ac:C.acHi, bad:C.bad, warn:C.warn, info:C.info };
     const tabs = defs.map((d) => {
@@ -3040,7 +3502,9 @@ class Component extends DCLogic {
       return { label:d.label, active, off: !d.on,
         opacity: d.on ? 1 : 0.5, color: active ? '#f0f2f6' : (d.on ? '#98a1ae' : '#5f6773'), weight: active ? 600 : 400,
         showBadge, badge:d.badge, badgeColor: badgeColor[d.badgeTone], badgeBg:'#090a0c',
-        onSelect:() => this.setState({ activeAnalysis:d.id }) };
+        // Opening Statistics widens the ?include= set (effIncludes), so the
+        // impact must recompute with the extra blocks.
+        onSelect:() => this.setState({ activeAnalysis:d.id }, () => { if (d.id === 'stats') this.recompute(true); }) };
     });
     const act = defs.find((d) => d.id === S.activeAnalysis) || defs[0];
     const activeOff = !act.on;
@@ -3050,6 +3514,7 @@ class Component extends DCLogic {
       showAnomalies:S.activeAnalysis==='anomalies' && act.on, showSplits:S.activeAnalysis==='splits' && act.on,
       showPerformance:S.activeAnalysis==='performance' && act.on, showRevenue:S.activeAnalysis==='revenue' && act.on,
       showDemand:S.activeAnalysis==='demand' && act.on, showCarbon:S.activeAnalysis==='carbon' && act.on,
+      showNetwork: S.activeAnalysis==='network', showStats: S.activeAnalysis==='stats',
       activeOff,
       offTitle: perfUnavail ? 'Performance feed unavailable' : (act.label + ' module is off'),
       offBody: perfUnavail ? 'The live performance source dropped out. Split-ticket calling-pattern verification falls back to unverified until it reconnects.'
@@ -3149,7 +3614,8 @@ class Component extends DCLogic {
     const empty = { totalStr:'£0', exactStr:'£0', estStr:'£0', exactPct:0, estPct:0, journeysStr:'',
       periodLine:'', showJourneys:false,
       color:C.tx1, note:'', label:'exposure', methodLabel:'', rows:[], hasRows:false, rowsLabel:'',
-      notes:[], hasNotes:false, exposureLine:'' };
+      notes:[], hasNotes:false, exposureLine:'',
+      ledger:{ sumLabel:'', sumStr:'', headlineStr:'', reconciled:true, tickColor:C.tx2, reconNote:'' }, hasLedger:false };
     if (!imp) return empty;
     const withdraw = this.state.params.changeType === 'withdraw';
     const r = imp.revenue;
@@ -3159,9 +3625,12 @@ class Component extends DCLogic {
       const dcol = f.deltaP < 0 ? C.down : (f.deltaP > 0 ? C.up : C.tx1);
       const sel = this.state.selFlow === f.key;
       // Join ODM journey volumes when the ODM block matched this flow.
+      // On the ODM basis an unmatched flow is shown EXPLICITLY as zero
+      // contribution — never hidden behind a dash.
       let journeysStr = '—', revDeltaStr = '—';
       const om = (r.odmRows || []).find((o2) => o2.flowId === f.flowId && o2.ticket === f.code);
-      if (om) { journeysStr = om.journeys.toLocaleString(); revDeltaStr = RFE.fmtBigDir(om.revenueDeltaP); }
+      if (om && om.journeys > 0) { journeysStr = om.journeys.toLocaleString(); revDeltaStr = RFE.fmtBigDir(om.revenueDeltaP); }
+      else if (r.basis === 'odm_revenue') { journeysStr = '0 matched'; revDeltaStr = '£0'; }
       return { key:f.key, od:f.oName + ' → ' + f.dName, code:f.code, productName:f.productName,
         beforeStr:RFE.fmtMoney(f.beforeP), afterStr:RFE.fmtMoney(f.afterP),
         deltaStr:RFE.fmtDelta(f.deltaP), deltaColor:dcol,
@@ -3174,7 +3643,33 @@ class Component extends DCLogic {
       r.method === 'exposure'
         ? ['Per-pair exposure sums resolver price deltas over every affected station pair; no journey volumes are joined (ODM matrix not loaded).']
         : []);
+    // "Every dime" ledger footer: the ledger must reconcile with the headline
+    // to the penny, or say exactly why it can't (truncated retained set under
+    // operator scope). Sums run over ALL rows, not just the 80 displayed.
+    let ledger = null;
+    {
+      const allRows = r.fareRows || [];
+      const fareSumP = allRows.reduce((a, f) => a + (f.deltaP || 0), 0);
+      let sumP, sumLabel;
+      if (r.basis === 'odm_revenue') {
+        sumP = (r.odmRows || []).reduce((a, o2) => a + (o2.revenueDeltaP || 0), 0);
+        sumLabel = 'Σ Δ × ODM journeys over ' + (r.odmRows || []).length + ' flow-fares';
+      } else {
+        sumP = fareSumP;
+        sumLabel = 'Σ Δ over ' + allRows.length + ' distinct repriced fares';
+      }
+      const reconciled = sumP === r.totalP;
+      ledger = {
+        sumLabel, sumStr: RFE.fmtBigDir(sumP), headlineStr: RFE.fmtBigDir(r.totalP),
+        reconciled,
+        tickColor: reconciled ? C.ok : C.warn,
+        reconNote: reconciled
+          ? 'equals the headline to the penny'
+          : 'headline covers the full affected set; the ledger sums the retained rows only (operator-scope truncation)',
+      };
+    }
     return { totalStr:RFE.fmtBigDir(r.totalP), exactStr:RFE.fmtBig(r.exactP), estStr:RFE.fmtBig(r.estP),
+      ledger, hasLedger: !!ledger && (r.fareRows || []).length > 0,
       exactPct:r.exactShare, estPct:100 - r.exactShare,
       journeysStr: r.journeys == null ? '' : r.journeys.toLocaleString(),
       showJourneys: r.journeys != null,
@@ -3239,6 +3734,153 @@ class Component extends DCLogic {
       notes:cb.notes || [], hasNotes:(cb.notes || []).length>0 };
   }
 
+  /* Network overview — the master table: every curated corridor's baseline
+     pricing, structural aberrations (R1/R2/R3 on the UNCHANGED feed),
+     service level, ODM volumes and in-flight staged activity. All figures
+     from /api/overview (computed at backend boot; staging overlaid live). */
+  buildNetwork() {
+    const C = this.C, S = this.state, RFE = window.RFE;
+    const ov = (RFE && RFE.overview) ? RFE.overview() : null;
+    const empty = { ready:false, notReady:true, rows:[], notes:[], hasNotes:false };
+    if (!ov) return Object.assign(empty, { statusLine:'contacting /api/overview\u2026' });
+    if (!ov.ready) return Object.assign(empty, {
+      statusLine: ov.error ? ('overview unavailable \u2014 ' + ov.error)
+        : 'baseline scan running at backend boot \u2014 pricing, aberrations and service levels land here shortly\u2026' });
+    const rows = (ov.corridors || []).map((c) => {
+      const expanded = S.netExpanded === c.id;
+      const fares = (c.key_fares || []).map((f) => ({
+        label:f.label, code:f.ticket_code, desc:f.description,
+        priceStr:RFE.fmtMoney(f.price_pence) }));
+      const aberrs = (c.aberrations || []).slice(0, 12).map((a) => ({
+        rule:a.rule,
+        text:a.higher_ticket + ' £' + (a.higher_price_pence/100).toFixed(2)
+           + ' > ' + a.lower_ticket + ' £' + (a.lower_price_pence/100).toFixed(2),
+        explanation:a.explanation }));
+      const journeys = (c.odm_journeys_out != null || c.odm_journeys_back != null)
+        ? ((c.odm_journeys_out || 0) + (c.odm_journeys_back || 0)) : null;
+      return {
+        id:c.id, name:c.name, sub:c.sub || '', toc:c.toc || '\u2014',
+        od:c.origin_crs + ' \u2192 ' + c.dest_crs,
+        fares, faresLine: fares.map((f) => f.code + ' ' + f.priceStr).join(' \u00b7 ') || '\u2014',
+        trainsStr: c.train_count != null ? c.train_count.toLocaleString() : '\u2014',
+        journeysStr: journeys != null ? journeys.toLocaleString() : '\u2014',
+        scannedStr: c.fares_scanned.toLocaleString(),
+        aberrN: c.aberration_count,
+        aberrColor: c.aberration_count > 0 ? C.warn : C.ok,
+        aberrBorder: c.aberration_count > 0 ? '#3a3220' : '#1d2a23',
+        pendingN:c.pending_changes, approvedN:c.approved_changes,
+        hasPending:c.pending_changes > 0, hasApproved:c.approved_changes > 0,
+        expanded, chev: expanded ? '180deg' : '0deg',
+        hasAberrs: expanded && aberrs.length > 0,
+        aberrs,
+        rowNotes: c.notes || [], hasRowNotes: expanded && (c.notes || []).length > 0,
+        rowBg: expanded ? '#101215' : 'transparent',
+        onToggle:() => this.setState({ netExpanded: expanded ? null : c.id }),
+        onOpen:() => { this.setState({ scopeKind:'corridor', netExpanded:null }); this.selectCorridor(c.id); },
+      };
+    });
+    return { ready:true, notReady:false, rows,
+      statusLine: 'baseline snapshot ' + (ov.computed_at ? ('computed ' + ov.computed_at.slice(0, 19).replace('T', ' ')) : '\u2014')
+        + (ov.odm_period_label ? (' \u00b7 ' + ov.odm_period_label) : '')
+        + (ov.timetable_source ? (' \u00b7 ' + ov.timetable_source) : ''),
+      notes: ov.notes || [], hasNotes:(ov.notes || []).length > 0 };
+  }
+
+  /* Statistics — the corridor fact sheet (trains, volumes, distance, carbon,
+     punctuality) from /api/corridor/stats, plus the live demand/carbon/ODM
+     estimate blocks and the eligible-share knob. Every figure carries its
+     basis; assumptions are either adjustable (slider) or cited read-only. */
+  buildStats() {
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
+    const cor = ((RFE && RFE.CORRIDORS) || []).find((c) => c.id === S.selCorridor);
+    const oCrs = cor && cor.path.length ? cor.path[0] : null;
+    const dCrs = cor && cor.path.length ? cor.path[cor.path.length - 1] : null;
+    const cs = (RFE && RFE.corridorStats && oCrs && dCrs) ? RFE.corridorStats(oCrs, dCrs) : null;
+    const out = {
+      corridorLine: cor ? (cor.name + ' \u00b7 ' + oCrs + ' \u2192 ' + dCrs) : 'no corridor selected',
+      loading: !cs, error: cs && cs.error ? cs.error : null, hasError: !!(cs && cs.error),
+      facts: [], hasFacts: false, notes: [], hasNotes: false,
+      knob: null, fixed: [], hasFixed: false,
+      est: { demandStr:'', demandSub:'', revStr:'', revSub:'', revColor:C.tx1, carbonStr:'' },
+      hasEst: false,
+    };
+    if (cs && !cs.error) {
+      const F = (k, v, basis) => out.facts.push({ k, v, basis: basis || '' });
+      F('timetabled services', cs.train_count != null ? (cs.train_count.toLocaleString() + ' distinct schedules') : 'not available',
+        cs.timetable_source || '');
+      if (cs.electric_pct != null) F('traction mix', Math.round(cs.electric_pct) + '% electric \u00b7 ' + Math.round(cs.diesel_pct || 0) + '% diesel', 'CIF power-type field over corridor schedules');
+      if (cs.intermediate_call_count != null) F('intermediate calls', cs.intermediate_call_count.toLocaleString() + ' distinct calling points', 'ever-calls over corridor schedules');
+      F('passenger volume', (cs.odm_journeys_out != null || cs.odm_journeys_back != null)
+        ? ((cs.odm_journeys_out || 0).toLocaleString() + ' out \u00b7 ' + (cs.odm_journeys_back || 0).toLocaleString() + ' back')
+        : 'no ODM row for this pair', cs.odm_period_label || 'ODM matrix');
+      if (cs.implied_yield_pence != null) F('implied yield', '\u00a3' + (cs.implied_yield_pence / 100).toFixed(2) + ' per journey', 'ODM revenue \u00f7 journeys');
+      if (cs.distance_km != null) F('distance', cs.distance_km.toFixed(0) + ' km', cs.distance_method || '');
+      if (cs.rail_kgco2e_per_journey != null) F('carbon per journey', cs.rail_kgco2e_per_journey.toFixed(2) + ' kg rail vs ' + (cs.car_kgco2e_per_journey != null ? cs.car_kgco2e_per_journey.toFixed(2) : '\u2014') + ' kg car \u00b7 saves ' + (cs.carbon_saving_per_journey_kg != null ? cs.carbon_saving_per_journey_kg.toFixed(2) : '\u2014') + ' kg/shifted passenger', 'DEFRA factors \u00d7 corridor km');
+      const perf = imp ? imp.performance : null;
+      if (perf && perf.services && perf.services.length) F('punctuality', perf.services.length + ' HSP service metrics \u00b7 ' + (perf.window || ''), 'HSP ' + (perf.mode || ''));
+      out.notes = cs.notes || [];
+      out.hasNotes = out.notes.length > 0;
+      out.hasFacts = out.facts.length > 0;
+    }
+    // Knob: eligible-share (demand.py ELIGIBLE_SHARE_ASSUMPTION default 15%).
+    // Slider re-fires POST /api/impact?eligible_share=… — every dependent
+    // figure (demand, carbon, abstraction) recomputes on the backend.
+    out.knob = {
+      pct: S.eligibleSharePct,
+      onInput: (e) => {
+        const v = Math.max(5, Math.min(50, parseInt(e.target.value, 10) || 15));
+        this.setState({ eligibleSharePct: v }, () => this.recompute());
+      },
+    };
+    // Fixed (cited, not adjustable) assumptions — displayed read-only.
+    const dem = imp ? imp.demand : null, cb = imp ? imp.carbon : null;
+    if (dem && dem.primaryElasticitySource) out.fixed.push({ k:'price elasticity', v:dem.primaryElasticitySource });
+    if (cb) out.fixed.push({ k:'emission factors', v:'rail ' + cb.railKgPerPkm.toFixed(5) + ' vs car ' + cb.carKgPerPkm.toFixed(5) + ' kgCO\u2082e/pkm \u00b7 ' + (cb.railFactorDesc || 'DEFRA 2024') });
+    out.hasFixed = out.fixed.length > 0;
+    // Live estimate strip for the current change (from the impact blocks).
+    if (dem) {
+      const rev = imp.revenue || {};
+      out.est = {
+        demandStr: dem.totalNetNewJourneys != null ? (RFE.fmtInt(dem.totalNetNewJourneys) + ' net-new journeys/yr') : '% only \u00b7 no ODM volume',
+        demandSub: dem.flowsWithVolume + ' flows with volume \u00b7 ' + dem.flowsPercentOnly + ' %-only \u00b7 eligible share ' + Math.round((dem.eligibleShare || 0) * 100) + '%',
+        revStr: rev.basis === 'odm_revenue' ? RFE.fmtBigDir(rev.totalP) : (rev.perFlowExposureP != null ? RFE.fmtBigDir(rev.perFlowExposureP) : '\u2014'),
+        revSub: rev.basis === 'odm_revenue' ? ('ODM-weighted \u00b7 ' + (rev.periodLabel || '')) : 'static per-flow exposure',
+        revColor: (rev.totalP || 0) < 0 ? C.down : ((rev.totalP || 0) > 0 ? C.up : C.tx1),
+        carbonStr: cb ? cb.totalSavingText : 'carbon block off',
+      };
+      out.hasEst = true;
+    }
+    return out;
+  }
+
+  /* Headline £ dropdown — clicking the verdict-strip figure decomposes it:
+     basis, formula, contributing-fare count, top contributors by |Δ|, and
+     the backend's own notes, verbatim. Link jumps to the full ledger. */
+  buildHeadlineDrop() {
+    const C = this.C, S = this.state, imp = this._impact, RFE = window.RFE;
+    if (!S.headlineOpen || !imp || !imp.revenue || !RFE) return { open:false, top:[], hasTop:false, notes:[], hasNotes:false };
+    const rev = imp.revenue;
+    const basisLine = rev.basis === 'odm_revenue' ? 'ODM journey-weighted revenue \u0394 \u00b7 ' + (rev.periodLabel || 'per period')
+      : (rev.basis === 'per_flow_exposure' ? 'static per-flow exposure \u00b7 demand-weighting off' : 'revenue block not requested');
+    const formula = rev.basis === 'odm_revenue'
+      ? '\u03a3 (new \u2212 old) \u00d7 journeys/period over ' + rev.matchedFlows + ' matched flow(s); ' + rev.unmatchedFlows + ' unmatched contribute \u00a30'
+      : '\u03a3 (new \u2212 old) over ' + (rev.fareRows || []).length + ' distinct repriced fares \u2014 each counted once, no passenger weighting';
+    const top = (rev.fareRows || []).slice(0, 5).map((f) => ({
+      od: f.oName + ' \u2192 ' + f.dName, code: f.code,
+      fromTo: RFE.fmtMoney(f.beforeP) + ' \u2192 ' + RFE.fmtMoney(f.afterP),
+      deltaStr: RFE.fmtDelta(f.deltaP),
+      deltaColor: f.deltaP < 0 ? C.down : (f.deltaP > 0 ? C.up : C.tx1),
+    }));
+    return { open:true,
+      totalStr: RFE.fmtBigDir(rev.totalP),
+      color: rev.totalP < 0 ? C.down : (rev.totalP > 0 ? C.up : C.tx1),
+      basisLine, formula, count:(rev.fareRows || []).length,
+      top, hasTop: top.length > 0,
+      notes:(rev.notes || []).slice(0, 3), hasNotes:(rev.notes || []).length > 0,
+      onLedger:() => this.setState({ headlineOpen:false, activeAnalysis:'revenue' }),
+      onClose:() => this.setState({ headlineOpen:false }) };
+  }
+
   buildRightTabs() {
     const C = this.C, S = this.state, imp = this._impact;
     const contraN = imp ? imp.verdict.contradictions : 0;
@@ -3272,14 +3914,23 @@ class Component extends DCLogic {
     const steps = res.steps.map((st, i) => {
       const term = st.terminal;
       const termColor = noFare ? C.warn : C.ok;
+      // Click-to-expand: the selected step opens inline — in/out price,
+      // RSPS5045 cite and the raw feed record line(s) that produced it.
+      // Clicking the open step collapses it.
+      const expanded = S.selStep === st.key;
       return { key:st.key, label:st.label, note:st.note,
         cite: st.cite, outStr: st.outP==null?'—':RFE.fmtMoney(st.outP),
+        inStr: st.inP==null?'—':RFE.fmtMoney(st.inP),
         outColor: term ? termColor : (st.active ? '#dbe0e7' : '#5f6773'),
         labelColor: st.active || term ? '#d0d6dd' : '#7b8390',
         dotColor: term ? termColor : (st.active ? C.ac : '#2f333a'), dotFill: st.active||term ? (term?termColor:C.ac) : '#0c0d0f',
-        cardBg: (S.selStep===st.key) ? '#121418' : '#0c0d10', cardBorder: (S.selStep===st.key) ? '#2f333a' : '#15171b',
+        cardBg: expanded ? '#121418' : '#0c0d10', cardBorder: expanded ? '#2f333a' : '#15171b',
         lineColor: st.active ? C.line2 : C.line, showLine: i < res.steps.length - 1,
-        onClick:() => this.setState({ selStep:st.key }) };
+        expanded, chev: expanded ? '180deg' : '0deg',
+        hasSrc: expanded && !!st.source, noSrc: expanded && !st.source,
+        srcTitle: st.source ? st.source.title : '',
+        srcLines: (st.source && st.source.lines) ? st.source.lines : [],
+        onClick:() => this.setState({ selStep: expanded ? null : st.key }) };
     });
     const sel = res.steps.find((s) => s.key === S.selStep) || res.steps[0];
     const deltaP = (base && res.finalP != null && base.finalP != null) ? (res.finalP - base.finalP) : 0;
@@ -3307,8 +3958,9 @@ class Component extends DCLogic {
     const invN = v.inversions != null ? v.inversions : 0;
     const items = [];
     const withdraw = S.params.changeType === 'withdraw';
-    items.push({ key:'main', title:(withdraw?'Withdraw ':'Apply ') + S.params.railcardName, tone:'clean', count:v.cleanRows,
-      sub:v.cleanRows + ' clean fares · ' + S.params.discountPct + '% ' + (S.params.peakOn?'anytime':'off-peak'), blocked:false });
+    const raise = S.params.changeType === 'raise';
+    items.push({ key:'main', title: raise ? ('Fare rise · +' + S.params.discountPct + '%') : (withdraw?'Withdraw ':'Apply ') + S.params.railcardName, tone:'clean', count:v.cleanRows,
+      sub:v.cleanRows + ' clean fares · ' + (raise?'+':'') + S.params.discountPct + '% ' + (S.params.peakOn?'anytime':'off-peak'), blocked:false });
     if (breachN > 0) items.push({ key:'breach', title:'Compliance breaches', tone:'breach', count:breachN,
       sub:breachN + ' protected-fare floor breach' + (breachN===1?'':'es'), detail:'Approving stages an exception request — it does not waive the regulated cap.', blocked:false });
     if (invN > 0) items.push({ key:'anomaly', title:'Fare inversions', tone:'anomaly', count:invN,

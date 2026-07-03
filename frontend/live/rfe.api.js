@@ -91,10 +91,21 @@
       if (opts.route) qs += "&route=" + opts.route;
       return api_get("/api/resolve" + qs, { kind: "resolve:" + origin + "-" + dest + ":" + ticket + ":" + (opts.railcard || "") });
     },
-    impact: function (changeRequest, includes) {
-      var inc = (includes && includes.length) ? "?include=" + includes.join(",") : "";
+    impact: function (changeRequest, includes, eligibleShare) {
+      var qs = [];
+      if (includes && includes.length) qs.push("include=" + includes.join(","));
+      if (typeof eligibleShare === "number" && eligibleShare > 0 && eligibleShare <= 1) {
+        qs.push("eligible_share=" + eligibleShare);
+      }
+      var inc = qs.length ? "?" + qs.join("&") : "";
       return api_post("/api/impact" + inc, changeRequest, { kind: "impact" });
     },
+    corridorStats: function (origin, dest) {
+      return api_get("/api/corridor/stats?origin=" + encodeURIComponent(origin) +
+                     "&dest=" + encodeURIComponent(dest),
+                     { kind: "cstats:" + origin + "-" + dest });
+    },
+    overview: function () { return api_get("/api/overview", { kind: "overview" }); },
     staging: function () { return api_get("/api/staging"); },
     propose: function (changeRequest) {
       return api_post("/api/staging/propose", changeRequest, { kind: "propose" });

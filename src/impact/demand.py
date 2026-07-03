@@ -166,10 +166,18 @@ def compute_demand(
     affected_set: AffectedSet,
     feed_paths: FeedPaths,
     odm: ODMIndex | None,
+    *,
+    eligible_share: float | None = None,
 ) -> DemandBlock:
     """Build the demand block over the canonical affected set. Pure and
-    deterministic; the only inputs are the feed, the change and the
-    (optional) ODM."""
+    deterministic; the only inputs are the feed, the change, the (optional)
+    ODM and the (optional) eligible-share override.
+
+    `eligible_share` replaces ELIGIBLE_SHARE_ASSUMPTION when given — the
+    analyst's knob, still disclosed in the block (eligible_share_assumption
+    always reports the value actually used). Range (0, 1] enforced at the
+    API boundary; the D2 invariants hold for any value in that range."""
+    share = ELIGIBLE_SHARE_ASSUMPTION if eligible_share is None else eligible_share
     # Deferred: importing src.api.geo at module level triggers the
     # src.api.__init__ -> main -> schemas -> src.impact.report cycle.
     from src.api.geo import default_msn_path
@@ -271,7 +279,7 @@ def compute_demand(
                 # cross-elasticities (+0.2..+0.4) are the evidence base;
                 # taking the FULL eligible base as switchers is the
                 # max-abstraction (revenue-cautious) reading.
-                eligible_base = round(matched * ELIGIBLE_SHARE_ASSUMPTION)
+                eligible_base = round(matched * share)
                 gross_product = round(eligible_base * (ratio ** eps_value))
                 abstracted = eligible_base
                 net_new = gross_product - abstracted
@@ -318,7 +326,7 @@ def compute_demand(
 
     notes: list[str] = [METHODOLOGY_NOTE]
     notes.append(
-        f"abstraction model: eligible share {ELIGIBLE_SHARE_ASSUMPTION:.0%} "
+        f"abstraction model: eligible share {share:.0%} "
         "of existing journeys (named ASSUMPTION) switches to the new "
         "product; switchers are abstraction, not new travel. Evidence base "
         f"for switching: {CROSS_ELASTICITY_SOURCE} "
@@ -348,7 +356,7 @@ def compute_demand(
         flows_with_volume=flows_with_volume,
         flows_percent_only=flows_percent_only,
         validity_warnings=validity_warnings,
-        eligible_share_assumption=ELIGIBLE_SHARE_ASSUMPTION,
+        eligible_share_assumption=share,
         notes=tuple(notes),
     )
 

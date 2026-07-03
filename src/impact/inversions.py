@@ -69,10 +69,11 @@ def detect_inversions(
         inversions.extend(_discounted_cheaper_than_child(o, d, fares, tty))
         inversions.extend(_first_cheaper_than_standard(o, d, fares, tty))
 
-    inversions.sort(key=lambda inv: (
+    # Dedupe: multiple flows carrying the same ticket pair emit identical
+    # rows (nested per-flow loops below); FareInversion is frozen/hashable.
+    return tuple(sorted(set(inversions), key=lambda inv: (
         inv.rule, inv.origin_nlc, inv.dest_nlc, inv.higher_ticket, inv.lower_ticket,
-    ))
-    return tuple(inversions)
+    )))
 
 
 def _return_cheaper_than_single(

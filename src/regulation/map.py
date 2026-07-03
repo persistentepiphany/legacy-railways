@@ -22,6 +22,7 @@ from src.ingest.inspect import (
     LocationMeta,
     TtyRecord,
     load_ffl_indexes,
+    load_fsc_clusters,
     load_loc_meta,
     load_ticket_type_meta,
 )
@@ -69,6 +70,7 @@ def build_regulation_map(
     ffl_path: Path,
     loc_path: Path,
     tty_path: Path,
+    fsc_path: Path,
     extra_tickets: tuple[str, ...] = (),
 ) -> RegulationMap:
     """Build the regulation map for the given corridors.
@@ -86,6 +88,7 @@ def build_regulation_map(
     ffl = load_ffl_indexes(ffl_path)
     loc = load_loc_meta(loc_path)
     tty = load_ticket_type_meta(tty_path)
+    fsc = load_fsc_clusters(fsc_path)
 
     entries: dict[RegulationKey, RegulationEntry] = {}
     notes: list[str] = [BASELINE_NOTE, NFO_NOT_APPLIED_NOTE]
@@ -97,8 +100,8 @@ def build_regulation_map(
         # all member pairs. The regulation map must reflect what the resolver
         # would actually return, not just direct-pair fares.
         # See src/resolver/resolve.py:_expand for the equivalent fan-out.
-        origin_candidates = _expand_via_loc_group(corridor.origin_nlc, loc)
-        dest_candidates = _expand_via_loc_group(corridor.dest_nlc, loc)
+        origin_candidates = _expand_via_loc_group(corridor.origin_nlc, loc, fsc)
+        dest_candidates = _expand_via_loc_group(corridor.dest_nlc, loc, fsc)
         ticket_to_cheapest: dict[str, int] = {}
         for o in origin_candidates:
             for d in dest_candidates:
@@ -173,19 +176,26 @@ def build_regulation_map(
     return RegulationMap(entries=entries, notes=tuple(notes))
 
 
-def _expand_via_loc_group(nlc: str, loc: dict[str, LocationMeta]) -> list[str]:
-    """Mirror src/resolver/resolve.py:_expand for LOC group fan-out.
+def _expand_via_loc_group(
+    nlc: str,
+    loc: dict[str, LocationMeta],
+    fsc: dict[str, list[str]],
+) -> list[str]:
+    """Mirror src/resolver/resolve.py:_expand: [nlc, LOC GROUP_NLC, *FSC
+    cluster IDs], deduped.
 
-    Returns [nlc] plus the LOC GROUP_NLC if present and distinct. We do not
-    fan out via .FSC clusters here — those are TOC-specific groupings that
-    affect resolution but not the regulation-vs-not classification (a fare
-    being LUMO-only doesn't change whether it's a regulated Off-Peak Return).
-    Adding .FSC fan-out is a v2 improvement if a corridor turns out to have
-    its regulated walk-up only on a cluster-keyed flow."""
+    FSC fan-out matters here because some corridors (e.g. Cardiff-Bristol)
+    carry their walk-up fares ONLY on cluster-keyed flows — without it those
+    tickets get no map entry and compliance silently reports not_regulated.
+    Cluster fares can only LOWER a ticket's cheapest-fare cap, which is safe:
+    compliance uses effective_cap = max(cap, the fare's own old price)."""
     out = [nlc]
     meta = loc.get(nlc)
     if meta is not None and meta.group_nlc.strip() and meta.group_nlc != nlc:
         out.append(meta.group_nlc)
+    for cluster_id in fsc.get(nlc, []):
+        if cluster_id not in out:
+            out.append(cluster_id)
     return out
 
 

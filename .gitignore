@@ -31,6 +31,7 @@ venv/
 data/
 *.zip
 *.tar.gz
+!/feed.tar.gz
 data_railway/
 
 # Personal planning + scratch experiment scripts (not part of the project)

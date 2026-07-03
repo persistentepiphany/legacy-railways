@@ -135,9 +135,10 @@
       verdict: verdict,
       compliance: compliance,
       unresolved: af.status === "contradiction",
-      volume: 0, volumeExact: false,
-      rcJourneys: 0, rcJournExact: false,
-      revenueDeltaP: 0, revenueExact: false,
+      // Per-fare volume / railcard-journeys / revenue-Δ are ONLY populated
+      // when the ODM block matches this flow — the join happens in the
+      // Revenue tab's `buildRevenue` via odmRows. No zero placeholder here:
+      // an unmatched row must render "—", not a fabricated "0".
       flags: [], bucket: bucket,
       srcNote: srcNote,
       // Provenance is per-fare in the backend; keep an id for lazy resolve.
@@ -238,7 +239,15 @@
     // Revenue — prefer the ODM block (richer) when present. Every number
     // here is read straight off backend fields (or summed from resolver-
     // computed per-fare deltas); nothing is priced client-side.
+    // `basis` is the single-source-of-truth flag for what the landing headline
+    // actually represents. UI branches on this — never on `methodLabel` string
+    // matching. Three values:
+    //   "odm_revenue"        — Δ × ODM journeys, summed over matched flows
+    //   "per_flow_exposure"  — sum of Δ over distinct repriced fares (honest
+    //                           static-demand exposure; revenue.py:27-34)
+    //   "none"               — revenue block wasn't requested
     var revenue = { totalP: 0, exactP: 0, estP: 0, journeys: 0, exactShare: 0,
+                    basis: "none",
                     method: null, methodLabel: "", periodLabel: "",
                     perFlowExposureP: null, perPairExposureP: null,
                     odmRows: null, matchedFlows: 0, unmatchedFlows: 0,
@@ -254,11 +263,18 @@
       revenue.estP = total - Math.round(total * exactPct / 100);
       revenue.journeys = odm.estimates.reduce(function (a, e) { return a + (e.journeys_per_period || 0); }, 0);
       revenue.exactShare = exactPct;
+      revenue.basis = "odm_revenue";
       revenue.method = "odm";
       revenue.methodLabel = "ODM journey-weighted revenue \u0394 (" + (odm.period_label || "per period") + ")";
       revenue.periodLabel = odm.period_label || "";
       revenue.matchedFlows = odm.matched_flow_count;
       revenue.unmatchedFlows = odm.unmatched_flow_count;
+      // Also expose the structural exposure figures for the chip strip, so
+      // the analyst can cross-check ODM revenue against the raw resolver Δ.
+      if (report.revenue) {
+        revenue.perFlowExposureP = report.revenue.per_flow_exposure_pence;
+        revenue.perPairExposureP = report.revenue.per_pair_exposure_pence;
+      }
       revenue.odmRows = odm.estimates.map(function (e) {
         return {
           key: e.flow_id + ":" + e.ticket_code,
@@ -271,11 +287,18 @@
       });
       revenue.notes = odm.notes || [];
     } else if (report.revenue) {
-      revenue.totalP = report.revenue.per_pair_exposure_pence || 0;
+      // Headline is per-flow (revenue.py:27-34: "Sum of (new − old) over
+      // distinct repriced fares. The honest answer."). NEVER per-pair —
+      // that's the cluster-expansion view for the GB-map showpiece and
+      // revenue.py:37-45 explicitly warns it must not be cited as revenue.
+      revenue.totalP = report.revenue.per_flow_exposure_pence || 0;
+      revenue.exactP = 0;
       revenue.estP = revenue.totalP;
+      revenue.exactShare = 0;
       // Exposure ≠ zero journeys: demand-weighting is simply off. null keeps
       // the UI from rendering a fabricated "0 journeys/yr" next to a £ figure.
       revenue.journeys = null;
+      revenue.basis = "per_flow_exposure";
       revenue.method = "exposure";
       revenue.methodLabel = "static exposure \u00b7 demand-weighting off";
       revenue.perFlowExposureP = report.revenue.per_flow_exposure_pence;
@@ -343,11 +366,18 @@
     // Performance block — real HSP serviceMetrics for the corridor. Each
     // service row: headcode-ish label (TOC + planned departure), route, and
     // the tightest punctuality tolerance as the status.
+    // `mode` is the freshness signal (live / cached / fixture) and MUST
+    // reach the landing so a viewer never mistakes fixture data for live.
     var performance = null;
     if (report.performance && report.performance.result) {
       var pr = report.performance.result;
       performance = {
         window: pr.from_date + " \u2192 " + pr.to_date + " \u00b7 " + pr.days,
+        mode: pr.mode || null,
+        fetchedAt: pr.fetched_at || null,
+        sourceUrl: pr.source_url || null,
+        dayType: pr.days || null,
+        serviceCount: (pr.services || []).length,
         services: (pr.services || []).map(function (st) {
           var s = st.service || {};
           var pt = st.percent_tolerance || [];
@@ -382,17 +412,29 @@
     }
 
     // Demand block — elasticity-modelled ESTIMATES (never resolver prices).
+    // Extract the primary elasticity source (first distinct citation across
+    // estimates) and the methodology note (demand.py:319 pins the disclosure
+    // as notes[0]) so the landing chip can cite provenance without a
+    // client-side judgement call.
     var demand = null;
     if (report.demand) {
       var db = report.demand;
+      var primarySource = "";
+      var estimates = db.estimates || [];
+      for (var ei = 0; ei < estimates.length; ei++) {
+        var src = estimates[ei].elasticity_source || "";
+        if (src && src !== "no price change") { primarySource = src; break; }
+      }
       demand = {
         totalNetNewJourneys: db.total_net_new_journeys,
         flowsWithVolume: db.flows_with_volume,
         flowsPercentOnly: db.flows_percent_only,
         validityWarnings: db.validity_warnings,
         eligibleShare: db.eligible_share_assumption,
+        methodologyNote: (db.notes || [])[0] || "",
+        primaryElasticitySource: primarySource,
         notes: db.notes || [],
-        rowRows: (db.estimates || []).map(function (e) {
+        rowRows: estimates.map(function (e) {
           return {
             key: e.flow_id + ":" + e.ticket_code,
             flowId: e.flow_id, ticket: e.ticket_code,

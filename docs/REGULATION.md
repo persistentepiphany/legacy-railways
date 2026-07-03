@@ -99,8 +99,10 @@ For the demo you only need the rows on the Manchester–London corridor. Build i
    - The regulated walk-up is the **Off-Peak Return** on this long-distance flow (and the **Anytime
      Day Return** for the London-area legs), plus **weekly+ season tickets**.
    - **Advance, First Class, Standard Premium -> not regulated.**
-   - England check via `.LOC` COUNTY (numeric mainland county = England/Wales; 'S' region or Scottish
-     county -> devolved, out of scope for the freeze).
+   - England check via `.LOC` COUNTY. All mainland counties are numeric (RSPS5045 p.57); the
+     numeric table is not in the spec, so the bands are validated against the feed itself:
+     01-30 England, 31-37 Wales, 38-43 Scotland; 'NI'/'IR'/'CI' outside GB. Wales/Scotland/non-GB
+     -> devolved, out of scope for the freeze.
 3. **Cap price:** for the freeze, `cap_price_2025` = the fare's 1 March 2025 price. If you only have
    the current snapshot, treat the current regulated price as the frozen baseline for the demo and
    say so explicitly in the UI ("baseline = frozen 2025 price").
