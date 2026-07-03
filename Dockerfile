@@ -6,8 +6,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir fastapi uvicorn pydantic pandas
 
-# App code.
+# App code + cockpit UI (mounted at /live by src/api/main.py).
 COPY src/ ./src/
+COPY frontend/ ./frontend/
 
 # Feed snapshot shipped as a 48MB gzipped tarball of the 9 needed RJFAF805
 # files; extracted to /app/data at build time. Smaller upload + image than
