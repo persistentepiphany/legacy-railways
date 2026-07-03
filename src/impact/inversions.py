@@ -69,6 +69,12 @@ def detect_inversions(
         inversions.extend(_discounted_cheaper_than_child(o, d, fares, tty))
         inversions.extend(_first_cheaper_than_standard(o, d, fares, tty))
 
+    # withdraw_product-only: for every corridor pair that lost at least one
+    # fare in this change, warn if no Standard walk-up alternative remains.
+    # Runs over the FULL affected set (including suppressed rows), grouped
+    # by representative pair — see docstring inside the detector.
+    inversions.extend(_no_standard_walkup_alternative(affected, tty))
+
     # Dedupe: multiple flows carrying the same ticket pair emit identical
     # rows (nested per-flow loops below); FareInversion is frozen/hashable.
     return tuple(sorted(set(inversions), key=lambda inv: (
@@ -184,6 +190,89 @@ def _first_cheaper_than_standard(
                         f"(Standard, {std.new_price_pence}p) on the same corridor"
                     ),
                 ))
+    return out
+
+
+# Advance-detection lives in the regulation classifier already but we
+# don't need a full RegulationEntry lookup here — a description-substring
+# check mirrors the classifier's §2 (ADVANCE) inference cheaply.
+_ADVANCE_HINT = "ADVANCE"
+
+
+def _is_standard_walkup(fare: AffectedFare, tty: dict[str, TtyRecord]) -> bool:
+    """True if `fare` is a Standard-class walk-up single or return whose
+    ticket description does NOT contain the ADVANCE hint. Mirrors the
+    §1 walk-up definition from the regulation classifier without importing
+    the classifier itself (kept this module cheap and self-contained)."""
+    rec = tty.get(fare.ticket_code)
+    if rec is None:
+        return False
+    if rec.tkt_class != "2":
+        return False
+    if rec.tkt_type not in ("S", "R"):
+        return False
+    if _ADVANCE_HINT in (rec.description or "").upper():
+        return False
+    return True
+
+
+def _no_standard_walkup_alternative(
+    affected: tuple[AffectedFare, ...],
+    tty: dict[str, TtyRecord],
+) -> list[FareInversion]:
+    """Fires for withdraw_product changes only: any representative (o,d)
+    pair that lost a fare in this change AND no longer has a Standard
+    walk-up alternative that still has a price. The frontend reads this
+    off `imp.verdict.inversions` so the review-strip counter picks it up
+    without any structural change to the strip.
+
+    Detection logic (pure, deterministic):
+      1. Group `affected` by (representative_origin_nlc, representative_dest_nlc).
+      2. For each group, any row whose `status='suppressed'` marks the pair
+         as losing at least one fare in this change.
+      3. If no non-suppressed row in the group is a Standard walk-up with a
+         resolved `new_price_pence`, emit a FareInversion for the pair."""
+    by_pair: dict[tuple[str, str], list[AffectedFare]] = {}
+    for fare in affected:
+        key = (fare.representative_origin_nlc, fare.representative_dest_nlc)
+        by_pair.setdefault(key, []).append(fare)
+
+    out: list[FareInversion] = []
+    for (o, d), rows in by_pair.items():
+        suppressed = [r for r in rows if r.status == "suppressed"]
+        if not suppressed:
+            continue
+        # Alternative present iff any non-suppressed row is a Standard
+        # walk-up with an int new_price. Old prices don't count — the row
+        # is affected in this change, we're looking for its replacement.
+        has_alt = any(
+            r.status != "suppressed"
+            and r.new_price_pence is not None
+            and _is_standard_walkup(r, tty)
+            for r in rows
+        )
+        if has_alt:
+            continue
+        withdrawn = suppressed[0]
+        out.append(FareInversion(
+            rule="no_standard_walkup_alternative",
+            origin_nlc=o, dest_nlc=d,
+            # There is no natural "higher/lower" pair here — the withdrawn
+            # ticket is echoed both sides so the row still fits the
+            # FareInversion shape without a schema change. The explanation
+            # carries the actual story.
+            higher_ticket=withdrawn.ticket_code,
+            higher_price_pence=withdrawn.old_price_pence or 0,
+            lower_ticket=withdrawn.ticket_code,
+            lower_price_pence=0,
+            explanation=(
+                f"withdraw_product: {withdrawn.ticket_code} withdrawn on "
+                f"{o}->{d}; no Standard-class walk-up single/return "
+                "alternative remains in the affected set. Passengers on "
+                "this flow would have to buy a First-class or Advance "
+                "ticket instead of a walk-up Standard fare."
+            ),
+        ))
     return out
 
 

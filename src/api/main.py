@@ -37,6 +37,7 @@ from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import TypeAdapter
 
 from src.api.geo import StationCoord, default_msn_path, load_station_coords
 from src.api.schemas import (
@@ -57,6 +58,7 @@ from src.api.schemas import (
     SnapshotModel,
     StagingLayerModel,
     StationModel,
+    TicketMetaModel,
     TocModel,
     ValidityVerdictModel,
     card_to_model,
@@ -72,6 +74,7 @@ from src.ingest.inspect import (
     load_fsc_clusters,
     load_loc_meta,
     load_railcards,
+    load_ticket_type_meta,
 )
 from src.impact import (
     DEFAULT_INCLUDE,
@@ -139,6 +142,14 @@ JOURNAL_ENABLED = os.environ.get("FARES_STAGING_JOURNAL", "on") != "off"
 
 _log = logging.getLogger("fares.api")
 
+# Discriminated-union adapter for validating raw dicts from the journal +
+# any other non-endpoint entrypoint (endpoints get the routing "for free"
+# via FastAPI's request-body parser). `ChangeRequestModel` is an
+# `Annotated[Union[...], Field(discriminator="kind")]`, which TypeAdapter
+# handles at runtime; the type annotation is elided because Pyright treats
+# TypeAdapter's `T` as invariant against the Annotated form.
+_change_request_adapter = TypeAdapter(ChangeRequestModel)
+
 
 def _acquire_journal_lock() -> int | None:
     """Exclusive advisory flock so only ONE app instance owns the journal.
@@ -202,7 +213,13 @@ def _replay_journal(feed_paths: FeedPaths) -> StagingLayer:
             entry = json.loads(raw)
             op = entry.get("op")
             if op == "propose":
-                change = ChangeRequestModel(**entry["change"]).to_dataclass()
+                # ChangeRequestModel is a discriminated union — routing by
+                # `kind` happens inside TypeAdapter, which yields the right
+                # variant subclass with its own .to_dataclass().
+                change_model = _change_request_adapter.validate_python(
+                    entry["change"]
+                )
+                change = change_model.to_dataclass()
                 report = compute_impact(change, feed_paths)
                 outcome = staging_propose(layer, change, report)
             elif op == "approve":
@@ -1117,6 +1134,30 @@ def api_stations(request: Request) -> list[StationModel]:
     return out
 
 
+@app.get("/api/tickets", response_model=list[TicketMetaModel])
+def api_tickets(request: Request) -> list[TicketMetaModel]:
+    """The full .TTY ticket-type catalogue for the Author's Adjust-fares +
+    Withdraw-product forms. Sorted by (tkt_class, tkt_type, code) so the UI
+    can group first-class / standard walk-ups / advances without a client-
+    side re-sort. `load_ticket_type_meta` is the same loader the resolver
+    reads — a single source of truth per feed snapshot."""
+    fp: FeedPaths = request.app.state.feed_paths
+    tty = load_ticket_type_meta(fp.tty)
+    rows = [
+        TicketMetaModel(
+            code=code,
+            description=rec.description,
+            tkt_class=rec.tkt_class,
+            tkt_type=rec.tkt_type,
+            tkt_group=rec.tkt_group,
+            discount_category=rec.discount_category,
+        )
+        for code, rec in tty.items()
+    ]
+    rows.sort(key=lambda r: (r.tkt_class, r.tkt_type, r.code))
+    return rows
+
+
 @app.get("/api/railcards", response_model=list[RailcardMetaModel])
 def api_railcards(request: Request) -> list[RailcardMetaModel]:
     """Curated passenger-railcard list. Whitelist lives in
@@ -1283,6 +1324,15 @@ async def api_events(request: Request):
             request.app.state.event_subs.discard(bus)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+# --- Routers (merge point: visual-copilot-agent session) -------------------
+
+from src.api.corridor import router as corridor_router  # noqa: E402
+from src.api.copilot import router as copilot_router  # noqa: E402
+
+app.include_router(corridor_router)
+app.include_router(copilot_router)
 
 
 # --- 6. Static mount for the cockpit UI -----------------------------------

@@ -52,28 +52,31 @@ class ResolvedFareModel(BaseModel):
 # --- ChangeRequest (also used as request body) -----------------------------
 
 
-class ChangeRequestModel(BaseModel):
-    kind: Literal["add_railcard", "raise_price"]
-    railcard_code: str
-    discount_pct: float
-    discount_categories: list[str]
+class _ChangeShared(BaseModel):
+    """Fields common to every ChangeRequest kind. Kind-specific fields live
+    on the variants below; FastAPI's discriminated-union parser routes on
+    the `kind` literal so unknown kinds surface as 422 at the boundary."""
     corridor_origin_nlc: str
     corridor_dest_nlc: str
     peak_valid: bool
     description: str
-    # Optional UI-driven overrides (see ChangeRequest for semantics).
     rounding_rule: Literal["near5", "near10", "down10", "none"] | None = None
     min_floor_pct: float | None = None
     cluster_name: str | None = None
     contradiction_choice: dict[str, Literal["A", "B"]] | None = None
-    # Scope: "corridor" (default) or "toc" (operator-wide; corridor NLCs
-    # must be empty strings and toc_code a 3-char .FFL fare-TOC).
     scope: Literal["corridor", "toc"] = "corridor"
     toc_code: str | None = None
 
+
+class AddRailcardChangeModel(_ChangeShared):
+    kind: Literal["add_railcard"]
+    railcard_code: str
+    discount_pct: float
+    discount_categories: list[str]
+
     def to_dataclass(self) -> ChangeRequest:
         return ChangeRequest(
-            kind=self.kind,
+            kind="add_railcard",
             railcard_code=self.railcard_code,
             discount_pct=self.discount_pct,
             discount_categories=tuple(self.discount_categories),
@@ -88,6 +91,112 @@ class ChangeRequestModel(BaseModel):
             scope=self.scope,
             toc_code=self.toc_code,
         )
+
+
+class RaisePriceChangeModel(_ChangeShared):
+    kind: Literal["raise_price"]
+    railcard_code: str
+    discount_pct: float          # reused as the INCREASE fraction (0.05 = +5%)
+    discount_categories: list[str]
+
+    def to_dataclass(self) -> ChangeRequest:
+        return ChangeRequest(
+            kind="raise_price",
+            railcard_code=self.railcard_code,
+            discount_pct=self.discount_pct,
+            discount_categories=tuple(self.discount_categories),
+            corridor_origin_nlc=self.corridor_origin_nlc,
+            corridor_dest_nlc=self.corridor_dest_nlc,
+            peak_valid=self.peak_valid,
+            description=self.description,
+            rounding_rule=self.rounding_rule,
+            min_floor_pct=self.min_floor_pct,
+            cluster_name=self.cluster_name,
+            contradiction_choice=self.contradiction_choice,
+            scope=self.scope,
+            toc_code=self.toc_code,
+        )
+
+
+class ApplyCapChangeModel(_ChangeShared):
+    kind: Literal["apply_cap"]
+    cap_pct: float
+
+    def to_dataclass(self) -> ChangeRequest:
+        return ChangeRequest(
+            kind="apply_cap",
+            cap_pct=self.cap_pct,
+            corridor_origin_nlc=self.corridor_origin_nlc,
+            corridor_dest_nlc=self.corridor_dest_nlc,
+            peak_valid=self.peak_valid,
+            description=self.description,
+            rounding_rule=self.rounding_rule,
+            min_floor_pct=self.min_floor_pct,
+            cluster_name=self.cluster_name,
+            contradiction_choice=self.contradiction_choice,
+            scope=self.scope,
+            toc_code=self.toc_code,
+        )
+
+
+class AdjustFaresChangeModel(_ChangeShared):
+    kind: Literal["adjust_fares"]
+    tickets: list[str]
+    delta_mode: Literal["pct", "pence"]
+    delta_value: float
+
+    def to_dataclass(self) -> ChangeRequest:
+        return ChangeRequest(
+            kind="adjust_fares",
+            tickets=tuple(self.tickets),
+            delta_mode=self.delta_mode,
+            delta_value=self.delta_value,
+            corridor_origin_nlc=self.corridor_origin_nlc,
+            corridor_dest_nlc=self.corridor_dest_nlc,
+            peak_valid=self.peak_valid,
+            description=self.description,
+            rounding_rule=self.rounding_rule,
+            min_floor_pct=self.min_floor_pct,
+            cluster_name=self.cluster_name,
+            contradiction_choice=self.contradiction_choice,
+            scope=self.scope,
+            toc_code=self.toc_code,
+        )
+
+
+class WithdrawProductChangeModel(_ChangeShared):
+    kind: Literal["withdraw_product"]
+    withdraw_ticket: str
+    confirmed: bool
+
+    def to_dataclass(self) -> ChangeRequest:
+        return ChangeRequest(
+            kind="withdraw_product",
+            withdraw_ticket=self.withdraw_ticket,
+            confirmed=self.confirmed,
+            corridor_origin_nlc=self.corridor_origin_nlc,
+            corridor_dest_nlc=self.corridor_dest_nlc,
+            peak_valid=self.peak_valid,
+            description=self.description,
+            rounding_rule=self.rounding_rule,
+            min_floor_pct=self.min_floor_pct,
+            cluster_name=self.cluster_name,
+            contradiction_choice=self.contradiction_choice,
+            scope=self.scope,
+            toc_code=self.toc_code,
+        )
+
+
+ChangeRequestModel = Annotated[
+    Union[
+        AddRailcardChangeModel,
+        RaisePriceChangeModel,
+        ApplyCapChangeModel,
+        AdjustFaresChangeModel,
+        WithdrawProductChangeModel,
+    ],
+    Field(discriminator="kind"),
+]
 
 
 # --- Impact ----------------------------------------------------------------
@@ -521,6 +630,20 @@ class TocModel(BaseModel):
     flow_count: int | None           # all flows carrying this code
     actual_flow_count: int | None    # usage_code 'A' only (what impact iterates)
     station_nlcs: list[str] = []     # deduped O/D NLCs of 'A' flows, capped
+
+
+class TicketMetaModel(BaseModel):
+    """One .TTY row surfaced to the Author's Adjust-fares / Withdraw-product
+    forms. `tkt_class` / `tkt_type` / `tkt_group` are the 1-char discriminators
+    the UI uses to group tickets (First vs Standard, single vs return vs
+    season, …). `discount_category` is included so a caller who is planning an
+    add_railcard proposal can cross-reference the same list."""
+    code: str
+    description: str
+    tkt_class: str
+    tkt_type: str
+    tkt_group: str
+    discount_category: str
 
 
 class RailcardMetaModel(BaseModel):

@@ -26,6 +26,13 @@ venv/
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
 .claude/projects/
+.claude/worktrees/
+
+# Fetch.ai uAgent local keystore — never commit
+private_keys.json
+
+# Local pre-overhaul backups of frontend files
+frontend/_archive/
 
 # Data — NEVER commit the feed snapshot or the regulation map data dumps
 data/

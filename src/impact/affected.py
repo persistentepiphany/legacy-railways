@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, TypeAlias
+from typing import TYPE_CHECKING, Callable, Literal, TypeAlias
 
 from src.ingest.inspect import (
     FFLIndexes,
@@ -39,7 +39,12 @@ from src.resolver.resolve import ProvenanceStep, ResolveStatus
 
 from src.impact.change_request import ChangeRequest
 from src.impact.feed_paths import FeedPaths
-from src.impact.synthetic_railcard import apply_synthetic_railcard
+from src.impact.synthetic_railcard import (
+    apply_adjust_price,
+    apply_cap_price,
+    apply_synthetic_railcard,
+    apply_withdrawal,
+)
 
 if TYPE_CHECKING:
     # Forward reference only — avoids a circular import. compliance.py imports
@@ -147,68 +152,87 @@ def _entity_members(
 def compute_affected_set(change: ChangeRequest, feed_paths: FeedPaths) -> AffectedSet:
     """Walk the change's scope; produce canonical rows + blast-radius pairs.
     Pure-ish: reads the feed via mtime-cached loaders. Corridor scope walks
-    the cluster cross-product below; TOC scope walks the operator's flows."""
+    the cluster cross-product below; TOC scope walks the operator's flows.
+
+    Dispatches on `change.kind`:
+      - add_railcard: filter fares by .TTY DISCOUNT_CATEGORY, apply synthetic
+        railcard discount to each surviving row.
+      - apply_cap:    walk every fare in scope, filter to regulated rows via
+        the corridor's RegulationMap, apply the signed cap_pct delta. Currently
+        only corridor scope is supported (operator scope for apply_cap is a
+        TODO — see the note below)."""
+    if change.kind == "apply_cap":
+        if change.scope == "toc":
+            raise ValueError(
+                "apply_cap at operator (toc) scope is not yet supported; "
+                "select a corridor scope"
+            )
+        return _compute_affected_set_apply_cap_corridor(change, feed_paths)
+    if change.kind == "adjust_fares":
+        if change.scope == "toc":
+            raise ValueError(
+                "adjust_fares at operator (toc) scope is not yet supported; "
+                "select a corridor scope"
+            )
+        return _compute_affected_set_adjust_fares_corridor(change, feed_paths)
+    if change.kind == "withdraw_product":
+        if change.scope == "toc":
+            raise ValueError(
+                "withdraw_product at operator (toc) scope is not yet supported; "
+                "select a corridor scope"
+            )
+        return _compute_affected_set_withdraw_corridor(change, feed_paths)
     if change.scope == "toc":
         return _compute_affected_set_toc(change, feed_paths)
     return _compute_affected_set_corridor(change, feed_paths)
 
 
-def _compute_affected_set_corridor(change: ChangeRequest, feed_paths: FeedPaths) -> AffectedSet:
-    """Walk the corridor's cluster cross-product; produce canonical rows +
-    blast-radius pairs. Pure-ish: reads the feed via mtime-cached loaders.
+@dataclass
+class _Accum:
+    """Aggregator for one (flow_id, ticket_code) before becoming an AffectedFare.
 
-    Algorithm:
-      1. Expand origin/dest to [self, LOC group, *FSC clusters] — the same
-         fan-out the resolver does in src/resolver/resolve.py:_expand.
-      2. Walk `flows_by_pair` for the cross-product, both directions (with
-         the DIRECTION='R' filter on the reverse leg).
-      3. Filter fares by .TTY DISCOUNT_CATEGORY (the change's scope).
-      4. Group hits by (flow_id, ticket_code) → one AffectedFare per group.
-      5. For each AffectedFare, derive its blast_radius_pairs by expanding
-         the flow's (origin, dest) into member NLCs (LOC group / FSC
-         cluster reverse lookup).
-    """
-    ffl = load_ffl_indexes(feed_paths.ffl)
-    loc = load_loc_meta(feed_paths.loc)
-    tty = load_ticket_type_meta(feed_paths.tty)
-    fsc = load_fsc_clusters(feed_paths.fsc)  # MEMBER_NLC → [CLUSTER_ID, ...]
+    Shared across the corridor walkers; the (o_kind, d_kind) tuple carries
+    the per-side expansion category feeding `expansion_reason` on the emitted
+    BlastRadiusPair rows."""
+    flow_id: str
+    ticket_code: str
+    route_code: str
+    ffl_old_pence: int
+    rep_origin: str
+    rep_dest: str
+    flow_origin_code: str
+    flow_dest_code: str
+    fare_line_no: int
+    flow_line_no: int
+    blast_pairs: dict[tuple[str, str], tuple[str, str]]
 
-    notes: list[str] = []
-    scope = set(change.discount_categories)
 
+def _walk_corridor_accum(
+    change: ChangeRequest,
+    ffl: FFLIndexes,
+    loc: dict[str, LocationMeta],
+    tty: dict[str, TtyRecord],
+    fsc: dict[str, list[str]],
+    accept_fare: Callable[[TtyRecord, str], bool],
+) -> tuple[dict[tuple[str, str], "_Accum"], dict[str, set[str]], dict[str, str], dict[str, str]]:
+    """Shared corridor walker.
+
+    Expands origin/dest via LOC group + FSC cluster fan-out, walks
+    `flows_by_pair` in both directions (with DIRECTION='R' on the reverse
+    leg), and accumulates one `_Accum` per (flow_id, ticket_code) surviving
+    `accept_fare`. Reused by both the add_railcard path (filtering by
+    discount_category) and the apply_cap path (accept everything, filter
+    against the regmap afterwards)."""
     entity_to_members = _entity_members(loc, fsc)
-
-    # Per-side expansion kind: how each candidate NLC was reached. Feeds the
-    # blast pair's expansion_reason so the GB map can say WHY a pair lit up.
     origin_expansion, origin_kind = _expand_via_loc_and_fsc(
         change.corridor_origin_nlc, loc, fsc)
     dest_expansion, dest_kind = _expand_via_loc_and_fsc(
         change.corridor_dest_nlc, loc, fsc)
 
-    @dataclass
-    class _Accum:
-        """Aggregator for one (flow_id, ticket_code) before becoming an AffectedFare."""
-        flow_id: str
-        ticket_code: str
-        route_code: str
-        ffl_old_pence: int
-        rep_origin: str
-        rep_dest: str
-        flow_origin_code: str   # the flow record's stored O/D — a leaf NLC,
-        flow_dest_code: str     # a LOC group NLC, or an FSC cluster ID
-        fare_line_no: int       # .FFL T-record line — provenance raw_record
-        flow_line_no: int       # .FFL F-record line
-        # (member_o, member_d) → (origin_kind, dest_kind); kinds merged with
-        # _KIND_RANK priority so a pair re-derived through a wider fan-out
-        # keeps its most direct explanation.
-        blast_pairs: dict[tuple[str, str], tuple[str, str]]
-
     accum: dict[tuple[str, str], _Accum] = {}
 
     def _add_pairs(rec: _Accum, fan_origin: str, fan_dest: str,
                    o_kind: str, d_kind: str) -> None:
-        """Fan (fan_origin, fan_dest) out to member pairs, tagging each with
-        the per-side expansion kind. Leaf NLCs fall back to themselves."""
         o_members = entity_to_members.get(fan_origin) or {fan_origin}
         d_members = entity_to_members.get(fan_dest) or {fan_dest}
         for mo in o_members:
@@ -222,49 +246,12 @@ def _compute_affected_set_corridor(change: ChangeRequest, feed_paths: FeedPaths)
                         min(prev[1], d_kind, key=_KIND_RANK.__getitem__),
                     )
 
-    def _consume_flow(o: str, d: str, flow_origin: str, flow_dest: str, ffl_index: FFLIndexes) -> None:
-        """Walk fares on this (o,d) flow, accumulating into canonical rows."""
-        for flow in ffl_index.flows_by_pair.get((flow_origin, flow_dest), []):
-            for fare in ffl_index.fares_by_flow.get(flow.flow_id, []):
-                tty_rec: TtyRecord | None = tty.get(fare.ticket_code)
-                if tty_rec is None:
-                    continue
-                if tty_rec.discount_category not in scope:
-                    continue
-                key = (flow.flow_id, fare.ticket_code)
-                rec = accum.get(key)
-                if rec is None:
-                    rec = _Accum(
-                        flow_id=flow.flow_id,
-                        ticket_code=fare.ticket_code,
-                        route_code=flow.route_code,
-                        ffl_old_pence=fare.fare_pence,
-                        rep_origin=o, rep_dest=d,
-                        flow_origin_code=flow_origin,
-                        flow_dest_code=flow_dest,
-                        fare_line_no=fare.line_no,
-                        flow_line_no=flow.line_no,
-                        blast_pairs={},
-                    )
-                    accum[key] = rec
-                # Blast radius: the flow's (flow_origin, flow_dest) governs
-                # every (member_o, member_d) station pair via .LOC group /
-                # .FSC cluster membership.
-                _add_pairs(rec, flow_origin, flow_dest,
-                           origin_kind[flow_origin], dest_kind[flow_dest])
-
     for o in origin_expansion:
         for d in dest_expansion:
-            _consume_flow(o, d, o, d, ffl)
-            # Reverse-leg flows only when DIRECTION='R' — otherwise they
-            # represent fares for the opposite demand direction (different fares).
-            for flow in ffl.flows_by_pair.get((d, o), []):
-                if flow.direction != "R":
-                    continue
-                # Walk this flow's fares as if it were a forward (o,d) flow.
+            for flow in ffl.flows_by_pair.get((o, d), []):
                 for fare in ffl.fares_by_flow.get(flow.flow_id, []):
                     tty_rec = tty.get(fare.ticket_code)
-                    if tty_rec is None or tty_rec.discount_category not in scope:
+                    if tty_rec is None or not accept_fare(tty_rec, fare.ticket_code):
                         continue
                     key = (flow.flow_id, fare.ticket_code)
                     rec = accum.get(key)
@@ -275,19 +262,60 @@ def _compute_affected_set_corridor(change: ChangeRequest, feed_paths: FeedPaths)
                             route_code=flow.route_code,
                             ffl_old_pence=fare.fare_pence,
                             rep_origin=o, rep_dest=d,
-                            # The flow record is stored in its native (d, o)
-                            # orientation — cite what's actually in the .FFL.
-                            flow_origin_code=d,
-                            flow_dest_code=o,
+                            flow_origin_code=o, flow_dest_code=d,
                             fare_line_no=fare.line_no,
                             flow_line_no=flow.line_no,
                             blast_pairs={},
                         )
                         accum[key] = rec
-                    # Reverse-R flows are stored (d, o) but the row reports
-                    # rep_origin=o, rep_dest=d — emit blast pairs in that same
-                    # customer-facing demand direction (o, d).
                     _add_pairs(rec, o, d, origin_kind[o], dest_kind[d])
+            # Reverse-R leg: same (d, o) flows with DIRECTION='R'.
+            for flow in ffl.flows_by_pair.get((d, o), []):
+                if flow.direction != "R":
+                    continue
+                for fare in ffl.fares_by_flow.get(flow.flow_id, []):
+                    tty_rec = tty.get(fare.ticket_code)
+                    if tty_rec is None or not accept_fare(tty_rec, fare.ticket_code):
+                        continue
+                    key = (flow.flow_id, fare.ticket_code)
+                    rec = accum.get(key)
+                    if rec is None:
+                        rec = _Accum(
+                            flow_id=flow.flow_id,
+                            ticket_code=fare.ticket_code,
+                            route_code=flow.route_code,
+                            ffl_old_pence=fare.fare_pence,
+                            rep_origin=o, rep_dest=d,
+                            flow_origin_code=d, flow_dest_code=o,
+                            fare_line_no=fare.line_no,
+                            flow_line_no=flow.line_no,
+                            blast_pairs={},
+                        )
+                        accum[key] = rec
+                    _add_pairs(rec, o, d, origin_kind[o], dest_kind[d])
+
+    return accum, entity_to_members, origin_kind, dest_kind
+
+
+def _compute_affected_set_corridor(change: ChangeRequest, feed_paths: FeedPaths) -> AffectedSet:
+    """Walk the corridor's cluster cross-product for the add_railcard path;
+    produce canonical rows + blast-radius pairs. Filters fares by .TTY
+    DISCOUNT_CATEGORY (the change's scope) and applies the synthetic
+    railcard discount."""
+    ffl = load_ffl_indexes(feed_paths.ffl)
+    loc = load_loc_meta(feed_paths.loc)
+    tty = load_ticket_type_meta(feed_paths.tty)
+    fsc = load_fsc_clusters(feed_paths.fsc)
+
+    notes: list[str] = []
+    scope = set(change.discount_categories)
+
+    def accept(tty_rec: TtyRecord, _code: str) -> bool:
+        return tty_rec.discount_category in scope
+
+    accum, entity_to_members, _origin_kind, _dest_kind = _walk_corridor_accum(
+        change, ffl, loc, tty, fsc, accept,
+    )
 
     if not accum:
         notes.append(
@@ -365,6 +393,386 @@ def _compute_affected_set_corridor(change: ChangeRequest, feed_paths: FeedPaths)
     return AffectedSet(
         canonical=tuple(canonical),
         skipped=tuple(),  # bulk path has no skips (every fare has an int price)
+        blast_radius=tuple(blast_pairs_out),
+        notes=tuple(notes),
+        stats=ScopeStats(
+            scope="corridor",
+            toc_code=None,
+            flows_total=len(flow_ids),
+            flows_actual=len(flow_ids),
+            flows_generated_skipped=0,
+            canonical_total=len(canonical),
+            canonical_returned=len(canonical),
+            blast_pairs_total=len(blast_pairs_out),
+            blast_pairs_returned=len(blast_pairs_out),
+            truncated=False,
+        ),
+    )
+
+
+def _compute_affected_set_apply_cap_corridor(
+    change: ChangeRequest, feed_paths: FeedPaths,
+) -> AffectedSet:
+    """Corridor walker for the apply_cap kind.
+
+    Walks the same cluster cross-product as `_compute_affected_set_corridor`
+    but keeps EVERY ticket (no discount_category filter), then joins each
+    accumulated (flow_id, ticket_code) against the corridor's RegulationMap.
+    Only regulated rows survive into `canonical`; unregulated rows are
+    counted and reported in `notes[]` (per REGULATION.md discipline: never
+    silently filter — the count of dropped rows is always surfaced).
+
+    Provenance for surviving rows carries the shared `affected_set_pick`
+    step plus a `cap_apply` terminal step from `apply_cap_price`. The
+    regulation citation is echoed into `affected_set_pick.explanation` so
+    the provenance panel still reads which rule made the row regulated."""
+    ffl = load_ffl_indexes(feed_paths.ffl)
+    loc = load_loc_meta(feed_paths.loc)
+    tty = load_ticket_type_meta(feed_paths.tty)
+    fsc = load_fsc_clusters(feed_paths.fsc)
+
+    notes: list[str] = []
+
+    def accept_all(_tty_rec: TtyRecord, _code: str) -> bool:
+        return True
+
+    accum, entity_to_members, _o_kind, _d_kind = _walk_corridor_accum(
+        change, ffl, loc, tty, fsc, accept_all,
+    )
+
+    # Build the corridor's regulation map once. The classifier reads the
+    # corridor's actual fares from .FFL, so all subsequent lookups are pure
+    # dict fetches.
+    from src.impact.compliance import build_corridor_regulation_map
+    regmap = build_corridor_regulation_map(change, feed_paths)
+
+    canonical: list[AffectedFare] = []
+    blast_pairs_out: list[BlastRadiusPair] = []
+    unregulated_count = 0
+    missing_entry_count = 0
+    for key in sorted(accum.keys()):
+        rec = accum[key]
+        entry = regmap.get(
+            change.corridor_origin_nlc,
+            change.corridor_dest_nlc,
+            rec.ticket_code,
+        )
+        if entry is None:
+            missing_entry_count += 1
+            continue
+        if not entry.regulated:
+            unregulated_count += 1
+            continue
+
+        new_pence, cap_step = apply_cap_price(rec.ffl_old_pence, change)
+        cite = entry.citation
+        provenance: tuple[ProvenanceStep, ...] = (
+            ProvenanceStep(
+                step="affected_set_pick",
+                source=f"{feed_paths.ffl.name} flow_id={rec.flow_id}",
+                detail={
+                    "ticket_code":       rec.ticket_code,
+                    "route_code":        rec.route_code,
+                    "representative":    f"{rec.rep_origin}->{rec.rep_dest}",
+                    "flow_origin_code":  rec.flow_origin_code,
+                    "flow_dest_code":    rec.flow_dest_code,
+                    "blast_pairs_count": str(len(rec.blast_pairs)),
+                    "fare_line_no":      str(rec.fare_line_no),
+                    "flow_line_no":      str(rec.flow_line_no),
+                    "regulation":        cite.section if cite else "(none)",
+                    "regulation_rule":   cite.rule_text if cite else "(none)",
+                    "explanation":       (
+                        "regulated fare selected from FFLIndexes.flows_by_pair "
+                        "after LOC group + FSC cluster fan-out; regulation map "
+                        f"entry: {cite.section if cite else '?'}"
+                    ),
+                },
+            ),
+            cap_step,
+        )
+        idx = len(canonical)
+        tty_rec = tty.get(rec.ticket_code)
+        assert tty_rec is not None
+        blast_stations: set[str] = set()
+        for (mo, md) in rec.blast_pairs:
+            blast_stations.update(entity_to_members.get(mo) or {mo})
+            blast_stations.update(entity_to_members.get(md) or {md})
+        canonical.append(AffectedFare(
+            flow_id=rec.flow_id,
+            ticket_code=rec.ticket_code,
+            route_code=rec.route_code,
+            representative_origin_nlc=rec.rep_origin,
+            representative_dest_nlc=rec.rep_dest,
+            status="resolved",
+            old_price_pence=rec.ffl_old_pence,
+            new_price_pence=new_pence,
+            discount_category=tty_rec.discount_category,
+            provenance=provenance,
+            blast_radius_pairs=tuple(sorted(rec.blast_pairs)),
+            representative_origin_name=_loc_name(rec.rep_origin, loc),
+            representative_dest_name=_loc_name(rec.rep_dest, loc),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+        ))
+        for (mo, md) in sorted(rec.blast_pairs):
+            o_kind, d_kind = rec.blast_pairs[(mo, md)]
+            blast_pairs_out.append(BlastRadiusPair(
+                origin_nlc=mo, dest_nlc=md,
+                canonical_index=idx,
+                expansion_reason=_reason_from_kinds(o_kind, d_kind),
+            ))
+
+    blast_pairs_out.sort(key=lambda p: (p.origin_nlc, p.dest_nlc, p.canonical_index))
+
+    if not canonical:
+        notes.append(
+            f"apply_cap: no REGULATED fares matched corridor "
+            f"({change.corridor_origin_nlc}->{change.corridor_dest_nlc}); "
+            f"cap_pct={change.cap_pct:+.2%} is a no-op on this scope"
+        )
+    if unregulated_count:
+        notes.append(
+            f"apply_cap: {unregulated_count} unregulated fare(s) in scope were "
+            "left unchanged (cap applies only to regulated fares)"
+        )
+    if missing_entry_count:
+        notes.append(
+            f"apply_cap: {missing_entry_count} fare(s) in scope had no "
+            "regulation-map entry and were skipped (treated as not regulated)"
+        )
+
+    flow_ids = {r.flow_id for r in canonical}
+    return AffectedSet(
+        canonical=tuple(canonical),
+        skipped=tuple(),
+        blast_radius=tuple(blast_pairs_out),
+        notes=tuple(notes),
+        stats=ScopeStats(
+            scope="corridor",
+            toc_code=None,
+            flows_total=len(flow_ids),
+            flows_actual=len(flow_ids),
+            flows_generated_skipped=0,
+            canonical_total=len(canonical),
+            canonical_returned=len(canonical),
+            blast_pairs_total=len(blast_pairs_out),
+            blast_pairs_returned=len(blast_pairs_out),
+            truncated=False,
+        ),
+    )
+
+
+def _compute_affected_set_adjust_fares_corridor(
+    change: ChangeRequest, feed_paths: FeedPaths,
+) -> AffectedSet:
+    """Corridor walker for the adjust_fares kind.
+
+    Walks the same cluster cross-product as `_compute_affected_set_corridor`
+    but filters fares by ticket_code membership in `change.tickets` (bypassing
+    the discount_category filter). Applies the signed delta via
+    `apply_adjust_price` — no regulation-map join because the whole point of
+    adjust_fares is to move a ticket basket regardless of regulation; the
+    compliance block downstream still fires a breach warning when a raise
+    lifts a regulated row above its 2025 cap."""
+    ffl = load_ffl_indexes(feed_paths.ffl)
+    loc = load_loc_meta(feed_paths.loc)
+    tty = load_ticket_type_meta(feed_paths.tty)
+    fsc = load_fsc_clusters(feed_paths.fsc)
+
+    notes: list[str] = []
+    basket = set(change.tickets)
+
+    def accept(_tty_rec: TtyRecord, code: str) -> bool:
+        return code in basket
+
+    accum, entity_to_members, _o_kind, _d_kind = _walk_corridor_accum(
+        change, ffl, loc, tty, fsc, accept,
+    )
+
+    canonical: list[AffectedFare] = []
+    blast_pairs_out: list[BlastRadiusPair] = []
+    for key in sorted(accum.keys()):
+        rec = accum[key]
+        new_pence, adjust_step = apply_adjust_price(rec.ffl_old_pence, change)
+        provenance: tuple[ProvenanceStep, ...] = (
+            ProvenanceStep(
+                step="affected_set_pick",
+                source=f"{feed_paths.ffl.name} flow_id={rec.flow_id}",
+                detail={
+                    "ticket_code":       rec.ticket_code,
+                    "route_code":        rec.route_code,
+                    "representative":    f"{rec.rep_origin}->{rec.rep_dest}",
+                    "flow_origin_code":  rec.flow_origin_code,
+                    "flow_dest_code":    rec.flow_dest_code,
+                    "blast_pairs_count": str(len(rec.blast_pairs)),
+                    "fare_line_no":      str(rec.fare_line_no),
+                    "flow_line_no":      str(rec.flow_line_no),
+                    "explanation":       (
+                        "flow_id selected from FFLIndexes.flows_by_pair after "
+                        "LOC group + FSC cluster fan-out; ticket_code in basket "
+                        f"({','.join(sorted(basket))})"
+                    ),
+                },
+            ),
+            adjust_step,
+        )
+        idx = len(canonical)
+        tty_rec = tty.get(rec.ticket_code)
+        assert tty_rec is not None
+        blast_stations: set[str] = set()
+        for (mo, md) in rec.blast_pairs:
+            blast_stations.update(entity_to_members.get(mo) or {mo})
+            blast_stations.update(entity_to_members.get(md) or {md})
+        canonical.append(AffectedFare(
+            flow_id=rec.flow_id,
+            ticket_code=rec.ticket_code,
+            route_code=rec.route_code,
+            representative_origin_nlc=rec.rep_origin,
+            representative_dest_nlc=rec.rep_dest,
+            status="resolved",
+            old_price_pence=rec.ffl_old_pence,
+            new_price_pence=new_pence,
+            discount_category=tty_rec.discount_category,
+            provenance=provenance,
+            blast_radius_pairs=tuple(sorted(rec.blast_pairs)),
+            representative_origin_name=_loc_name(rec.rep_origin, loc),
+            representative_dest_name=_loc_name(rec.rep_dest, loc),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+        ))
+        for (mo, md) in sorted(rec.blast_pairs):
+            o_kind, d_kind = rec.blast_pairs[(mo, md)]
+            blast_pairs_out.append(BlastRadiusPair(
+                origin_nlc=mo, dest_nlc=md,
+                canonical_index=idx,
+                expansion_reason=_reason_from_kinds(o_kind, d_kind),
+            ))
+
+    blast_pairs_out.sort(key=lambda p: (p.origin_nlc, p.dest_nlc, p.canonical_index))
+
+    if not canonical:
+        notes.append(
+            f"adjust_fares: no fares matched corridor "
+            f"({change.corridor_origin_nlc}->{change.corridor_dest_nlc}) × "
+            f"tickets={sorted(basket)}; ChangeRequest is a no-op on this scope"
+        )
+
+    flow_ids = {r.flow_id for r in canonical}
+    return AffectedSet(
+        canonical=tuple(canonical),
+        skipped=tuple(),
+        blast_radius=tuple(blast_pairs_out),
+        notes=tuple(notes),
+        stats=ScopeStats(
+            scope="corridor",
+            toc_code=None,
+            flows_total=len(flow_ids),
+            flows_actual=len(flow_ids),
+            flows_generated_skipped=0,
+            canonical_total=len(canonical),
+            canonical_returned=len(canonical),
+            blast_pairs_total=len(blast_pairs_out),
+            blast_pairs_returned=len(blast_pairs_out),
+            truncated=False,
+        ),
+    )
+
+
+def _compute_affected_set_withdraw_corridor(
+    change: ChangeRequest, feed_paths: FeedPaths,
+) -> AffectedSet:
+    """Corridor walker for the withdraw_product kind.
+
+    Same walk as adjust_fares but the row's `new_price_pence` becomes None
+    and `status='suppressed'` — an honest "no fare" state that mirrors the
+    .NFO 99999999 sentinel discipline. The compliance block is skipped for
+    suppressed rows (there is no new price to compare against a cap); the
+    anomalies block picks up the "no walk-up alternative" detector added
+    in inversions.py for this kind."""
+    ffl = load_ffl_indexes(feed_paths.ffl)
+    loc = load_loc_meta(feed_paths.loc)
+    tty = load_ticket_type_meta(feed_paths.tty)
+    fsc = load_fsc_clusters(feed_paths.fsc)
+
+    notes: list[str] = []
+    target = change.withdraw_ticket or ""
+
+    def accept(_tty_rec: TtyRecord, code: str) -> bool:
+        return code == target
+
+    accum, entity_to_members, _o_kind, _d_kind = _walk_corridor_accum(
+        change, ffl, loc, tty, fsc, accept,
+    )
+
+    canonical: list[AffectedFare] = []
+    blast_pairs_out: list[BlastRadiusPair] = []
+    for key in sorted(accum.keys()):
+        rec = accum[key]
+        _new, withdraw_step = apply_withdrawal(rec.ffl_old_pence, change)
+        provenance: tuple[ProvenanceStep, ...] = (
+            ProvenanceStep(
+                step="affected_set_pick",
+                source=f"{feed_paths.ffl.name} flow_id={rec.flow_id}",
+                detail={
+                    "ticket_code":       rec.ticket_code,
+                    "route_code":        rec.route_code,
+                    "representative":    f"{rec.rep_origin}->{rec.rep_dest}",
+                    "flow_origin_code":  rec.flow_origin_code,
+                    "flow_dest_code":    rec.flow_dest_code,
+                    "blast_pairs_count": str(len(rec.blast_pairs)),
+                    "fare_line_no":      str(rec.fare_line_no),
+                    "flow_line_no":      str(rec.flow_line_no),
+                    "explanation":       (
+                        f"flow_id selected from FFLIndexes.flows_by_pair after "
+                        f"LOC group + FSC cluster fan-out; ticket_code={target!r} "
+                        "targeted for withdrawal"
+                    ),
+                },
+            ),
+            withdraw_step,
+        )
+        idx = len(canonical)
+        tty_rec = tty.get(rec.ticket_code)
+        assert tty_rec is not None
+        blast_stations: set[str] = set()
+        for (mo, md) in rec.blast_pairs:
+            blast_stations.update(entity_to_members.get(mo) or {mo})
+            blast_stations.update(entity_to_members.get(md) or {md})
+        canonical.append(AffectedFare(
+            flow_id=rec.flow_id,
+            ticket_code=rec.ticket_code,
+            route_code=rec.route_code,
+            representative_origin_nlc=rec.rep_origin,
+            representative_dest_nlc=rec.rep_dest,
+            status="suppressed",
+            old_price_pence=rec.ffl_old_pence,
+            new_price_pence=None,
+            discount_category=tty_rec.discount_category,
+            provenance=provenance,
+            blast_radius_pairs=tuple(sorted(rec.blast_pairs)),
+            representative_origin_name=_loc_name(rec.rep_origin, loc),
+            representative_dest_name=_loc_name(rec.rep_dest, loc),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+        ))
+        for (mo, md) in sorted(rec.blast_pairs):
+            o_kind, d_kind = rec.blast_pairs[(mo, md)]
+            blast_pairs_out.append(BlastRadiusPair(
+                origin_nlc=mo, dest_nlc=md,
+                canonical_index=idx,
+                expansion_reason=_reason_from_kinds(o_kind, d_kind),
+            ))
+
+    blast_pairs_out.sort(key=lambda p: (p.origin_nlc, p.dest_nlc, p.canonical_index))
+
+    if not canonical:
+        notes.append(
+            f"withdraw_product: no fares matched corridor "
+            f"({change.corridor_origin_nlc}->{change.corridor_dest_nlc}) × "
+            f"ticket={target!r}; ChangeRequest is a no-op on this scope"
+        )
+
+    flow_ids = {r.flow_id for r in canonical}
+    return AffectedSet(
+        canonical=tuple(canonical),
+        skipped=tuple(),
         blast_radius=tuple(blast_pairs_out),
         notes=tuple(notes),
         stats=ScopeStats(

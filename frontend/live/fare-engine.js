@@ -40,6 +40,7 @@
   var _stationsByCrs = {};    // {CRS: StationModel}
   var _stationsByNlc = {};    // {NLC: StationModel} for adapter joins
   var _railcards = [];        // list from /api/railcards
+  var _tickets = [];          // list from /api/tickets (adjust/withdraw forms)
   var _tocs = [];             // list from /api/tocs (operator scoping)
   var _lastImpact = null;
   var _lastImpactSig = null;     // signature we WANT (set at request time)
@@ -51,6 +52,9 @@
   var _cstatsInflight = new Set();
   var _overviewCache = null;         // /api/overview payload
   var _overviewInflight = false;
+  // Merge point (visual-copilot session): {corridorId: adaptedCallings}.
+  // null = fetch in flight, false = typed miss (degrade to static path).
+  var _callingsCache = {};
 
   /* ---- utilities ------------------------------------------------------ */
   function sigOf(o) { return JSON.stringify(o); }
@@ -97,11 +101,94 @@
       var found = _corridors.filter(function (c) { return c.id === selCorridor; })[0];
       if (found) corridor = found;
     }
-    // Discount must be strictly 0 < x < 1 per ChangeRequest validation.
+    var oNlc = corridor ? corridor.origin_nlc : "2968";
+    var dNlc = corridor ? corridor.dest_nlc : "1444";
+    var isToc = scope && scope.kind === "toc" && scope.toc;
+    var kind = params.changeType || "add_railcard";
+
+    if (kind === "withdraw_product") {
+      var wt = params.withdrawTicket || "";
+      var scopeLabelW = params.capScope === 'scheme'
+        ? ('Scheme \u00b7 ' + (params.cluster || 'national'))
+        : (params.capScope === 'national' ? 'National' : 'Corridor');
+      return {
+        kind: "withdraw_product",
+        withdraw_ticket: wt,
+        confirmed: !!params.withdrawConfirmed,
+        corridor_origin_nlc: oNlc,
+        corridor_dest_nlc: dNlc,
+        peak_valid: !!params.peakOn,
+        description: "Withdraw " + (wt || "?") + " on " + scopeLabelW,
+        rounding_rule: params.rounding || null,
+        cluster_name: params.cluster || null,
+        scope: "corridor",
+        contradiction_choice: null,
+      };
+    }
+
+    if (kind === "adjust_fares") {
+      var tickets = Array.isArray(params.tickets) ? params.tickets.slice() : [];
+      var mode = params.deltaMode === "pence" ? "pence" : "pct";
+      var val = Number(params.deltaValue || 0);
+      if (mode === "pct") {
+        val = Math.max(-50, Math.min(50, val)) / 100.0;
+      } else {
+        val = Math.max(-10000, Math.min(10000, Math.round(val)));
+      }
+      var scopeLabel = params.capScope === 'scheme'
+        ? ('Scheme \u00b7 ' + (params.cluster || 'national'))
+        : (params.capScope === 'national' ? 'National' : 'Corridor');
+      var deltaLabel = mode === "pct"
+        ? ((val >= 0 ? "+" : "") + (val * 100).toFixed(1) + "%")
+        : ((val >= 0 ? "+" : "") + val + "p");
+      return {
+        kind: "adjust_fares",
+        tickets: tickets,
+        delta_mode: mode,
+        delta_value: val,
+        corridor_origin_nlc: oNlc,
+        corridor_dest_nlc: dNlc,
+        peak_valid: !!params.peakOn,
+        description: "Adjust " + tickets.length + " ticket type(s) by " +
+                     deltaLabel + " on " + scopeLabel,
+        rounding_rule: params.rounding || null,
+        cluster_name: params.cluster || null,
+        scope: "corridor",
+        contradiction_choice: null,
+      };
+    }
+
+    if (kind === "apply_cap") {
+      // Signed percentage cap on regulated fares. The engine rejects
+      // scope="toc" for apply_cap (build_corridor_regulation_map is
+      // per-corridor), so operator scope silently downgrades to corridor
+      // for THIS kind; the UI's scope panel will still light the corridor.
+      var capPct = Number(params.capPct || 0) / 100.0;
+      if (capPct > 0.25) capPct = 0.25;
+      if (capPct < -0.25) capPct = -0.25;
+      var scopeLabel = params.capScope === 'scheme'
+        ? ('Scheme \u00b7 ' + (params.cluster || 'national'))
+        : (params.capScope === 'national' ? 'National' : 'Corridor');
+      return {
+        kind: "apply_cap",
+        cap_pct: capPct,
+        corridor_origin_nlc: oNlc,
+        corridor_dest_nlc: dNlc,
+        peak_valid: !!params.peakOn,
+        description: "Apply cap " + (capPct >= 0 ? "+" : "") +
+                     (capPct * 100).toFixed(1) + "% on " + scopeLabel,
+        rounding_rule: params.rounding || null,
+        cluster_name: params.cluster || null,
+        scope: "corridor",
+        contradiction_choice: null,
+      };
+    }
+
+    // Default: add_railcard (existing).
     var pct = Math.max(1, Math.min(60, params.discountPct || 34)) / 100.0;
-    // changeType 'raise' proposes an across-the-board price rise
-    // (kind='raise_price'); every other changeType is a railcard discount.
-    var isRise = params.changeType === "raise";
+    // changeType 'raise_price' proposes an across-the-board price rise;
+    // every other changeType here is a railcard discount.
+    var isRise = params.changeType === "raise_price";
     var out = {
       kind: isRise ? "raise_price" : "add_railcard",
       railcard_code: _proposalCode(params),
@@ -110,8 +197,8 @@
       // regulated walk-ups live in 03/08, so scoping only 01 made every
       // compliance panel read "0 regulated" (nothing regulated was touched).
       discount_categories: ["01", "03", "08"],
-      corridor_origin_nlc: corridor ? corridor.origin_nlc : "2968",
-      corridor_dest_nlc: corridor ? corridor.dest_nlc : "1444",
+      corridor_origin_nlc: oNlc,
+      corridor_dest_nlc: dNlc,
       peak_valid: !!params.peakOn,
       description: (params.railcardName || "Cockpit proposal") +
                    " \u00b7 " + (isRise ? "+" : "") + Math.round(pct * 100) + "%",
@@ -122,7 +209,7 @@
     };
     // Operator scope: the ChangeRequest contract requires empty corridor
     // NLCs when scope='toc' (change_request.py validation).
-    if (scope && scope.kind === "toc" && scope.toc) {
+    if (isToc) {
       out.scope = "toc";
       out.toc_code = scope.toc;
       out.corridor_origin_nlc = "";
@@ -496,6 +583,7 @@
       CLUSTER_LABEL: CLUSTER_LABEL,
       FLOWS: _makeFlowsSparse(),
       RAILCARDS: _railcards,
+      TICKETS: _tickets,
       TOCS: _tocs,
       TOC_STATIONS: _makeTocStations(),
 
@@ -589,6 +677,24 @@
          register it so the map spine, edge skeleton and impact scoping
          (origin/dest NLC) treat it exactly like a curated corridor. */
       fetchRoute: function (o, d) { return A.route(o, d); },
+      /* Merge point (visual-copilot session). Sync surface, async underneath
+         (same contract as resolve): returns the adapted callings for a
+         corridor, kicking the fetch on first ask. null while loading,
+         false on a typed miss — callers degrade to the static path. */
+      corridorCallings: function (id) {
+        if (_callingsCache[id] !== undefined) return _callingsCache[id];
+        var c = null;
+        var list = window.RFE.CORRIDORS;
+        for (var i = 0; i < list.length; i++) if (list[i].id === id) { c = list[i]; break; }
+        if (!c || !c.path || c.path.length < 2) return false;
+        _callingsCache[id] = null;
+        A.corridorCallings(c.path[0], c.path[c.path.length - 1]).then(function (data) {
+          _callingsCache[id] = ADAPT.adaptCallings(data);
+          if (window.__rfeRoot) window.__rfeRoot.forceUpdate();
+        }).catch(function () { _callingsCache[id] = false; });
+        return null;
+      },
+      stationByNlc: function (nlc) { return _stationsByNlc[String(nlc)] || null; },
       addCustomCorridor: function (r) {
         var id = "custom-" + r.origin_crs + "-" + r.dest_crs;
         for (var i = 0; i < _corridors.length; i++) {
@@ -652,6 +758,9 @@
         // Older backends lack /api/tocs — operator scoping degrades to
         // an empty picker rather than blocking boot.
         A.tocs()["catch"](function () { return []; }),
+        // Older backends lack /api/tickets — the adjust/withdraw forms
+        // then show an empty basket instead of failing boot.
+        A.tickets()["catch"](function () { return []; }),
       ])
         .then(function (results) {
           _snapshot = results[0];
@@ -659,6 +768,7 @@
           _stations = results[2];
           _railcards = results[3];
           _tocs = results[4] || [];
+          _tickets = results[5] || [];
           _stations.forEach(function (s) {
             _stationsByCrs[s.crs] = s;
             if (s.nlc) _stationsByNlc[s.nlc] = s;

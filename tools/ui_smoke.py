@@ -47,7 +47,14 @@ with sync_playwright() as p:
     page.wait_for_selector("text=PROVENANCE", timeout=120_000)
     step("boot", True)
 
-    # -- wait for the boot recompute to land (non-zero affected fares) ------
+    # -- lifecycle: nothing renders numbers until the analyst explicitly runs
+    #    impact (single-verdict-source rule), so click Run impact FIRST, then
+    #    wait for the affected count and the verdict strip together. ---------
+    try:
+        page.get_by_text("Run impact", exact=True).first.click()
+    except Exception as e:  # noqa: BLE001
+        step("run-impact-click", False, str(e)[:100])
+
     deadline = time.time() + 300
     n_affected = 0
     while time.time() < deadline:
@@ -59,19 +66,11 @@ with sync_playwright() as p:
     step("impact-computed", n_affected > 0, f"affected={n_affected}")
     time.sleep(2)
 
-    # -- lifecycle: explicitly run the impact so the verdict strip mounts ----
-    try:
-        page.get_by_text("Run impact", exact=True).first.click()
-        deadline = time.time() + 240
-        while time.time() < deadline:
-            if "NO IMPACT COMPUTED" not in body_text(page):
-                break
-            time.sleep(3)
-        ok = "NO IMPACT COMPUTED" not in body_text(page)
-        step("run-impact-verdict", ok)
-    except Exception as e:  # noqa: BLE001
-        step("run-impact-verdict", False, str(e)[:100])
-    time.sleep(2)
+    # the map's empty-hint card stays mounted at opacity:0 (fade survives), so
+    # check the verdict strip's empty-state copy instead of the raw text.
+    ok = "the change's verdict lands here" not in body_text(page)
+    step("run-impact-verdict", ok)
+    time.sleep(1)
     shot(page, "10-verdict")
 
     # -- headline dropdown (the £ figure with the ▾ chevron) -----------------
@@ -91,7 +90,9 @@ with sync_playwright() as p:
 
     # -- Revenue tab + penny-exact ledger footer -----------------------------
     try:
-        page.get_by_text("Revenue", exact=True).first.click()
+        # .last — the left-rail ANALYSIS MODULES row is also labelled "Revenue";
+        # clicking it would toggle the module off instead of opening the tab.
+        page.get_by_text("Revenue", exact=True).last.click()
         time.sleep(2)
         shot(page, "12-revenue-ledger")
         txt = body_text(page)

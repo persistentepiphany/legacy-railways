@@ -67,6 +67,14 @@
 
     <div style="flex:1"></div>
 
+    <!-- copilot toggle (in-memory flag, default on — no localStorage per project rule) -->
+    <sc-if value="{{ copilot.on }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ copilot.onToggle }}" style="display:flex;align-items:center;gap:7px;padding:0 14px;height:100%;border-left:1px solid #1a1c20;cursor:pointer;user-select:none" style-hover="background:#101215">
+        <div style="width:7px;height:7px;border-radius:50%;background:{{ copilot.dotColor }}"></div>
+        <div style="font-size:11px;letter-spacing:.8px;font-weight:600;color:{{ copilot.toggleColor }}">COPILOT</div>
+      </div>
+    </sc-if>
+
     <!-- data mode / freshness -->
     <div style="display:flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-left:1px solid #1a1c20">
       <div style="width:7px;height:7px;border-radius:50%;background:{{ mode.dotColor }};animation:{{ mode.anim }}"></div>
@@ -119,7 +127,7 @@
       </sc-for>
     </div>
     <div style="flex:1"></div>
-    <div onClick="{{ tb.onRun }}" style="display:flex;align-items:center;gap:7px;background:#16181c;border:1px solid #2a2e34;border-radius:7px;padding:6px 13px;cursor:pointer" style-hover="border-color:#3a4048;background:#1b1e24">
+    <div onClick="{{ tb.onRun }}" title="{{ tb.runTitle }}" style="display:flex;align-items:center;gap:7px;background:#16181c;border:1px solid #2a2e34;border-radius:7px;padding:6px 13px;cursor:{{ tb.runCursor }};opacity:{{ tb.runOpacity }}" style-hover="border-color:#3a4048;background:#1b1e24">
       <sc-if value="{{ tb.computing }}" hint-placeholder-val="{{ false }}"><div style="width:11px;height:11px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .7s linear infinite"></div></sc-if>
       <sc-if value="{{ tb.idle }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" width="12" height="12" fill="#adb6c4"><path d="M8 5v14l11-7z"></path></svg></sc-if>
       <span style="font-size:12px;color:#dfe3e9;font-weight:600">Run impact</span>
@@ -462,10 +470,22 @@
                 <div style="font-size:10px;color:#5f6773;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">applies to · {{ verdictBar.scopeLine }}</div>
               </div>
               <div style="padding:13px 16px 14px">
+        <!-- change-type tiles: IDs are the ChangeRequest.kind literals -->
+        <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px;margin-bottom:13px">
+          <sc-for list="{{ change.typeTiles }}" as="tt" hint-placeholder-count="5">
+            <div onClick="{{ tt.onPick }}" title="{{ tt.title }}" style="flex:1;position:relative;text-align:center;padding:8px 4px;border-radius:6px;cursor:pointer;font-size:10.5px;color:{{ tt.color }};font-family:'Source Sans 3',sans-serif;display:flex;align-items:center;justify-content:center;gap:4px;font-weight:{{ tt.weight }}">
+              <sc-if value="{{ tt.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+              <span style="position:relative;font-size:12px;line-height:1">{{ tt.icon }}</span>
+              <span style="position:relative">{{ tt.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+
         <!-- product selector — dropdown OR inline draft. The dropdown's
              "Create new railcard…" swaps this whole card for a NAME input;
              cancel restores it. Every other AUTHOR panel control below
              stays live so the impact preview updates as the analyst tweaks. -->
+        <sc-if value="{{ ui.isAddRailcard }}" hint-placeholder-val="{{ true }}">
         <sc-if value="{{ product.drafting }}" hint-placeholder-val="{{ false }}">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:7px">
@@ -508,10 +528,6 @@
                 <div style="width:18px;height:18px;border-radius:5px;border:1px dashed #2f333a;display:flex;align-items:center;justify-content:center;flex:0 0 auto"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#8a93a3" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg></div>
                 <span style="font-size:12.5px;font-weight:600;color:#dfe3e9">Create new railcard…</span>
               </div>
-              <div style="height:1px;background:#1a1c20;margin:4px 0"></div>
-              <div style="padding:5px 11px 4px;font-size:9px;letter-spacing:.6px;color:#5f6773">OTHER ACTIONS</div>
-              <div onClick="{{ product.onAdjust }}" style="padding:7px 11px;cursor:pointer;font-size:12px;color:#98a1ae" style-hover="background:#16181c">Adjust discount on active product</div>
-              <div onClick="{{ product.onWithdraw }}" style="padding:7px 11px 9px;cursor:pointer;font-size:12px;color:#98a1ae" style-hover="background:#16181c">Withdraw active product</div>
             </div>
           </sc-if>
         </div>
@@ -573,6 +589,157 @@
           <input type="range" min="50" max="75" step="1" value="{{ change.minFloorPct }}" onInput="{{ change.onFloor }}" style="width:100%" />
           <div style="font-size:9.5px;color:#4f5762;margin-top:4px">Discounted fare cannot fall below this % of the protected fare.</div>
         </div>
+        </sc-if>
+
+        <!-- % APPLY CAP form -->
+        <sc-if value="{{ ui.isApplyCap }}" hint-placeholder-val="{{ false }}">
+        <!-- cap % input -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
+            <div style="font-size:10.5px;color:#7b8390">Cap %</div>
+            <div style="font-family:'Source Sans 3',sans-serif;font-size:15px;color:#f0f2f6;font-weight:600">{{ change.capStr }}</div>
+          </div>
+          <input type="number" min="-25" max="25" step="0.1" value="{{ change.capPct }}" onInput="{{ change.onCap }}" style="width:100%;box-sizing:border-box;background:#090a0c;border:1px solid #191b20;border-radius:6px;padding:7px 9px;color:#f0f2f6;font-family:'Source Sans 3',sans-serif;font-size:12.5px" />
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#454c56;font-family:'Source Sans 3',sans-serif;margin-top:3px"><span>−25%</span><span>0%</span><span>+25%</span></div>
+        </div>
+
+        <!-- regulated scope selector -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:10.5px;color:#7b8390;margin-bottom:6px">Regulated scope</div>
+          <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+            <sc-for list="{{ change.capScopeOpts }}" as="cs" hint-placeholder-count="3">
+              <div onClick="{{ cs.onPick }}" title="{{ cs.title }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:{{ cs.cursor }};font-size:11px;color:{{ cs.color }};font-family:'Source Sans 3',sans-serif;opacity:{{ cs.opacity }}">
+                <sc-if value="{{ cs.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+                <span style="position:relative">{{ cs.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- scheme area sub-selector (only when scope=scheme) -->
+        <sc-if value="{{ change.capSchemeShow }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div style="font-size:10.5px;color:#7b8390">Scheme area</div><div style="font-size:10px;color:#5f6773">{{ change.clusterFull }}</div></div>
+          <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+            <sc-for list="{{ change.clusterOpts }}" as="c" hint-placeholder-count="4">
+              <div onClick="{{ c.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ c.color }};font-weight:{{ c.weight }}">
+                <sc-if value="{{ c.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+                <span style="position:relative">{{ c.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- baseline note -->
+        <div style="padding:9px 11px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+          <div style="font-size:9.5px;color:#7b8390;line-height:1.5">Applied to 2025 baseline per regulated-fares schedule (§3 of the fares regulation map).</div>
+        </div>
+        </sc-if>
+
+        <!-- ↕ ADJUST FARES form -->
+        <sc-if value="{{ ui.isAdjustFares }}" hint-placeholder-val="{{ false }}">
+        <!-- ticket basket -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <div style="font-size:10.5px;color:#7b8390">Ticket-type basket</div>
+            <div style="font-size:9.5px;color:#5f6773">{{ change.basketSummary }}</div>
+          </div>
+          <div style="max-height:170px;overflow-y:auto;background:#090a0c;border:1px solid #191b20;border-radius:8px;padding:4px">
+            <sc-for list="{{ change.ticketOpts }}" as="tk" hint-placeholder-count="6">
+              <div onClick="{{ tk.onToggle }}" style="display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:5px;cursor:pointer;background:{{ tk.bg }}" style-hover="background:#16181c">
+                <div style="width:13px;height:13px;border-radius:3px;border:1.5px solid {{ tk.boxBorder }};background:{{ tk.boxBg }};flex:0 0 auto;display:flex;align-items:center;justify-content:center">
+                  <sc-if value="{{ tk.on }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#0c0d0f" stroke-width="3.4"><path d="M5 12.5 10 17l9-10"></path></svg></sc-if>
+                </div>
+                <span style="font-family:'Source Sans 3',sans-serif;font-size:11px;color:{{ tk.codeColor }};letter-spacing:.3px;min-width:30px">{{ tk.code }}</span>
+                <span style="font-size:11px;color:{{ tk.nameColor }};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tk.desc }}</span>
+                <span style="font-size:8.5px;letter-spacing:.4px;color:#5f6773;background:#101215;border:1px solid #1b1e22;border-radius:3px;padding:1px 4px;flex:0 0 auto">{{ tk.tag }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ change.basketEmpty }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:9.5px;color:#c17f6e;margin-top:4px">Select at least one ticket type — Run impact stays disabled until you do.</div>
+          </sc-if>
+        </div>
+
+        <!-- delta mode + value -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:10.5px;color:#7b8390;margin-bottom:6px">Delta mode</div>
+          <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px;margin-bottom:8px">
+            <sc-for list="{{ change.deltaModeOpts }}" as="dm" hint-placeholder-count="2">
+              <div onClick="{{ dm.onPick }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:11px;color:{{ dm.color }};font-family:'Source Sans 3',sans-serif">
+                <sc-if value="{{ dm.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+                <span style="position:relative">{{ dm.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+            <div style="font-size:10.5px;color:#7b8390">{{ change.deltaLabel }}</div>
+            <div style="font-family:'Source Sans 3',sans-serif;font-size:13px;color:#f0f2f6;font-weight:600">{{ change.deltaStr }}</div>
+          </div>
+          <input type="number" min="{{ change.deltaMin }}" max="{{ change.deltaMax }}" step="{{ change.deltaStep }}" value="{{ change.deltaValue }}" onInput="{{ change.onDelta }}" style="width:100%;box-sizing:border-box;background:#090a0c;border:1px solid #191b20;border-radius:6px;padding:7px 9px;color:#f0f2f6;font-family:'Source Sans 3',sans-serif;font-size:12.5px" />
+        </div>
+
+        <!-- scope selector (shared with apply_cap) -->
+        <div style="margin-bottom:2px">
+          <div style="font-size:10.5px;color:#7b8390;margin-bottom:6px">Scope</div>
+          <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+            <sc-for list="{{ change.capScopeOpts }}" as="cs" hint-placeholder-count="3">
+              <div onClick="{{ cs.onPick }}" title="{{ cs.title }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:{{ cs.cursor }};font-size:11px;color:{{ cs.color }};font-family:'Source Sans 3',sans-serif;opacity:{{ cs.opacity }}">
+                <sc-if value="{{ cs.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+                <span style="position:relative">{{ cs.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- − WITHDRAW PRODUCT form -->
+        <sc-if value="{{ ui.isWithdraw }}" hint-placeholder-val="{{ false }}">
+        <!-- ticket single-select -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <div style="font-size:10.5px;color:#7b8390">Ticket type to withdraw</div>
+            <div style="font-size:9.5px;color:#5f6773">{{ change.withdrawSummary }}</div>
+          </div>
+          <div style="max-height:170px;overflow-y:auto;background:#090a0c;border:1px solid #191b20;border-radius:8px;padding:4px">
+            <sc-for list="{{ change.withdrawOpts }}" as="tk" hint-placeholder-count="6">
+              <div onClick="{{ tk.onPick }}" style="display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:5px;cursor:pointer;background:{{ tk.bg }}" style-hover="background:#16181c">
+                <div style="width:11px;height:11px;border-radius:50%;border:1.5px solid {{ tk.dotBorder }};background:{{ tk.dotBg }};flex:0 0 auto"></div>
+                <span style="font-family:'Source Sans 3',sans-serif;font-size:11px;color:{{ tk.codeColor }};letter-spacing:.3px;min-width:30px">{{ tk.code }}</span>
+                <span style="font-size:11px;color:{{ tk.nameColor }};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tk.desc }}</span>
+                <span style="font-size:8.5px;letter-spacing:.4px;color:#5f6773;background:#101215;border:1px solid #1b1e22;border-radius:3px;padding:1px 4px;flex:0 0 auto">{{ tk.tag }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- scope selector (shared with apply_cap / adjust_fares) -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:10.5px;color:#7b8390;margin-bottom:6px">Scope</div>
+          <div style="display:flex;gap:3px;padding:3px;background:#090a0c;border:1px solid #191b20;border-radius:8px">
+            <sc-for list="{{ change.capScopeOpts }}" as="cs" hint-placeholder-count="3">
+              <div onClick="{{ cs.onPick }}" title="{{ cs.title }}" style="flex:1;position:relative;text-align:center;padding:6px 2px;border-radius:6px;cursor:{{ cs.cursor }};font-size:11px;color:{{ cs.color }};font-family:'Source Sans 3',sans-serif;opacity:{{ cs.opacity }}">
+                <sc-if value="{{ cs.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#1b1e24;border:1px solid #2a2e34;border-radius:6px"></div></sc-if>
+                <span style="position:relative">{{ cs.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- confirmation checkbox -->
+        <div onClick="{{ change.onConfirm }}" style="display:flex;gap:9px;padding:10px 11px;background:#090a0c;border:1px solid {{ change.confirmBorder }};border-radius:8px;cursor:pointer" style-hover="border-color:#2a2e34">
+          <div style="width:15px;height:15px;border-radius:4px;border:1.5px solid {{ change.confirmBoxBorder }};background:{{ change.confirmBoxBg }};flex:0 0 auto;display:flex;align-items:center;justify-content:center;margin-top:1px">
+            <sc-if value="{{ change.confirmOn }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#0c0d0f" stroke-width="3.4"><path d="M5 12.5 10 17l9-10"></path></svg></sc-if>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:11.5px;color:{{ change.confirmTxtColor }};line-height:1.4">I understand this removes the fare — passengers on affected flows will have to pay the next-cheapest valid ticket.</div>
+            <sc-if value="{{ change.confirmHint }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:9.5px;color:#c17f6e;margin-top:4px">Run impact stays disabled until you tick this box.</div>
+            </sc-if>
+          </div>
+        </div>
+        </sc-if>
               </div>
               <sc-if value="{{ tb.draftHasError }}" hint-placeholder-val="{{ false }}">
                 <div style="margin:0 16px 10px;background:#1a1210;border:1px solid #3c2620;border-radius:8px;padding:9px 11px">
@@ -718,6 +885,26 @@
               <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:{{ l.color }}"></div><span style="font-size:9.5px;color:#7b8390">{{ l.label }}</span></div>
             </sc-for>
           </div>
+
+          <!-- corridor strip (visual-copilot session): calling order + split badges -->
+          <sc-if value="{{ strip.show }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:4;max-width:58%;background:rgba(12,13,15,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid #1f2228;border-radius:9px;padding:8px 12px 7px">
+              <div style="display:flex;align-items:flex-start;overflow-x:auto;scrollbar-width:none">
+                <sc-for list="{{ strip.stations }}" as="cs" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:flex-start;flex:0 0 auto">
+                    <div onClick="{{ cs.onClick }}" title="{{ cs.crs }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:0 2px">
+                      <div style="width:{{ cs.dotSize }}px;height:{{ cs.dotSize }}px;border-radius:50%;background:{{ cs.dotColor }};margin-top:{{ cs.dotPad }}px"></div>
+                      <div style="font-size:9px;color:{{ cs.nameColor }};font-weight:{{ cs.weight }};white-space:nowrap">{{ cs.label }}</div>
+                      <sc-if value="{{ cs.hasSplit }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size:8.5px;color:#c2a15c;border:1px solid #3a3324;background:#191713;border-radius:8px;padding:1px 6px;white-space:nowrap">{{ cs.splitSave }}</div>
+                      </sc-if>
+                    </div>
+                    <sc-if value="{{ cs.showLine }}" hint-placeholder-val="{{ true }}"><div style="width:20px;height:1px;background:#2a2e34;margin:0 1px;flex:0 0 auto;margin-top:3px"></div></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
 
           <!-- expanded-map chrome: slim glass panels over the map edges -->
           <sc-if value="{{ mapFull.show }}" hint-placeholder-val="{{ false }}">
@@ -1404,7 +1591,7 @@
             <!-- steps -->
             <div ref="{{ refs.provList }}" style="position:relative">
               <sc-for list="{{ prov.steps }}" as="s" hint-placeholder-count="5">
-                <div onClick="{{ s.onClick }}" style="position:relative;display:flex;gap:11px;cursor:pointer;padding-bottom:14px">
+                <div onClick="{{ s.onClick }}" onMouseEnter="{{ s.onEnter }}" onMouseLeave="{{ s.onLeave }}" style="position:relative;display:flex;gap:11px;cursor:pointer;padding-bottom:14px">
                   <!-- rail + dot -->
                   <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:14px">
                     <div style="width:12px;height:12px;border-radius:50%;border:2px solid {{ s.dotColor }};background:{{ s.dotFill }};z-index:2"></div>
@@ -1653,6 +1840,29 @@
               </div>
             </sc-for>
           </div>
+          <sc-if value="{{ report.exhibit.show }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:12px">BLAST RADIUS</div>
+            <div style="background:#ffffff;border:1px solid #edece7;border-radius:13px;padding:12px;margin-bottom:26px">
+              <svg viewBox="{{ report.exhibit.viewBox }}" style="width:100%;height:auto;display:block;max-height:340px">
+                <path d="{{ report.exhibit.outline }}" fill="#f4f4f0" stroke="#e2e1db" stroke-width="{{ report.exhibit.outlineW }}" stroke-linejoin="round"></path>
+                <sc-if value="{{ report.exhibit.hasSpine }}" hint-placeholder-val="{{ true }}">
+                  <path d="{{ report.exhibit.spineD }}" fill="none" stroke="#3a3a3c" stroke-width="{{ report.exhibit.spineW }}" stroke-linecap="round" stroke-linejoin="round"></path>
+                </sc-if>
+                <sc-for list="{{ report.exhibit.dots }}" as="d0" hint-placeholder-count="10">
+                  <circle cx="{{ d0.cx }}" cy="{{ d0.cy }}" r="{{ d0.r }}" fill="{{ d0.fill }}" stroke="#ffffff" stroke-width="{{ d0.sw }}"></circle>
+                </sc-for>
+                <sc-for list="{{ report.exhibit.labels }}" as="lb" hint-placeholder-count="2">
+                  <text x="{{ lb.x }}" y="{{ lb.y }}" text-anchor="{{ lb.anchor }}" font-size="{{ lb.fs }}" font-weight="600" fill="#3a3a3c" font-family="'Source Sans 3',sans-serif">{{ lb.text }}</text>
+                </sc-for>
+              </svg>
+              <div style="display:flex;gap:14px;margin-top:9px;flex-wrap:wrap">
+                <sc-for list="{{ report.exhibit.legend }}" as="lg" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:5px"><div style="width:7px;height:7px;border-radius:50%;background:{{ lg.color }}"></div><span style="font-size:10.5px;color:#77776f">{{ lg.label }}</span></div>
+                </sc-for>
+              </div>
+              <div style="font-size:10.5px;color:#a2a29c;margin-top:6px">{{ report.exhibit.caption }}</div>
+            </div>
+          </sc-if>
           <div style="font-size:11px;letter-spacing:.4px;color:#a2a29c;margin-bottom:12px">REVENUE {{ report.revLabel }}</div>
           <div style="background:#ffffff;border:1px solid #edece7;border-radius:13px;padding:18px;margin-bottom:26px">
             <div style="display:flex;align-items:baseline;gap:10px"><div style="font-size:30px;font-weight:600;color:#1c1c1e;letter-spacing:-.5px">{{ report.revStr }}</div><div style="font-size:10px;color:#9a7b32;border:1px solid #e0d3ad;border-radius:5px;padding:1px 6px">EST</div></div>
@@ -1723,6 +1933,60 @@
     </div>
   </sc-if>
 
+  <!-- ============ COPILOT DRAWER (visual-copilot session; flagged) ============ -->
+  <sc-if value="{{ copilot.on }}" hint-placeholder-val="{{ false }}">
+    <sc-if value="{{ copilot.open }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Copilot" style="position:fixed;top:52px;right:0;bottom:0;width:330px;z-index:45;display:flex;flex-direction:column;background:#0c0d0f;border-left:1px solid #2a2e34;box-shadow:-18px 0 40px rgba(0,0,0,.45)">
+        <div style="height:40px;flex:0 0 40px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid #1a1c20">
+          <div style="width:6px;height:6px;border-radius:50%;background:{{ copilot.dotColor }}"></div>
+          <div style="font-size:11px;letter-spacing:1.2px;font-weight:600;color:#d8dde4">COPILOT</div>
+          <div style="font-size:9.5px;color:#626b76;letter-spacing:.4px">{{ copilot.statusLabel }}</div>
+          <div style="flex:1"></div>
+          <div onClick="{{ copilot.onToggle }}" style="cursor:pointer;color:#626b76;font-size:15px;line-height:1;padding:2px 4px" style-hover="color:#d8dde4">×</div>
+        </div>
+        <div id="cp-msgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px">
+          <sc-if value="{{ copilot.empty }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:11px;color:#626b76;line-height:1.55;padding:2px 2px 4px">Ask the fares engine in plain English. Every number in an answer comes from the deterministic resolver — nothing is invented.</div>
+          </sc-if>
+          <sc-if value="{{ copilot.hasMsgs }}" hint-placeholder-val="{{ false }}">
+            <sc-for list="{{ copilot.msgs }}" as="m" hint-placeholder-count="2">
+              <div style="align-self:{{ m.align }};max-width:88%">
+                <sc-if value="{{ m.intent }}" hint-placeholder-val="">
+                  <div style="font-size:8.5px;letter-spacing:.8px;color:#626b76;margin:0 2px 3px;text-transform:uppercase">{{ m.intent }}</div>
+                </sc-if>
+                <div style="background:{{ m.bg }};border:1px solid {{ m.border }};border-radius:6px;padding:7px 9px;font-size:11.5px;line-height:1.5;color:{{ m.color }};white-space:pre-wrap;word-break:break-word;font-family:'Source Sans 3',sans-serif">{{ m.text }}</div>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ copilot.showChips }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ copilot.chips }}" as="ch" hint-placeholder-count="5">
+                <div onClick="{{ ch.onAsk }}" style="cursor:pointer;font-size:10.5px;color:#98a1ae;border:1px solid #2a2e34;border-radius:12px;padding:4px 10px;background:#101215;user-select:none" style-hover="color:#d8dde4;border-color:#8a93a3">{{ ch.t }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ copilot.busy }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:7px;color:#626b76;font-size:10.5px"><div style="width:11px;height:11px;border:2px solid #1b1e22;border-top-color:#8a93a3;border-radius:50%;animation:rfe-spin .7s linear infinite"></div>querying engine…</div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ copilot.offline }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:0 0 auto;border-top:1px solid #1a1c20;padding:10px 12px;display:flex;align-items:center;gap:8px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#c17f6e"></div>
+            <div style="font-size:11px;color:#c17f6e">copilot offline</div>
+            <div style="flex:1"></div>
+            <div onClick="{{ copilot.onRetry }}" style="cursor:pointer;font-size:10.5px;color:#98a1ae;border:1px solid #2a2e34;border-radius:4px;padding:3px 9px" style-hover="color:#d8dde4;border-color:#8a93a3">Retry</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ copilot.online }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:0 0 auto;border-top:1px solid #1a1c20;padding:10px 12px;display:flex;gap:8px">
+            <input id="cp-input" onKeyDown="{{ copilot.onKey }}" placeholder="Ask the fares engine…" style="flex:1;min-width:0;background:#101215;border:1px solid #2a2e34;border-radius:5px;color:#d8dde4;font-size:11.5px;padding:7px 9px;outline:none;font-family:'Source Sans 3',sans-serif" style-focus="border-color:#8a93a3" />
+            <div onClick="{{ copilot.onSend }}" style="cursor:pointer;display:flex;align-items:center;justify-content:center;border:1px solid #2a2e34;border-radius:5px;padding:0 12px;font-size:11px;color:#98a1ae;background:#16181c;user-select:none" style-hover="color:#d8dde4;border-color:#8a93a3">Ask</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </sc-if>
+
   <template id="__bundler_thumbnail">
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#0c0d0f"/><circle cx="50" cy="38" r="8" fill="none" stroke="#8a93a3" stroke-width="2.5"/><line x1="50" y1="46" x2="50" y2="70" stroke="#6f9e86" stroke-width="2.5"/><circle cx="50" cy="70" r="3" fill="#c2a15c"/></svg>
   </template>
@@ -1738,7 +2002,13 @@ class Component extends DCLogic {
       ok:'#6f9e86', warn:'#c2a15c', bad:'#c17f6e', viol:'#9a86b4', info:'#8a93a3', down:'#6f9e86', up:'#c2a15c' };
     this.state = {
       ready:false, engineError:null, bootStatus:null,
-      params:{ discountPct:34, peakOn:false, rounding:'near10', cluster:'national', minFloorPct:55, railcardName:'Student Railcard', changeType:'add' },
+      params:{ discountPct:34, peakOn:false, rounding:'near10', cluster:'national', minFloorPct:55, railcardName:'Student Railcard', changeType:'add_railcard',
+        // apply_cap fields — cap % (signed), scope selector, scheme when 'scheme'.
+        capPct:0.0, capScope:'corridor',
+        // adjust_fares fields — ticket basket, delta mode + value.
+        tickets:[], deltaMode:'pct', deltaValue:0.0,
+        // withdraw_product fields — single ticket + confirmation toggle.
+        withdrawTicket:null, withdrawConfirmed:false },
       includes:{ compliance:true, splits:true, performance:true, revenue:true, validity:true, demand:true, carbon:false },
       perfAvailable:true, feedMode:'live', feedFetchedSec:2,
       disp:{ contradiction:null }, queueDisp:{},
@@ -1765,6 +2035,7 @@ class Component extends DCLogic {
       // via selectRailcard(prevActiveRailcard).
       newRailcardDraft:null,
       mapFull:false, stationDetail:null,
+      copilotOpen:false, copilotBusy:false, copilotOffline:false, copilotMsgs:[],
       // Guided flow: ① scope → ② author → ③ review → ④ approve.
       // scopeKind/selToc feed buildChangeRequest via fare-engine's _scopeFromRoot().
       stage:'scope', scopeKind:'corridor', selToc:null,
@@ -1772,6 +2043,10 @@ class Component extends DCLogic {
       // pre-warms _impact, so _impact alone cannot distinguish the front door.
       hasRun:false, approvedCardId:null
     };
+    // Copilot is always available (project rule: no localStorage in the
+    // frontend). The drawer stays closed until the analyst opens it, so
+    // off-screen it is zero DOM beyond the topbar toggle and zero requests.
+    this._copilotOn = true;
     // Camera lives OUTSIDE React state: wheel/drag write the SVG viewBox
     // imperatively (zero re-renders per mousemove); templates read it via
     // mapViewBox() so full renders stay consistent.
@@ -1809,12 +2084,46 @@ class Component extends DCLogic {
       else if (this.state.mapFull) this.toggleMapFull();
     };
     window.addEventListener('keydown', this._onKey);
+    // meridian:* command bus (visual-copilot session) — thin adapters over
+    // EXISTING methods, so the copilot (or a console dispatch) drives the
+    // cockpit through the same code paths as a click. No new behavior here.
+    this._busHighlight = null;
+    const TABS = ['blast','compliance','anomalies','splits','performance','revenue','demand','carbon'];
+    const bus = {
+      'meridian:zoomToCorridor': (d) => { if (d.corridorId) this.flyToCorridor(d.corridorId); },
+      'meridian:zoomToStations': (d) => this.zoomToNlcs(d.nlcs || []),
+      'meridian:highlightStations': (d) => this.setBusHighlight(d.nlcs || [], d.pulse !== false),
+      'meridian:openTab': (d) => { if (TABS.indexOf(d.tab) >= 0) this.setState({ activeAnalysis:d.tab }); },
+      'meridian:runImpact': (d) => {
+        if (d.changeParams) this.setState((s) => ({ params:Object.assign({}, s.params, d.changeParams) }), () => this.runImpact());
+        else this.runImpact();
+      },
+      'meridian:openReport': () => this.openReport(),
+      'meridian:toggleModule': (d) => {
+        if (d.module && this.state.includes[d.module] !== undefined
+            && typeof d.on === 'boolean' && this.state.includes[d.module] !== d.on) this.setInclude(d.module);
+      },
+      'meridian:setStep': () => {} // flow-state is the IA session's; accept + ignore
+    };
+    this._busListeners = Object.keys(bus).map((k) => {
+      const h = (e) => { try { bus[k]((e && e.detail) || {}); } catch (err) { console.warn('bus handler failed', k, err); } };
+      window.addEventListener(k, h);
+      return [k, h];
+    });
     this._feedTimer = setInterval(() => this.tickFeed(), 2600);
     this._freshTimer = setInterval(() => { this.setState((s) => ({ feedFetchedSec: s.feedMode === 'live' ? (1 + Math.floor(Math.random()*3)) : s.feedFetchedSec + 3 })); }, 3000);
   }
-  componentWillUnmount() { clearInterval(this._feedTimer); clearInterval(this._freshTimer); clearTimeout(this._rt); if (this._onResize) window.removeEventListener('resize', this._onResize); if (this._onKey) window.removeEventListener('keydown', this._onKey); if (this._es) { this._es.close(); this._es = null; } }
+  componentWillUnmount() { clearInterval(this._feedTimer); clearInterval(this._freshTimer); clearTimeout(this._rt); clearTimeout(this._busHlTimer); if (this._onResize) window.removeEventListener('resize', this._onResize); if (this._onKey) window.removeEventListener('keydown', this._onKey); if (this._busListeners) { this._busListeners.forEach(([k, h]) => window.removeEventListener(k, h)); this._busListeners = null; } if (this._es) { this._es.close(); this._es = null; } }
   componentDidUpdate() {
-    if (!this._impact) return;
+    // Copilot drawer: keep the newest message in view (before the _impact
+    // early-return — the drawer works pre-first-run too).
+    const nMsgs = this.state.copilotMsgs.length;
+    if (nMsgs !== this._lastCopilotMsgs) {
+      this._lastCopilotMsgs = nMsgs;
+      const box = document.getElementById('cp-msgs');
+      if (box) box.scrollTop = box.scrollHeight;
+    }
+    if (!this._dispImpact()) return;
     if (this.state.resultsCurrent && this.state.animEpoch !== this._lastAnimEpoch) {
       this._lastAnimEpoch = this.state.animEpoch;
       const prev = this._prevImpact, cur = this._impact;
@@ -1842,6 +2151,12 @@ class Component extends DCLogic {
         this.animateList('verdictStrip', 40, 240);
         this.flyTo({ z:1, x:0, y:0 }, 650);
         this.fireRadialWave();
+        // Money shot keeps the national frame — record the affected bbox as
+        // seen so slider recomputes on the same geography don't yank the camera.
+        this.zoomToAffected(0);
+      } else {
+        // Results landed with new geography: frame the affected set (1a).
+        this.zoomToAffected(750);
       }
     }
     if (this.state.selFlow !== this._lastSelFlow || this.state.animEpoch !== this._lastFareEpoch) {
@@ -1970,7 +2285,7 @@ class Component extends DCLogic {
     const run = () => {
       try {
         this._prevImpact = this._impact;
-        const params = Object.assign({}, this.state.params, { withdraw: this.state.params.changeType === 'withdraw' });
+        const params = Object.assign({}, this.state.params, { withdraw: this.state.params.changeType === 'withdraw_product' });
         this._impact = window.RFE.computeImpact({ params, includes: this.effIncludes(), disp: this.state.disp });
         // The engine is sync-surface/async-underneath: computeImpact returns the
         // last CACHED result while the real fetch may still be in flight. Only
@@ -2015,6 +2330,13 @@ class Component extends DCLogic {
     if (id === 'approve') patch.activeRight = 'queue';
     this.setState(patch, () => { if (id === 'review') this.recompute(true); });
   }
+  // Single verdict source (split-brain fix): the boot recompute warms
+  // this._impact for instant first-run, but NOTHING renders from it until
+  // the analyst explicitly runs impact (S.hasRun). Builders read impact
+  // through this gate so a dimmed panel can never show numbers the verdict
+  // strip denies exist.
+  _dispImpact() { return (this._impact && this.state.hasRun) ? this._impact : null; }
+
   buildStages() {
     const S = this.state;
     const defs = [
@@ -2025,7 +2347,7 @@ class Component extends DCLogic {
     ];
     const idx = defs.findIndex((d) => d.id === S.stage);
     // Before the first run the stepper IS the narrative — let it breathe.
-    const empty = !(this._impact && S.hasRun);
+    const empty = !this._dispImpact();
     return defs.map((d, i) => {
       const active = i === idx, done = i < idx;
       return { label:d.label, n: done ? '✓' : d.n, showArrow: i < defs.length - 1,
@@ -2078,7 +2400,7 @@ class Component extends DCLogic {
      click jumps to the analysis tab where the number originates, so the
      path from headline to provenance is one click, not tab-hunting. */
   buildBasisChips() {
-    const C = this.C, imp = this._impact, RFE = window.RFE;
+    const C = this.C, imp = this._dispImpact(), RFE = window.RFE;
     if (!imp || !imp.revenue || !RFE) return [];
     const rev = imp.revenue, dem = imp.demand, perf = imp.performance;
     const goTab = (tab) => () => this.setState({ activeAnalysis: tab });
@@ -2189,7 +2511,7 @@ class Component extends DCLogic {
      but for the number itself — so the moment you hover you see what the sum
      represents, without having to open a tab. */
   buildHeadlineTip() {
-    const imp = this._impact, RFE = window.RFE;
+    const imp = this._dispImpact(), RFE = window.RFE;
     if (!imp || !imp.revenue || !RFE) return '';
     const rev = imp.revenue;
     if (rev.basis === 'odm_revenue') {
@@ -2208,8 +2530,8 @@ class Component extends DCLogic {
      Every number reads the adapter's single verdict object, so the strip can
      never disagree with the aggregate panel, tabs, or report modal. */
   buildVerdictBar() {
-    const S = this.state, imp = this._impact, RFE = window.RFE, C = this.C;
-    const ready = !!(RFE && imp && S.hasRun);
+    const S = this.state, imp = this._dispImpact(), RFE = window.RFE, C = this.C;
+    const ready = !!(RFE && imp);
     if (!ready) {
       const inAuthor = S.stage === 'author';
       return { h:'46px', empty:true, ready:false, changeLine:'', scopeLine:'', faresN:'0', chips:[],
@@ -2221,8 +2543,8 @@ class Component extends DCLogic {
         ctaGo: inAuthor ? (() => this.runImpact()) : (() => this.setStage('author')) };
     }
     const v = imp.verdict, rev = imp.revenue, p = S.params;
-    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : (p.changeType === 'raise' ? 'Raise' : 'Add'));
-    const changeLine = p.changeType === 'raise'
+    const verb = p.changeType === 'withdraw_product' ? 'Withdraw' : (p.changeType === 'adjust_fares' ? 'Adjust' : (p.changeType === 'raise_price' ? 'Raise' : 'Add'));
+    const changeLine = p.changeType === 'raise_price'
       ? 'Raise walk-up fares · +' + p.discountPct + '% ' + (p.peakOn ? 'peak-valid' : 'off-peak')
       : verb + ' ' + p.railcardName + ' · ' + p.discountPct + '% ' + (p.peakOn ? 'peak-valid' : 'off-peak');
     const cor = (RFE.CORRIDORS || []).find((c) => c.id === S.selCorridor);
@@ -2294,12 +2616,12 @@ class Component extends DCLogic {
   // Read-only card in the left rail at review/approve — the change under review.
   buildChangeSummary() {
     const S = this.state, p = S.params, RFE = window.RFE;
-    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : (p.changeType === 'raise' ? 'Raise fares' : 'Add'));
+    const verb = p.changeType === 'withdraw_product' ? 'Withdraw' : (p.changeType === 'adjust_fares' ? 'Adjust' : (p.changeType === 'raise_price' ? 'Raise fares' : 'Add'));
     const cor = ((RFE && RFE.CORRIDORS) || []).find((c) => c.id === S.selCorridor);
     return {
       rows: [
-        { k:'change', v: p.changeType === 'raise' ? 'Raise fares · +' + p.discountPct + '%' : verb + ' · ' + p.railcardName },
-        { k:'discount', v: (p.changeType === 'raise' ? '+' : '') + p.discountPct + '%' },
+        { k:'change', v: p.changeType === 'raise_price' ? 'Raise fares · +' + p.discountPct + '%' : verb + ' · ' + p.railcardName },
+        { k:'discount', v: (p.changeType === 'raise_price' ? '+' : '') + p.discountPct + '%' },
         { k:'validity', v: p.peakOn ? 'peak-valid' : 'off-peak only' },
         { k:'rounding', v: (RFE && RFE.roundingLabel) ? RFE.roundingLabel(p.rounding) : p.rounding },
         { k:'scheme area', v: (RFE && RFE.CLUSTER_LABEL && RFE.CLUSTER_LABEL[p.cluster]) || p.cluster },
@@ -2636,13 +2958,82 @@ class Component extends DCLogic {
   }
   flyToCorridor(id) {
     const pts = this.corridorPoints(id); if (!pts.length) return;
+    this.flyToPoints(pts, 22, 700);
+  }
+  flyToPoints(pts, pad, ms) {
+    if (!pts.length) return;
     let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
     pts.forEach((p) => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
     const B = this._camBase;
-    const pad = 22, w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
+    const w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
     const z = Math.max(B.zMin, Math.min(B.zMax, Math.min(B.w / w, B.h / h)));
-    this.flyTo({ z, x:(minX + maxX) / 2 - B.cx, y:(minY + maxY) / 2 - B.cy }, 700);
+    this.flyTo({ z, x:(minX + maxX) / 2 - B.cx, y:(minY + maxY) / 2 - B.cy }, ms || 700);
   }
+  /* ---- visual-copilot session: zoom-to-fit + bus targets ---- */
+  affectedPoints() {
+    const RFE = window.RFE, imp = this._dispImpact();
+    if (!RFE || !imp || !imp.stationStats) return [];
+    return Object.keys(imp.stationStats).map((crs) => RFE.ST[crs]).filter((s) => s && s.x != null);
+  }
+  // Frame the affected-station bbox when a NEW geography lands. Keyed on the
+  // bbox itself, so slider recomputes that reshape prices (not geography)
+  // never move the camera; ms=0 records the key without flying.
+  zoomToAffected(ms) {
+    if (!this.state.resultsCurrent) return;
+    const pts = this.affectedPoints(); if (pts.length < 2) return;
+    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    pts.forEach((p) => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+    const key = [minX, maxX, minY, maxY].map((v) => v.toFixed(1)).join('|') + ':' + pts.length;
+    if (key === this._zoomedImpactKey) return;
+    this._zoomedImpactKey = key;
+    if (ms) this.flyToPoints(pts, 26, ms);
+  }
+  zoomToNlcs(nlcs) {
+    const RFE = window.RFE; if (!RFE || !RFE.stationByNlc) return;
+    const pts = (nlcs || []).map((n) => RFE.stationByNlc(n)).filter((s) => s && s.x != null);
+    if (pts.length) this.flyToPoints(pts, 26, 750);
+  }
+  setBusHighlight(nlcs, pulse) {
+    const RFE = window.RFE; if (!RFE || !RFE.stationByNlc) return;
+    const set = {};
+    (nlcs || []).forEach((n) => { const s = RFE.stationByNlc(n); if (s && s.crs) set[s.crs] = true; });
+    this._busHighlight = Object.keys(set).length ? { set, pulse:!!pulse } : null;
+    clearTimeout(this._busHlTimer);
+    if (this._busHighlight) this._busHlTimer = setTimeout(() => { this._busHighlight = null; this.forceUpdate(); }, 6000);
+    this.forceUpdate();
+  }
+
+  /* ---------------- copilot drawer (visual-copilot session) ---------------- */
+  copilotToggle() { if (this._copilotOn) this.setState((s) => ({ copilotOpen:!s.copilotOpen })); }
+  copilotAsk(text) {
+    const q = (text || '').trim();
+    if (!q || !this._copilotOn || this.state.copilotBusy) return;
+    this.setState((s) => ({ copilotBusy:true, copilotMsgs:s.copilotMsgs.concat([{ role:'user', text:q }]) }));
+    window.RFE_API.copilotQuery({ text:q, context:{ corridor_id:this.state.selCorridor } })
+      .then((r) => {
+        this.setState((s) => ({ copilotBusy:false, copilotOffline:false,
+          copilotMsgs:s.copilotMsgs.concat([{ role:'copilot', text:r.answer_text || '', intent:r.intent || '' }]) }));
+        // Drive the cockpit through the same meridian:* bus a console
+        // dispatch would use, staggered so each move is legible.
+        (r.ui_commands || []).forEach((c, i) => {
+          setTimeout(() => {
+            try { window.dispatchEvent(new CustomEvent(c.event, { detail:c.payload || {} })); }
+            catch (e) { console.warn('copilot ui_command failed', c, e); }
+          }, 300 * (i + 1));
+        });
+      })
+      .catch((err) => {
+        if (err && err.name === 'AbortError') return;
+        this.setState({ copilotBusy:false, copilotOffline:true });
+      });
+  }
+  copilotSend() {
+    const el = document.getElementById('cp-input'); if (!el) return;
+    const q = el.value; el.value = '';
+    this.copilotAsk(q);
+  }
+  copilotKey(e) { if (e && e.key === 'Enter') this.copilotSend(); }
+  copilotRetry() { this.setState({ copilotOffline:false }); }
   // One expanding radial ring from the corridor centroid, appended
   // imperatively (React never learns about it) and removed on animation end.
   fireRadialWave() {
@@ -2673,21 +3064,28 @@ class Component extends DCLogic {
   /* ---- product selector + new-railcard wizard ---- */
   toggleProductMenu() { this.setState((s) => ({ productMenuOpen: !s.productMenuOpen })); }
   selectRailcard(id) { const r = this.RAILCARDS.find((x) => x.id === id); if (!r) return;
-    this.setState((s) => ({ activeRailcard:id, productMenuOpen:false, mainCardId:(r.cardId || null), params:Object.assign({}, s.params, { railcardName:r.name, railcardCode:(r.proposalCode || null), discountPct:r.discountPct, peakOn:r.peakOn, cluster:r.cluster, minFloorPct:r.minFloorPct, rounding:r.rounding, changeType:'add' }) }), () => this.recompute(true)); }
-  setChangeTypeAction(t) {
+    this.setState((s) => ({ activeRailcard:id, productMenuOpen:false, mainCardId:(r.cardId || null), params:Object.assign({}, s.params, { railcardName:r.name, railcardCode:(r.proposalCode || null), discountPct:r.discountPct, peakOn:r.peakOn, cluster:r.cluster, minFloorPct:r.minFloorPct, rounding:r.rounding, changeType:'add_railcard' }) }), () => this.recompute(true)); }
+  /* Author-step change-type tile selection.
+   *   'add_railcard'    - existing synthetic-railcard flow (default, unchanged).
+   *   'apply_cap'       - regulated-fare percentage cap (phase 2).
+   *   'adjust_fares'    - ticket-basket delta (phase 3).
+   *   'withdraw_product'- product suppression + walk-up anomaly (phase 4).
+   * `changeType` is the single source of truth driving both the Author form
+   * layout AND the ChangeRequest payload buildChangeRequest emits. */
+  setChangeType(id) {
+    if (id === this.state.params.changeType) return;
     this.setState({ productMenuOpen:false });
-    if (t === 'withdraw') {
-      // Honest semantics: "withdraw" pulls the STAGED proposal for this
-      // railcard back off the queue (baseline feed fares are never deleted —
-      // there is no withdraw verb in the staging engine, by design).
-      this.setState((s) => ({ mainCardId:null,
-        queueDisp:Object.assign({}, s.queueDisp, { main:'held' }),
-        params:Object.assign({}, s.params, { changeType:'withdraw' }) }));
-      this.pushFeed({ kind:'policy', severity:'warn', source:'STAG',
-        text:'proposal held — withdraw pulls the staged card; baseline fares are immutable' });
-      return;
-    }
-    this.setParam({ changeType:t });
+    this.setParam({ changeType:id });
+  }
+  /* Adjust-fares ticket basket toggle. IDs come from /api/tickets so we
+   * never bake them into the client. Empty basket → Run impact disabled. */
+  toggleTicket(code) {
+    this.setState((s) => {
+      const cur = Array.isArray(s.params.tickets) ? s.params.tickets.slice() : [];
+      const i = cur.indexOf(code);
+      if (i >= 0) cur.splice(i, 1); else cur.push(code);
+      return { params:Object.assign({}, s.params, { tickets:cur }) };
+    }, () => this.recompute());
   }
   /* Inline new-railcard drafting — replaces the old popup wizard.
      The AUTHOR panel (index.html: §421-534) already renders every control
@@ -2742,7 +3140,7 @@ class Component extends DCLogic {
     const p = S.params;
     const cardParams = { railcardName: name, railcardCode: code,
       discountPct: p.discountPct, peakOn: p.peakOn, cluster: p.cluster,
-      minFloorPct: p.minFloorPct, rounding: p.rounding, changeType: 'add' };
+      minFloorPct: p.minFloorPct, rounding: p.rounding, changeType: 'add_railcard' };
     if (!RFE || !RFE.proposeChange) {
       this.setState((s) => ({ newRailcardDraft: Object.assign({}, s.newRailcardDraft,
         { error: 'fare engine offline — cannot propose to staging' }) }));
@@ -2787,11 +3185,11 @@ class Component extends DCLogic {
       notDrafting: !draft,
       // --- normal (dropdown) mode fields ---
       name:S.params.railcardName, subLabel: isNew ? 'new railcard \u00b7 staged' : 'existing product',
-      typeLabel: S.params.changeType === 'withdraw' ? 'Withdrawing' : (S.params.changeType === 'adjust' ? 'Adjusting' : (S.params.changeType === 'raise' ? 'Raising fares' : 'Adding')),
+      typeLabel: S.params.changeType === 'withdraw_product' ? 'Withdrawing' : (S.params.changeType === 'adjust_fares' ? 'Adjusting' : (S.params.changeType === 'raise_price' ? 'Raising fares' : 'Adding')),
       menuOpen:S.productMenuOpen, menuBorder:S.productMenuOpen ? '#2f333a' : '#191b20', chev:S.productMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
       onToggle:() => this.toggleProductMenu(),
       railcards:this.RAILCARDS.map((r) => ({ name:r.name, summary:r.discountPct + '% ' + (r.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + (RFE ? RFE.CLUSTER_LABEL[r.cluster] : ''), isNew:r.kind === 'new', bg: r.id === S.activeRailcard ? '#131519' : 'transparent', dot: r.id === S.activeRailcard ? '#8a93a3' : '#3a4048', onSelect:() => this.selectRailcard(r.id) })),
-      onNew:() => this.startInlineDraft(), onAdjust:() => this.setChangeTypeAction('adjust'), onWithdraw:() => this.setChangeTypeAction('withdraw'),
+      onNew:() => this.startInlineDraft(), onAdjust:() => this.setChangeType('adjust_fares'), onWithdraw:() => this.setChangeType('withdraw_product'),
       // --- inline draft mode fields (used when drafting=true) ---
       draftName: draft ? draft.name : '',
       draftPlaceholder: 'e.g. Student Railcard',
@@ -2816,8 +3214,32 @@ class Component extends DCLogic {
     const draft = S.newRailcardDraft;
     const drafting = !!draft;
     const draftName = drafting ? (draft.name || '').trim() : '';
+    // Run impact is gated per change kind: only the wired kinds emit a real
+    // ChangeRequest. Placeholder kinds show a title tooltip and no-op the click.
+    const kindReady = { add_railcard:true, apply_cap:true, adjust_fares:true, withdraw_product:true };
+    let runReady = !!kindReady[S.params.changeType];
+    let runTitle = 'Run impact';
+    if (!runReady) {
+      runTitle = 'Change type not wired yet in this phase — select "Add product" to run the impact engine.';
+    } else if (S.params.changeType === 'adjust_fares') {
+      const basket = Array.isArray(S.params.tickets) ? S.params.tickets : [];
+      if (basket.length === 0) {
+        runReady = false;
+        runTitle = 'Select at least one ticket type before running the impact.';
+      }
+    } else if (S.params.changeType === 'withdraw_product') {
+      if (!S.params.withdrawTicket) {
+        runReady = false;
+        runTitle = 'Select a ticket type to withdraw before running the impact.';
+      } else if (!S.params.withdrawConfirmed) {
+        runReady = false;
+        runTitle = 'Tick the confirmation box before running the impact.';
+      }
+    }
     return { corridorName: scopeName, flowLabel,
-      onRun:() => this.runImpact(), onReport:() => this.openReport(),
+      onRun:() => { if (runReady) this.runImpact(); }, onReport:() => this.openReport(),
+      runReady, runOpacity: runReady ? '1' : '0.55', runCursor: runReady ? 'pointer' : 'not-allowed',
+      runTitle,
       demoActive: S.env === 'demo', liveActive: S.env === 'live', idle: !S.computing,
       demoColor: S.env === 'demo' ? '#dfe3e9' : '#7b8390', demoWeight: S.env === 'demo' ? 600 : 400,
       liveColor: S.env === 'live' ? '#dfe3e9' : '#7b8390', liveWeight: S.env === 'live' ? 600 : 400,
@@ -2841,15 +3263,16 @@ class Component extends DCLogic {
     const view = lines.slice(0, 40).map((f) => ({ ts:f.ts, text:f.text, tag:this.feedTag(f.kind), color:this.feedColor(f.kind),
       source:f.source || 'RSP', sevColor:this.sevColor(f.severity), lat: f.lat != null ? f.lat + 'ms' : '\u00b7', id:f.id }));
     return { chips, lines:view, paused:S.feedPaused, running: !S.feedPaused, onPause:() => this.toggleFeedPause(),
-      rate: (S.feedMode === 'live' && !S.feedPaused) ? ('~' + (18 + (this._impact ? this._impact.counts.total : 0) % 9) + '/min') : (S.feedPaused ? 'paused' : 'idle'),
+      rate: (S.feedMode === 'live' && !S.feedPaused) ? ('~' + (18 + (this._dispImpact() ? this._dispImpact().counts.total : 0) % 9) + '/min') : (S.feedPaused ? 'paused' : 'idle'),
       count:view.length, empty:view.length === 0 };
   }
   buildReport() {
-    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
-    if (!imp || !RFE) return { ready:false, onClose:() => this.closeReport() };
-    const v = imp.verdict, rev = imp.revenue, withdraw = S.params.changeType === 'withdraw';
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._dispImpact();
+    if (!imp || !RFE) return { ready:false, onClose:() => this.closeReport(), exhibit:{ show:false } };
+    const v = imp.verdict, rev = imp.revenue, withdraw = S.params.changeType === 'withdraw_product';
     return { ready:true, onClose:() => this.closeReport(), onPrint:() => { try { window.print(); } catch (e) {} },
-      title: S.params.changeType === 'raise' ? ('Fare rise \u00b7 +' + S.params.discountPct + '%')
+      exhibit: this.buildReportExhibit(imp),
+      title: S.params.changeType === 'raise_price' ? ('Fare rise \u00b7 +' + S.params.discountPct + '%')
            : (withdraw ? 'Withdraw ' : 'Add ') + S.params.railcardName,
       params:S.params.discountPct + '% ' + (S.params.peakOn ? 'anytime' : 'off-peak') + ' \u00b7 ' + RFE.CLUSTER_LABEL[S.params.cluster] + ' \u00b7 rounding ' + RFE.roundingLabel(S.params.rounding),
       snapshot:RFE.SNAPSHOT.id + ' \u00b7 ' + RFE.SNAPSHOT.date, generated:this.nowStamp(),
@@ -2861,6 +3284,74 @@ class Component extends DCLogic {
       splits:imp.splits.map((s) => ({ od:s.oName + ' \u2192 ' + s.dName, save:RFE.fmtMoney(s.saveP), via:s.midName, vColor: s.verified ? C.ok : C.warn, vLabel: s.verified ? 'verified' : 'unverified' })),
       contradiction: imp.contradictions.length ? { od:imp.contradictions[0].oName + ' \u2194 ' + imp.contradictions[0].dName, resolved: S.disp.contradiction != null, status: S.disp.contradiction ? ('resolved \u00b7 choice ' + S.disp.contradiction + ' staged') : 'unresolved \u2014 decision required' } : null,
       hasBreaches:imp.breaches.length > 0, hasAnoms:imp.anomalies.length > 0, hasSplits:imp.splits.length > 0 };
+  }
+
+  // V3 report exhibit: a frozen blast-radius figure for the printed report —
+  // corridor spine + affected stations over the GB outline. Pure data snapshot
+  // of the live map (same stationStats + calling-point spine), zero interactivity.
+  buildReportExhibit(imp) {
+    const S = this.state, RFE = window.RFE;
+    if (!imp || !RFE || !imp.stationStats) return { show:false };
+    const stats = imp.stationStats;
+    const corridor = (RFE.CORRIDORS || []).find((c) => c.id === S.selCorridor);
+    const callings = (corridor && RFE.corridorCallings) ? RFE.corridorCallings(corridor.id) : null;
+    const corridorSet = (callings && callings.spine && callings.spine.length > 1)
+      ? callings.spine.filter((crs) => RFE.ST[crs])
+      : (corridor ? corridor.path : []);
+    const spineD = corridorSet.length > 1 ? this.smoothPathAlong(corridorSet) : '';
+    // Frame the blast bbox: affected stations + the spine itself.
+    const pts = [];
+    Object.keys(stats).forEach((crs) => { const st = RFE.ST[crs]; if (st && st.x != null) pts.push(st); });
+    corridorSet.forEach((crs) => { const st = RFE.ST[crs]; if (st && st.x != null) pts.push(st); });
+    if (pts.length < 2) return { show:false };
+    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    pts.forEach((p2) => { minX = Math.min(minX, p2.x); maxX = Math.max(maxX, p2.x); minY = Math.min(minY, p2.y); maxY = Math.max(maxY, p2.y); });
+    const padX = Math.max(10, (maxX - minX) * 0.16), padY = Math.max(10, (maxY - minY) * 0.16);
+    minX -= padX; maxX += padX; minY -= padY; maxY += padY;
+    let w = maxX - minX, h = maxY - minY;
+    // Print figure keeps a 3:2-ish frame — widen the short axis, never crop.
+    if (w / h < 1.2) { const w2 = h * 1.2; minX -= (w2 - w) / 2; w = w2; }
+    if (h / w < 0.5) { const h2 = w * 0.5; minY -= (h2 - h) / 2; h = h2; }
+    const unit = w / 320; // stroke/type scale in map units
+    const counts = { clean:0, anomaly:0, breach:0, contradiction:0 };
+    const seen = {};
+    const dots = [];
+    Object.keys(stats).forEach((crs) => {
+      const st = RFE.ST[crs]; if (!st || st.x == null) return;
+      const stat = stats[crs];
+      const bucket = stat.contradiction ? 'contradiction' : stat.breach ? 'breach' : stat.anomaly ? 'anomaly' : 'clean';
+      counts[bucket] += 1; seen[crs] = true;
+      dots.push({ cx:st.x, cy:st.y, r:(2.2 + Math.min(1.8, (stat.affected || 1) * 0.3)) * unit,
+        fill:this.bucketColor(bucket), sw:0.7 * unit });
+    });
+    corridorSet.forEach((crs) => {
+      if (seen[crs]) return;
+      const st = RFE.ST[crs]; if (!st || st.x == null) return;
+      dots.push({ cx:st.x, cy:st.y, r:1.4 * unit, fill:'#b9b9b2', sw:0.5 * unit });
+    });
+    // Endpoint labels only — a print figure, not a gazetteer.
+    const labels = [];
+    if (corridorSet.length > 1) {
+      [corridorSet[0], corridorSet[corridorSet.length - 1]].forEach((crs) => {
+        const st = RFE.ST[crs]; if (!st || st.x == null) return;
+        const left = st.x < minX + w / 2;
+        labels.push({ x: st.x + (left ? -4 : 4) * unit, y: st.y - 3.5 * unit,
+          anchor: left ? 'end' : 'start', fs: 8.5 * unit, text:[st.name] });
+      });
+    }
+    const legend = [
+      { label:counts.clean + ' clean', color:this.bucketColor('clean') },
+      { label:counts.anomaly + ' inversion', color:this.bucketColor('anomaly') },
+      { label:counts.breach + ' breach', color:this.bucketColor('breach') },
+    ];
+    if (counts.contradiction) legend.push({ label:counts.contradiction + ' contradiction', color:this.bucketColor('contradiction') });
+    return { show:true,
+      outline: (window.__RFE_GB && window.__RFE_GB.d) ? window.__RFE_GB.d : '',
+      outlineW: 0.6 * unit,
+      spineD, hasSpine: !!spineD, spineW: 1.1 * unit,
+      dots, labels, legend,
+      viewBox: minX.toFixed(1) + ' ' + minY.toFixed(1) + ' ' + w.toFixed(1) + ' ' + h.toFixed(1),
+      caption: Object.keys(seen).length + ' stations carry affected fares \u00b7 spine follows timetable calling points' };
   }
 
   /* ---------------- feed ---------------- */
@@ -2980,7 +3471,7 @@ class Component extends DCLogic {
     if (S.computing) st = { computing:true, steady:false, label:'Recomputing…', color:C.warn, dotColor:C.warn, ok:false, error:false, detail:'' };
     else if (S.computeError) st = { computing:false, steady:true, label:'Cached result', color:C.bad, dotColor:C.bad, ok:false, error:true, errorText:S.computeError };
     else st = { computing:false, steady:true, label:'Results current', color:C.ok, dotColor:C.ok, ok:true, error:false,
-      detail:'Live-recomputed against ' + (RFE ? RFE.SNAPSHOT.id : '') + ' · ' + (this._impact ? this._impact.counts.total : 0) + ' fares resolved' };
+      detail:'Live-recomputed against ' + (RFE ? RFE.SNAPSHOT.id : '') + ' · ' + (this._dispImpact() ? this._dispImpact().counts.total : 0) + ' fares resolved' };
     st.onRetry = () => this.retry();
     V.status = st;
 
@@ -3005,7 +3496,7 @@ class Component extends DCLogic {
         onPick:() => this.setScopeKind(o.kind) };
     });
     // Single flow-state: everything on screen derives from stage + hasImpact.
-    const hasImpact = !!this._impact && S.hasRun;
+    const hasImpact = !!this._dispImpact();
     V.ui = {
       showScope: S.stage === 'scope' || S.stage === 'author',
       proposeCta: S.stage === 'scope',
@@ -3025,6 +3516,11 @@ class Component extends DCLogic {
       onBackScope:() => this.setStage('scope'),
       // Panel header morphs when the analyst is inline-drafting a new card.
       authorHeader: S.newRailcardDraft ? '\u2461 AUTHOR NEW RAILCARD' : '\u2461 AUTHOR THE CHANGE',
+      // Kind-of-change gates for the Author form swap. IDs match ChangeRequest.kind.
+      isAddRailcard:  S.params.changeType === 'add_railcard' || S.params.changeType === 'raise_price',
+      isApplyCap:     S.params.changeType === 'apply_cap',
+      isAdjustFares:  S.params.changeType === 'adjust_fares',
+      isWithdraw:     S.params.changeType === 'withdraw_product',
     };
     V.verdictBar = this.buildVerdictBar();
     V.summary = this.buildChangeSummary();
@@ -3035,6 +3531,35 @@ class Component extends DCLogic {
         stateColor: r.state === 'approved' ? this.C.ok : this.C.warn,
         onOpen:() => this.setState({ activeRight:'queue' }) })),
     };
+
+    // copilot drawer (visual-copilot session) — flag off ⇒ on:false and the
+    // template's outer sc-if renders nothing (zero DOM trace, zero requests).
+    V.copilot = { on:!!this._copilotOn };
+    if (V.copilot.on) {
+      const cp = V.copilot;
+      cp.open = S.copilotOpen; cp.busy = S.copilotBusy;
+      cp.offline = S.copilotOffline; cp.online = !S.copilotOffline;
+      cp.hasMsgs = S.copilotMsgs.length > 0;
+      cp.empty = S.copilotMsgs.length === 0;
+      cp.showChips = S.copilotMsgs.length === 0 && !S.copilotBusy;
+      cp.dotColor = S.copilotOffline ? C.bad : (S.copilotBusy ? C.warn : C.ok);
+      cp.statusLabel = S.copilotOffline ? 'offline' : (S.copilotBusy ? 'querying engine' : 'deterministic engine');
+      cp.toggleColor = S.copilotOpen ? C.acHi : C.tx1;
+      cp.msgs = S.copilotMsgs.map((m) => {
+        const user = m.role === 'user';
+        return { text:m.text, intent: user ? '' : (m.intent || ''),
+          align: user ? 'flex-end' : 'flex-start',
+          bg: user ? C.bg3 : C.bg1, border: user ? C.line2 : C.line,
+          color: user ? C.tx0 : C.tx1 };
+      });
+      cp.chips = ['fare from Manchester to London Euston', 'why is it that price',
+        'run the impact', 'which fares breach the cap', 'show the splits']
+        .map((t) => ({ t, onAsk:() => this.copilotAsk(t) }));
+      cp.onToggle = () => this.copilotToggle();
+      cp.onSend = () => this.copilotSend();
+      cp.onKey = (e) => this.copilotKey(e);
+      cp.onRetry = () => this.copilotRetry();
+    }
 
     // change builder
     V.change = this.buildChange();
@@ -3057,6 +3582,7 @@ class Component extends DCLogic {
     // map + impact
     V.map = this.buildMap();
     V.mapFull = this.buildMapFull();
+    V.strip = this.buildCorridorStrip();
     V.stationCard = this.buildStationDetail();
     V.impact = this.buildImpact();
 
@@ -3083,12 +3609,12 @@ class Component extends DCLogic {
     V.contra = this.buildContradiction();
 
     // bottom drawer minis — counts off the adapter's single verdict
-    const vd = this._impact ? this._impact.verdict
+    const vd = this._dispImpact() ? this._dispImpact().verdict
       : { cleanRows:0, inversions:0, breaches:0, contradictions:0, splitsOpened:null };
     // splitStr counts listed opportunities (pre-existing + new) to match the
     // splits panel; the strip's "splits opened" chip counts only new ones.
     V.mini = { anomalyStr:String(vd.inversions != null ? vd.inversions : 0),
-      splitStr:String(this._impact ? this._impact.splits.length : 0) };
+      splitStr:String(this._dispImpact() ? this._dispImpact().splits.length : 0) };
     // status drawer: telemetry is ambient — a 34px strip until expanded
     const f0 = S.feed[0];
     V.drawer = {
@@ -3118,11 +3644,125 @@ class Component extends DCLogic {
   buildChange() {
     const C = this.C, p = this.state.params;
     const seg = (opts, cur, on) => opts.map((o) => ({ label:o.label, active:cur===o.id, color:cur===o.id?'#f0f2f6':'#7b8390', weight:cur===o.id?600:400, onPick:()=>on(o.id) }));
+    // Author change-type tiles. IDs equal the ChangeRequest.kind literals so
+    // fare-engine.buildChangeRequest can branch straight on `params.changeType`.
+    const kindDefs = [
+      { id:'add_railcard',    icon:'+', label:'Add product',      title:'Add product (railcard)', badge:'staged' },
+      { id:'raise_price',     icon:'\u2191', label:'Fare rise',   title:'Raise fares by a percentage across the scope', badge:'staged' },
+      { id:'apply_cap',       icon:'%', label:'Apply cap',        title:'Apply percentage cap to regulated fares', badge:'staged' },
+      { id:'adjust_fares',    icon:'\u2195', label:'Adjust fares',title:'Adjust a ticket-type basket by percentage or absolute pence', badge:'staged' },
+      { id:'withdraw_product',icon:'\u2212', label:'Withdraw product', title:'Withdraw a ticket type from a scope', badge:'staged' },
+    ];
+    const typeTiles = kindDefs.map((k) => ({
+      icon:k.icon, label:k.label, title:k.title,
+      active: p.changeType === k.id,
+      color: p.changeType === k.id ? '#f0f2f6' : '#7b8390',
+      weight: p.changeType === k.id ? 600 : 400,
+      onPick:() => this.setChangeType(k.id),
+    }));
+    const currentKind = kindDefs.find((k) => k.id === p.changeType) || kindDefs[0];
+    // apply_cap scope selector: three options. Corridor is fully wired to the
+    // engine's corridor scope; scheme + national are UI affordances that fall
+    // back to corridor scope (backend scheme-area maps aren't in the feed).
+    const capScopeDefs = [
+      { id:'national', label:'National', title:'All regulated fares nationally (coming soon — falls back to Corridor)', disabled:true },
+      { id:'scheme',   label:'Scheme',   title:'Scheme area (WCML/ECML/GWML) — cluster label included in payload; walk stays on Corridor', disabled:false },
+      { id:'corridor', label:'Corridor', title:'Uses the corridor selected in the Scope panel', disabled:false },
+    ];
+    const capScopeOpts = capScopeDefs.map((cs) => ({
+      label:cs.label, title:cs.title,
+      active: p.capScope === cs.id && !cs.disabled,
+      color: p.capScope === cs.id ? '#f0f2f6' : (cs.disabled ? '#454c56' : '#7b8390'),
+      opacity: cs.disabled ? '0.55' : '1',
+      cursor: cs.disabled ? 'not-allowed' : 'pointer',
+      onPick:() => { if (!cs.disabled) this.setParam({ capScope:cs.id }); },
+    }));
+    const capStr = (p.capPct >= 0 ? '+' : '') + Number(p.capPct).toFixed(1) + '%';
+    // Adjust-fares: ticket basket + delta control. Tickets sourced from
+    // /api/tickets (window.RFE.TICKETS) — the same list the resolver reads.
+    const RFEW = window.RFE;
+    const selBasket = Array.isArray(p.tickets) ? p.tickets.slice() : [];
+    const basketSet = new Set(selBasket);
+    const tickets = (RFEW && RFEW.TICKETS) ? RFEW.TICKETS : [];
+    const ticketOpts = tickets.slice(0, 200).map((t) => {
+      const on = basketSet.has(t.code);
+      const cls = t.tkt_class === '1' ? '1st' : (t.tkt_class === '2' ? 'std' : 'oth');
+      const typ = t.tkt_type === 'S' ? 'sgl' : (t.tkt_type === 'R' ? 'ret' : (t.tkt_type === 'N' ? 'ssn' : 'x'));
+      return {
+        code:t.code, desc:(t.description || '').toLowerCase(),
+        tag: cls + '·' + typ,
+        on,
+        bg: on ? '#131519' : 'transparent',
+        boxBorder: on ? C.ac : '#2f333a',
+        boxBg: on ? C.ac : 'transparent',
+        codeColor: on ? '#dfe3e9' : '#98a1ae',
+        nameColor: on ? '#c3cad3' : '#7b8390',
+        onToggle:() => this.toggleTicket(t.code),
+      };
+    });
+    const basketSummary = selBasket.length
+      ? (selBasket.length + ' selected \u00b7 ' + selBasket.slice(0, 4).join(', ') +
+         (selBasket.length > 4 ? '…' : ''))
+      : 'none — select at least one';
+    const deltaModeOpts = [['pct', 'Percentage'], ['pence', 'Absolute (pence)']].map((dm) => ({
+      label:dm[1], active:p.deltaMode === dm[0],
+      color:p.deltaMode === dm[0] ? '#f0f2f6' : '#7b8390',
+      onPick:() => this.setParam({ deltaMode:dm[0], deltaValue:0.0 }),
+    }));
+    const isPct = p.deltaMode !== 'pence';
+    const deltaStr = isPct
+      ? ((p.deltaValue >= 0 ? '+' : '') + Number(p.deltaValue).toFixed(1) + '%')
+      : ((p.deltaValue >= 0 ? '+' : '') + Number(p.deltaValue).toFixed(0) + 'p');
+    // Withdraw-product: single-select ticket list from /api/tickets.
+    const withdrawOpts = tickets.slice(0, 200).map((t) => {
+      const on = p.withdrawTicket === t.code;
+      const cls = t.tkt_class === '1' ? '1st' : (t.tkt_class === '2' ? 'std' : 'oth');
+      const typ = t.tkt_type === 'S' ? 'sgl' : (t.tkt_type === 'R' ? 'ret' : (t.tkt_type === 'N' ? 'ssn' : 'x'));
+      return {
+        code:t.code, desc:(t.description || '').toLowerCase(),
+        tag: cls + '·' + typ,
+        bg: on ? '#131519' : 'transparent',
+        dotBorder: on ? C.bad : '#2f333a', dotBg: on ? C.bad : 'transparent',
+        codeColor: on ? '#dfe3e9' : '#98a1ae',
+        nameColor: on ? '#c3cad3' : '#7b8390',
+        onPick:() => this.setParam({ withdrawTicket:t.code, withdrawConfirmed:false }),
+      };
+    });
+    const withdrawSummary = p.withdrawTicket
+      ? ('selected: ' + p.withdrawTicket)
+      : 'pick one ticket type';
     return {
-      typeOpts: seg([{id:'add',label:'Add railcard'},{id:'adjust',label:'Adjust discount'},{id:'withdraw',label:'Withdraw'},{id:'raise',label:'Fare rise'}], p.changeType, (id)=>this.setParam({changeType:id})),
+      typeTiles, kindBadge: currentKind.badge,
+      capPct:p.capPct, capStr,
+      onCap:(e)=>{
+        let v = parseFloat(e.target.value); if (isNaN(v)) v = 0;
+        v = Math.max(-25, Math.min(25, v));
+        this.setParam({ capPct: Math.round(v * 10) / 10 });
+      },
+      capScopeOpts,
+      capSchemeShow: p.capScope === 'scheme',
+      ticketOpts, basketSummary, basketEmpty: selBasket.length === 0,
+      deltaModeOpts, deltaLabel: isPct ? 'Delta (%)' : 'Delta (pence)',
+      deltaStr, deltaValue:p.deltaValue,
+      deltaMin: isPct ? -50 : -10000, deltaMax: isPct ? 50 : 10000,
+      deltaStep: isPct ? 0.1 : 1,
+      onDelta:(e)=>{
+        let v = parseFloat(e.target.value); if (isNaN(v)) v = 0;
+        const iso = isPct;
+        v = iso ? Math.max(-50, Math.min(50, v)) : Math.max(-10000, Math.min(10000, Math.round(v)));
+        this.setParam({ deltaValue: iso ? Math.round(v * 10) / 10 : v });
+      },
+      withdrawOpts, withdrawSummary,
+      confirmOn: !!p.withdrawConfirmed,
+      confirmHint: !p.withdrawConfirmed,
+      confirmBorder: p.withdrawConfirmed ? '#2f333a' : '#4a2b23',
+      confirmBoxBorder: p.withdrawConfirmed ? C.bad : '#2f333a',
+      confirmBoxBg: p.withdrawConfirmed ? C.bad : 'transparent',
+      confirmTxtColor: p.withdrawConfirmed ? '#c3cad3' : '#98a1ae',
+      onConfirm:() => this.setParam({ withdrawConfirmed: !p.withdrawConfirmed }),
       railcardName:p.railcardName, onName:(e)=>this.setState((s)=>({params:Object.assign({},s.params,{railcardName:e.target.value})}), ()=>this.recompute()),
-      discountVerb: p.changeType==='withdraw' ? 'Discount being withdrawn' : (p.changeType==='raise' ? 'Increase rate' : 'Discount rate'),
-      discountPct:p.discountPct, discountStr:(p.changeType==='raise' ? '+' : '') + p.discountPct + '%', onDiscount:(e)=>this.setParam({discountPct:+e.target.value}),
+      discountVerb: p.changeType==='raise_price' ? 'Increase rate' : 'Discount rate',
+      discountPct:p.discountPct, discountStr:(p.changeType==='raise_price' ? '+' : '') + p.discountPct + '%', onDiscount:(e)=>this.setParam({discountPct:+e.target.value}),
       peakOn:p.peakOn, peakLabel: p.peakOn ? 'Anytime (peak + off-peak)' : 'Off-peak only',
       peakBg: p.peakOn ? C.ac : '#1b1e24', peakKnob: p.peakOn ? '20px' : '2px', onPeak:()=>this.setParam({peakOn:!p.peakOn}),
       roundingOpts: seg([{id:'near10',label:'10p'},{id:'near5',label:'5p'},{id:'down10',label:'↓10p'},{id:'none',label:'None'}], p.rounding, (id)=>this.setParam({rounding:id})),
@@ -3160,16 +3800,59 @@ class Component extends DCLogic {
     });
   }
 
+  // Corridor strip (visual-copilot session): the selected corridor's real
+  // calling order along the map's bottom edge, with split-ticket badges
+  // joined from the impact splits by intermediate NLC. Data-presence keyed:
+  // no timetable callings ⇒ no strip.
+  buildCorridorStrip() {
+    const C = this.C, S = this.state, RFE = window.RFE;
+    if (!RFE || !S.selCorridor || S.mapFull) return { show:false };
+    const cd = RFE.corridorCallings(S.selCorridor);
+    if (!cd || !cd.stations || cd.stations.length < 2) return { show:false };
+    const splitByNlc = {};
+    if (this._dispImpact() && S.resultsCurrent) this._dispImpact().splits.forEach((sp) => {
+      const cur = splitByNlc[sp.mid];
+      if (!cur || cur.saveP < sp.saveP) splitByNlc[sp.mid] = sp;
+    });
+    const n = cd.stations.length;
+    const stations = cd.stations.map((st, i) => {
+      const sp = splitByNlc[st.nlc] || null;
+      const end = i === 0 || i === n - 1;
+      return {
+        label: (end || sp) ? st.name : st.crs, crs: st.crs,
+        dotSize: end ? 7 : (sp ? 6 : 5),
+        dotPad: end ? 0 : (sp ? 0.5 : 1),
+        dotColor: end ? C.acHi : (sp ? C.warn : C.tx3),
+        nameColor: end ? C.tx0 : (sp ? C.warn : C.tx2),
+        weight: (end || sp) ? 600 : 400,
+        hasSplit: !!sp,
+        splitSave: sp ? ('split · saves ' + RFE.fmtMoney(sp.saveP)) : '',
+        showLine: i < n - 1,
+        onClick: () => this.setBusHighlight([st.nlc], true),
+      };
+    });
+    return { show:true, stations };
+  }
+
   buildMap() {
     const C = this.C, S = this.state, RFE = window.RFE;
     if (!RFE) return { nodes:[], edges:[], pulses:[], legend:[], outline:'', outlineW:0.8, spine:{show:false}, hover:{show:false}, scopeLabel:'', scopeShort:'',
       full:false, showRoutes:false, routes:[], wrapStyle:'position:relative',
       fullIconPath:'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5', fullTitle:'Expand map', onToggleFull:() => {} };
-    const stats = this._impact ? this._impact.stationStats : {};
+    const stats = this._dispImpact() ? this._dispImpact().stationStats : {};
     const maxD = 300;
     const reduce = this.props.reduceMotion;
     const corridor = RFE.CORRIDORS.find((c) => c.id === S.selCorridor);
-    const corridorSet = corridor ? corridor.path : [];
+    // Real timetable calling points when the corridor endpoint has answered
+    // (sync surface, async underneath); static path_crs otherwise — the
+    // spine never disappears while the fetch is in flight or on a miss.
+    const callings = (corridor && RFE.corridorCallings) ? RFE.corridorCallings(corridor.id) : null;
+    const corridorSet = (callings && callings.spine && callings.spine.length > 1)
+      ? callings.spine.filter((crs) => RFE.ST[crs])
+      : (corridor ? corridor.path : []);
+    // Results-present: the blast IS the picture — unaffected network recedes.
+    const resultsPresent = S.resultsCurrent && !!this._dispImpact() && this._dispImpact().counts.total > 0;
+    const busHl = this._busHighlight;
     // Operator scope: light the whole TOC network in a dim accent.
     const tocSet = {};
     if (S.scopeKind === 'toc' && S.selToc && RFE.TOC_STATIONS) {
@@ -3247,17 +3930,24 @@ class Component extends DCLogic {
       const delay = affected ? Math.min(900, (dfh / maxD) * 900) : 0;
       const lit = S.resultsCurrent && affected;
       const r = (affected ? (lit ? 2.6 + Math.min(2.2, (stat.affected || 1) * 0.35) : 2.3) : (onCorridor ? 2 : (onToc ? 1.7 : (tier === 0 ? 1.5 : 1.1)))) * iz;
-      const glow = lit && bucket && bucket !== 'clean';
+      const busLit = !!(busHl && busHl.set[s.id]);
+      const glow = (lit && bucket && bucket !== 'clean') || (busLit && busHl.pulse);
       // Label eligibility per tier, then a spatial claim so labels never pile up.
       // Bus-only MSN entries ("… Bus", "… Bus Station") never earn a label
       // unless the impact actually touches them.
       const pri = labelPriority(s, affected, onCorridor);
       const isBus = /\bBUS\b/i.test(s.name);
       const eligible = (tier >= 2 && !(isBus && !affected)) || affected || endpointSet[s.id] || HUBS.indexOf(s.id) >= 0 || (tier >= 1 && onCorridor);
-      const showLabel = eligible && claim(s.x, s.y, pri <= 3 ? 13 : 34);
+      // Once results are in, only the story's cast keeps labels — a name
+      // floating over a near-invisible dot reads as a glitch.
+      const showLabel = eligible
+        && (!resultsPresent || affected || onCorridor || endpointSet[s.id])
+        && claim(s.x, s.y, pri <= 3 ? 13 : 34);
       return {
         cx:s.x, cy:s.y, r, fill:col,
-        opacity: lit ? 1 : (affected ? 0.78 : (onCorridor ? 0.95 : (onToc ? 0.7 : (tier > 0 ? 0.34 : 0.5)))),
+        opacity: (busLit || lit) ? 1 : (affected ? 0.78
+          : resultsPresent ? (endpointSet[s.id] ? 0.4 : onCorridor ? 0.3 : onToc ? 0.12 : 0.06)
+          : (onCorridor ? 0.95 : (onToc ? 0.7 : (tier > 0 ? 0.34 : 0.5)))),
         filter: glow ? 'drop-shadow(0 0 4px ' + col + ')' : 'none',
         halo: glow && !reduce, haloR: r + 3 * iz, haloW: 1.1 * iz,
         transition: reduce ? 'none' : ('fill 380ms ease ' + delay + 'ms, r 420ms cubic-bezier(.2,.8,.2,1) ' + delay + 'ms, opacity 320ms ease ' + delay + 'ms'),
@@ -3271,7 +3961,7 @@ class Component extends DCLogic {
         labelColor: affected ? '#dbe1e9' : (onCorridor ? '#aab3c2' : '#7d8694'),
         labelSize: (affected ? 9.4 : 8.4) * iz, labelWeight: affected ? 600 : 400,
         labelHalo: 2.6 * iz,
-        selRing: S.filterStation === s.id || S.stationDetail === s.id || (S.hoverNode === s.id && affected), ringR: r + 3.5 * iz, ringW: 1 * iz, ringColor:col,
+        selRing: busLit || S.filterStation === s.id || S.stationDetail === s.id || (S.hoverNode === s.id && affected), ringR: r + 3.5 * iz, ringW: 1 * iz, ringColor: busLit ? C.acHi : col,
         onClick:() => this.openStationDetail(s.id),
         onEnter:() => this.setState({ hoverNode:s.id }), onLeave:() => this.setState({ hoverNode:null })
       };
@@ -3288,7 +3978,7 @@ class Component extends DCLogic {
       return { x1:a.x, y1:a.y, x2:b.x, y2:b.y,
         stroke: hl ? C.acHi : (lit ? C.ac : (onSel ? C.acDim : '#323b4d')),
         width: (hl ? 1.6 : (onSel ? (lit ? 1.15 : 0.9) : 0.7)) * iz,
-        opacity: hl ? 1 : (onSel ? (lit ? 0.9 : 0.65) : 0.55),
+        opacity: hl ? 1 : (onSel ? (lit ? 0.9 : 0.65) : (resultsPresent && !lit ? 0.12 : 0.55)),
         transition: reduce ? 'none' : ('stroke 420ms ease ' + delay + 'ms, opacity 420ms ease ' + delay + 'ms, stroke-width 420ms ease ' + delay + 'ms') };
     });
 
@@ -3345,7 +4035,7 @@ class Component extends DCLogic {
     return { nodes, edges, pulses, spine, legend, outline, outlineW: 0.65 * iz, hover, viewBox:this.mapViewBox(),
       scopeLabel: (S.params.railcardName || 'Proposal') + ' · ' +
         ((S.scopeKind === 'toc' && S.selToc) ? ('operator ' + S.selToc + ' network') : (corridor ? corridor.name : 'no corridor selected')) +
-        ' · ' + (this._impact ? this._impact.counts.total.toLocaleString() : 0) + ' fares touched',
+        ' · ' + (this._dispImpact() ? this._dispImpact().counts.total.toLocaleString() : 0) + ' fares touched',
       scopeShort: (S.scopeKind === 'toc' && S.selToc) ? ('Operator · ' + S.selToc) : (corridor ? corridor.name : ''),
       full: S.mapFull, showRoutes: routes.length > 0, routes,
       wrapStyle: S.mapFull ? 'position:fixed;inset:0;z-index:55' : 'position:relative',
@@ -3358,12 +4048,12 @@ class Component extends DCLogic {
   // state already on the client (impact report, settlement feed) — no extra
   // fetches, and everything stays resolver-derived.
   buildMapFull() {
-    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._dispImpact();
     const off = { show:false };
     if (!S.mapFull || !RFE) return off;
     const vd = imp ? imp.verdict : { affectedTotal:0, cleanRows:0, inversions:null, breaches:null, contradictions:0 };
     const rev = imp ? imp.revenue : { totalP:0, exactP:0, estP:0, journeys:null, exactShare:0 };
-    const withdraw = S.params.changeType === 'withdraw';
+    const withdraw = S.params.changeType === 'withdraw_product';
     const out = {
       show:true,
       scope: (S.params.railcardName || 'Proposal') + ' · ' + (vd.affectedTotal || 0) + ' fares touched',
@@ -3389,7 +4079,7 @@ class Component extends DCLogic {
   }
 
   buildStationDetail() {
-    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._dispImpact();
     const crs = S.stationDetail;
     if (!crs || !RFE || !RFE.ST[crs]) return { show:false };
     const st = RFE.ST[crs];
@@ -3440,7 +4130,7 @@ class Component extends DCLogic {
   }
 
   buildImpact() {
-    const C = this.C, RFE = window.RFE, imp = this._impact;
+    const C = this.C, RFE = window.RFE, imp = this._dispImpact();
     if (!imp) return { total:0, buckets:[], affectedStations:0, revenueStr:'£0', journeysStr:'', journeysLine:'', showJourneys:false, exactPct:0, estPct:0, revColor:C.tx1, scaleNote:'', scopeShort:'', revLabel:'exposure', revTip:'', onRevGo:() => {}, basisChips:[] };
     // Every displayed count comes off the adapter's single verdict object —
     // the inversion line shows the DETECTION count; its bar width uses
@@ -3454,11 +4144,12 @@ class Component extends DCLogic {
       { label:'breach', count:breachN, color:C.bad, pct: v.affectedTotal?Math.round(breachN/v.affectedTotal*100):0, ref:this._ref.bBreach },
       { label:'contradiction', count:v.contradictions, color:C.viol, pct: v.affectedTotal?Math.max(4,Math.round(v.contradictions/v.affectedTotal*100)):0, ref:this._ref.bContradiction }
     ];
-    const withdraw = this.state.params.changeType === 'withdraw';
+    const withdraw = this.state.params.changeType === 'withdraw_product';
+    const revOn = this.effIncludes().revenue;
     const total = imp.revenue.totalP;
     const journeys = imp.revenue.journeys;
     return { total:v.affectedTotal, buckets, affectedStations:affStations,
-      revenueStr:RFE.fmtBigDir(total),
+      revenueStr: revOn ? RFE.fmtBigDir(total) : '—',
       revTip: this.buildHeadlineTip(),
       onRevGo:() => this.setState({ activeAnalysis:'revenue' }),
       basisChips: this.buildBasisChips(),
@@ -3466,9 +4157,10 @@ class Component extends DCLogic {
       showJourneys: journeys != null,
       // journeys==null means demand-weighting is off — say so where the
       // fabricated "0 railcard journeys/yr" used to sit.
-      journeysLine: journeys == null
-        ? (imp.revenue.methodLabel || 'static exposure · demand-weighting off')
-        : journeys.toLocaleString() + ' railcard journeys/yr modelled',
+      journeysLine: !revOn ? 'revenue module off'
+        : (journeys == null
+          ? (imp.revenue.methodLabel || 'static exposure · demand-weighting off')
+          : journeys.toLocaleString() + ' railcard journeys/yr modelled'),
       methodLabel: imp.revenue.methodLabel,
       revColor: total < 0 ? C.down : (total > 0 ? C.up : C.tx1),
       revLabel: withdraw ? 'recovered' : 'exposure',
@@ -3478,7 +4170,7 @@ class Component extends DCLogic {
   }
 
   buildAnalysisTabs() {
-    const C = this.C, S = this.state, inc = this.effIncludes(), imp = this._impact;
+    const C = this.C, S = this.state, inc = this.effIncludes(), imp = this._dispImpact();
     // Network aberration badge: total baseline inversions across corridors
     // (from /api/overview cache — 0 until the backend finishes computing).
     const ov = (window.RFE && window.RFE.overview && this.state.ready) ? window.RFE.overview() : null;
@@ -3526,7 +4218,7 @@ class Component extends DCLogic {
   }
 
   buildBlast() {
-    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._dispImpact();
     if (!imp) return { rows:[], count:0, countLabel:'0 affected fares', filter:null };
     let rows = imp.rows.slice();
     if (S.filterStation) rows = rows.filter((r) => r.o === S.filterStation || r.d === S.filterStation);
@@ -3555,7 +4247,7 @@ class Component extends DCLogic {
   }
 
   buildCompliance() {
-    const RFE = window.RFE, imp = this._impact;
+    const RFE = window.RFE, imp = this._dispImpact();
     const empty = { compliantN:0, breachN:0, notRegN:0, regulatedN:0, breaches:[], hasBreaches:false, noBreaches:true, partial:false, notes:[], hasNotes:false, scopeNote:'' };
     if (!imp) return empty;
     const meta = imp.complianceMeta;
@@ -3581,14 +4273,14 @@ class Component extends DCLogic {
   }
 
   buildAnomalies() {
-    const imp = this._impact;
+    const imp = this._dispImpact();
     if (!imp) return { count:0, items:[], has:false, none:true };
     const items = imp.anomalies.map((a) => ({ text:a.text, detail:a.detail, cause:a.cause, kind:a.kind, onSelect:() => this.selectFlow(a.farKey) }));
     return { count:items.length, items, has:items.length>0, none:items.length===0 };
   }
 
   buildSplits() {
-    const C = this.C, RFE = window.RFE, imp = this._impact;
+    const C = this.C, RFE = window.RFE, imp = this._dispImpact();
     if (!imp) return { count:0, items:[], has:false, none:true };
     const items = imp.splits.map((s) => ({ od:s.oName + ' → ' + s.dName, saveStr:RFE.fmtMoney(s.saveP), throughStr:RFE.fmtMoney(s.throughP),
       leg1:RFE.fmtMoney(s.aP), leg2:RFE.fmtMoney(s.bP), sumStr:RFE.fmtMoney(s.sumP), midName:s.midName,
@@ -3597,7 +4289,7 @@ class Component extends DCLogic {
   }
 
   buildPerformance() {
-    const C = this.C, S = this.state, imp = this._impact;
+    const C = this.C, S = this.state, imp = this._dispImpact();
     // Real HSP serviceMetrics from the impact report — never fabricated.
     const perf = imp ? imp.performance : null;
     if (!perf || !perf.services.length) {
@@ -3610,14 +4302,18 @@ class Component extends DCLogic {
   }
 
   buildRevenue() {
-    const C = this.C, RFE = window.RFE, imp = this._impact;
+    const C = this.C, RFE = window.RFE, imp = this._dispImpact();
     const empty = { totalStr:'£0', exactStr:'£0', estStr:'£0', exactPct:0, estPct:0, journeysStr:'',
       periodLine:'', showJourneys:false,
       color:C.tx1, note:'', label:'exposure', methodLabel:'', rows:[], hasRows:false, rowsLabel:'',
       notes:[], hasNotes:false, exposureLine:'',
       ledger:{ sumLabel:'', sumStr:'', headlineStr:'', reconciled:true, tickColor:C.tx2, reconNote:'' }, hasLedger:false };
     if (!imp) return empty;
-    const withdraw = this.state.params.changeType === 'withdraw';
+    // Module off ⇒ say so — a computed-looking £0 would be a lie.
+    if (!this.effIncludes().revenue) return Object.assign({}, empty, {
+      label:'module off',
+      note:'Revenue module is off — enable it under ANALYSIS MODULES to compute exposure.' });
+    const withdraw = this.state.params.changeType === 'withdraw_product';
     const r = imp.revenue;
     // Per-fare detail rows: resolver-computed old→new deltas, |Δ|-sorted by
     // the adapter. Row click opens the fare's provenance chain (right panel).
@@ -3689,7 +4385,7 @@ class Component extends DCLogic {
   }
 
   buildDemand() {
-    const C = this.C, imp = this._impact;
+    const C = this.C, imp = this._dispImpact();
     const d = imp ? imp.demand : null;
     if (!d) return { has:false, rows:[], notes:[], hasNotes:false, headline:'—', sub:'', assumptions:'' };
     const RFE = window.RFE;
@@ -3711,7 +4407,7 @@ class Component extends DCLogic {
   }
 
   buildCarbon() {
-    const C = this.C, imp = this._impact;
+    const C = this.C, imp = this._dispImpact();
     const cb = imp ? imp.carbon : null;
     if (!cb) return { has:false, rows:[], notes:[], hasNotes:false, headline:'—', factors:'', distance:'' };
     const rows = (cb.rowRows || []).map((e) => ({
@@ -3791,7 +4487,7 @@ class Component extends DCLogic {
      estimate blocks and the eligible-share knob. Every figure carries its
      basis; assumptions are either adjustable (slider) or cited read-only. */
   buildStats() {
-    const C = this.C, S = this.state, RFE = window.RFE, imp = this._impact;
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._dispImpact();
     const cor = ((RFE && RFE.CORRIDORS) || []).find((c) => c.id === S.selCorridor);
     const oCrs = cor && cor.path.length ? cor.path[0] : null;
     const dCrs = cor && cor.path.length ? cor.path[cor.path.length - 1] : null;
@@ -3857,7 +4553,7 @@ class Component extends DCLogic {
      basis, formula, contributing-fare count, top contributors by |Δ|, and
      the backend's own notes, verbatim. Link jumps to the full ledger. */
   buildHeadlineDrop() {
-    const C = this.C, S = this.state, imp = this._impact, RFE = window.RFE;
+    const C = this.C, S = this.state, imp = this._dispImpact(), RFE = window.RFE;
     if (!S.headlineOpen || !imp || !imp.revenue || !RFE) return { open:false, top:[], hasTop:false, notes:[], hasNotes:false };
     const rev = imp.revenue;
     const basisLine = rev.basis === 'odm_revenue' ? 'ODM journey-weighted revenue \u0394 \u00b7 ' + (rev.periodLabel || 'per period')
@@ -3882,7 +4578,7 @@ class Component extends DCLogic {
   }
 
   buildRightTabs() {
-    const C = this.C, S = this.state, imp = this._impact;
+    const C = this.C, S = this.state, imp = this._dispImpact();
     const contraN = imp ? imp.verdict.contradictions : 0;
     const unresolved = contraN > 0 && S.disp.contradiction == null;
     const defs = [
@@ -3918,6 +4614,15 @@ class Component extends DCLogic {
       // RSPS5045 cite and the raw feed record line(s) that produced it.
       // Clicking the open step collapses it.
       const expanded = S.selStep === st.key;
+      // Cross-highlight (visual-copilot session): the NLCs a step cites light
+      // up on the map while hovered. No geography for the value ⇒ no-op.
+      const hlNlcs = [];
+      const det = st.detail || {};
+      Object.keys(det).forEach((k) => {
+        if (!/nlc|^origin$|^dest$/i.test(k)) return;
+        const v = String(det[k]);
+        if (/^[0-9a-z]{4}$/i.test(v) && hlNlcs.indexOf(v) < 0) hlNlcs.push(v);
+      });
       return { key:st.key, label:st.label, note:st.note,
         cite: st.cite, outStr: st.outP==null?'—':RFE.fmtMoney(st.outP),
         inStr: st.inP==null?'—':RFE.fmtMoney(st.inP),
@@ -3930,6 +4635,8 @@ class Component extends DCLogic {
         hasSrc: expanded && !!st.source, noSrc: expanded && !st.source,
         srcTitle: st.source ? st.source.title : '',
         srcLines: (st.source && st.source.lines) ? st.source.lines : [],
+        onEnter:() => { if (hlNlcs.length) this.setBusHighlight(hlNlcs, false); },
+        onLeave:() => { if (hlNlcs.length) this.setBusHighlight([], false); },
         onClick:() => this.setState({ selStep: expanded ? null : st.key }) };
     });
     const sel = res.steps.find((s) => s.key === S.selStep) || res.steps[0];
@@ -3937,7 +4644,7 @@ class Component extends DCLogic {
     const scopeNote = !res.inScheme ? 'outside scheme area' : (res.unresolved ? 'contradiction — unresolved' : (res.railcardExcluded ? 'railcard excluded on this flow' : 'in ' + RFE.CLUSTER_LABEL[S.params.cluster]));
     // Names: prefer the selected blast row (carries backend .LOC names for
     // group NLCs like 0438), then the map station list, then the raw token.
-    const selRow = this._impact ? this._impact.rows.find((r) => r.key === S.selFlow) : null;
+    const selRow = this._dispImpact() ? this._dispImpact().rows.find((r) => r.key === S.selFlow) : null;
     const oLabel = selRow ? selRow.oName : ((RFE.ST[pk.o]||{}).name||pk.o);
     const dLabel = selRow ? selRow.dName : ((RFE.ST[pk.d]||{}).name||pk.d);
     return { selLabel:oLabel + ' → ' + dLabel, productName:(res.prod||{}).name||pk.code, scopeNote,
@@ -3951,14 +4658,14 @@ class Component extends DCLogic {
   }
 
   buildQueue() {
-    const C = this.C, S = this.state, imp = this._impact;
+    const C = this.C, S = this.state, imp = this._dispImpact();
     if (!imp) return { items:[], approved:0, held:0, pending:0 };
     const v = imp.verdict, qd = S.queueDisp;
     const breachN = v.breaches != null ? v.breaches : 0;
     const invN = v.inversions != null ? v.inversions : 0;
     const items = [];
-    const withdraw = S.params.changeType === 'withdraw';
-    const raise = S.params.changeType === 'raise';
+    const withdraw = S.params.changeType === 'withdraw_product';
+    const raise = S.params.changeType === 'raise_price';
     items.push({ key:'main', title: raise ? ('Fare rise · +' + S.params.discountPct + '%') : (withdraw?'Withdraw ':'Apply ') + S.params.railcardName, tone:'clean', count:v.cleanRows,
       sub:v.cleanRows + ' clean fares · ' + (raise?'+':'') + S.params.discountPct + '% ' + (S.params.peakOn?'anytime':'off-peak'), blocked:false });
     if (breachN > 0) items.push({ key:'breach', title:'Compliance breaches', tone:'breach', count:breachN,
@@ -4000,7 +4707,7 @@ class Component extends DCLogic {
   }
 
   buildContradiction() {
-    const C = this.C, S = this.state, imp = this._impact, RFE = window.RFE;
+    const C = this.C, S = this.state, imp = this._dispImpact(), RFE = window.RFE;
     const esc = S.escalation;
     let od, optA, optB;
     if (esc && esc.pairs.length) {

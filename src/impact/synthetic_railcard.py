@@ -198,4 +198,133 @@ def inject_synthetic_railcard(
     )
 
 
-__all__ = ["apply_synthetic_railcard", "inject_synthetic_railcard"]
+def apply_cap_price(
+    adult_pence: int,
+    change: ChangeRequest,
+) -> tuple[int, ProvenanceStep]:
+    """Bulk apply_cap math — signed percentage delta on a regulated fare.
+
+    Rule:
+        raw_new  = adult_pence + floor(adult_pence * cap_pct)
+        new_pence = round_to_rule(raw_new)
+        new_pence = max(0, new_pence)
+
+    A cap_pct of 0.0 is a freeze — the input is echoed byte-for-byte (the
+    rounding rule still fires, so a fare currently sitting on a non-band
+    price would still snap; this is deliberate — the regulator's cap is a
+    ceiling on the rounded price). This helper is called for every affected
+    (regulated) fare in the apply_cap corridor walk (`_compute_affected_
+    set_apply_cap_corridor`)."""
+    if change.cap_pct is None:  # defensive — validated at construction
+        raise ValueError("apply_cap_price called with cap_pct=None")
+    delta = int(adult_pence * change.cap_pct)
+    raw_new = adult_pence + delta
+    if raw_new < 0:
+        raw_new = 0
+    new, rounding_label = _apply_ui_rounding(raw_new, change.rounding_rule)
+    prov = ProvenanceStep(
+        step="cap_apply",
+        source="(synthetic)",
+        detail={
+            "cap_pct":         f"{change.cap_pct:.4f}",
+            "adult_pence":     str(adult_pence),
+            "delta_pence":     str(delta),
+            "after_delta":     str(raw_new),
+            "after_round":     str(new),
+            "rounding":        rounding_label,
+            "final":           str(new),
+            "explanation":     (
+                f"apply_cap: {change.cap_pct * 100:+.1f}% on regulated fare "
+                f"{adult_pence}p → {new}p (rounded via {rounding_label}). "
+                "Unregulated fares in scope are excluded from the affected "
+                "set — see the report's notes[] for the count."
+            ),
+        },
+    )
+    return new, prov
+
+
+def apply_adjust_price(
+    adult_pence: int,
+    change: ChangeRequest,
+) -> tuple[int, ProvenanceStep]:
+    """Bulk adjust_fares math — signed pct OR absolute pence delta.
+
+    Rule:
+        raw_new = adult_pence * (1 + delta_value)         [pct mode]
+        raw_new = adult_pence + int(delta_value)          [pence mode]
+        new_pence = max(0, round_to_rule(raw_new))
+
+    Reused for every ticket in the change's basket; the basket filter
+    happens upstream (only fares whose ticket_code ∈ change.tickets reach
+    this helper)."""
+    if change.delta_mode is None or change.delta_value is None:
+        raise ValueError("apply_adjust_price called with delta_mode/delta_value=None")
+    if change.delta_mode == "pct":
+        raw_new = int(adult_pence * (1.0 + change.delta_value))
+        delta_label = f"{change.delta_value * 100:+.1f}%"
+    else:
+        raw_new = adult_pence + int(change.delta_value)
+        delta_label = f"{int(change.delta_value):+d}p"
+    if raw_new < 0:
+        raw_new = 0
+    new, rounding_label = _apply_ui_rounding(raw_new, change.rounding_rule)
+    prov = ProvenanceStep(
+        step="adjust_apply",
+        source="(synthetic)",
+        detail={
+            "delta_mode":      change.delta_mode,
+            "delta_value":     f"{change.delta_value:.4f}",
+            "delta_label":     delta_label,
+            "adult_pence":     str(adult_pence),
+            "after_delta":     str(raw_new),
+            "after_round":     str(new),
+            "rounding":        rounding_label,
+            "final":           str(new),
+            "explanation":     (
+                f"adjust_fares: {delta_label} on {adult_pence}p → {new}p "
+                f"(rounded via {rounding_label}). Basket filter applied "
+                "upstream; only tickets in change.tickets reach this row."
+            ),
+        },
+    )
+    return new, prov
+
+
+def apply_withdrawal(
+    adult_pence: int,
+    change: ChangeRequest,
+) -> tuple[int | None, ProvenanceStep]:
+    """withdraw_product path — mark the fare withdrawn.
+
+    Returns `(None, prov_step)` — the new price is INTENTIONALLY None (not
+    zero) so downstream consumers (report, adapters, compliance) see an
+    honest suppression rather than a fabricated £0 price. Mirrors the
+    `.NFO` sentinel discipline (see CLAUDE.md: on bad/ambiguous data the
+    resolver NEVER silently guesses, and here 'no fare' is the intent)."""
+    prov = ProvenanceStep(
+        step="withdraw_apply",
+        source="(synthetic)",
+        detail={
+            "ticket_code":    change.withdraw_ticket or "",
+            "adult_pence":    str(adult_pence),
+            "new_pence":      "(withdrawn)",
+            "final":          "(withdrawn)",
+            "explanation":    (
+                f"withdraw_product: {change.withdraw_ticket!r} removed from the "
+                f"scope's flow set. Passengers on affected flows will have to "
+                "pay the next-cheapest valid ticket; no synthetic price was "
+                "computed for this row (honest suppression, not a £0 fare)."
+            ),
+        },
+    )
+    return None, prov
+
+
+__all__ = [
+    "apply_adjust_price",
+    "apply_cap_price",
+    "apply_synthetic_railcard",
+    "apply_withdrawal",
+    "inject_synthetic_railcard",
+]

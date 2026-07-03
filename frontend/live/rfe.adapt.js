@@ -98,6 +98,12 @@
       }
     }
     if (af.status === "contradiction") { verdict = "pending"; bucket = "contradiction"; compliance.label = "HELD"; }
+    // withdraw_product rows land with status='suppressed' + new_price=null.
+    // The blast-radius / provenance panels render `withdrawn` (via the null
+    // afterP renderer already in place); we tag the row explicitly so the
+    // downstream badge reads honestly rather than "£0.00 / not-regulated".
+    var isWithdrawn = af.status === "suppressed" && af.new_price_pence == null;
+    if (isWithdrawn) { verdict = "withdrawn"; bucket = "withdrawn"; compliance.label = "WITHDR"; }
     var oSt = stationsByNlc[af.representative_origin_nlc];
     var dSt = stationsByNlc[af.representative_dest_nlc];
     var km = 0;
@@ -598,6 +604,7 @@
         active: true,
         inP: null, outP: outP,
         note: note,
+        detail: detail, // merge point (visual-copilot): map cross-highlight reads *_nlc keys
         cite: p.source,
         source: p.raw_record ? {
           title: p.step + " raw record",
@@ -640,6 +647,26 @@
     };
   }
 
+  /* Merge point (visual-copilot session).
+     /api/corridor/callings → {spine, stations}. `spine` keeps only stations
+     a meaningful share of corridor trains call at (≥10% of through trains,
+     min 2) so one slow Birmingham-loop diversion doesn't zigzag the drawn
+     line; `stations` keeps the full union for the corridor strip. */
+  function adaptCallings(raw) {
+    if (!raw || !raw.found || !raw.callings || raw.callings.length < 2) return false;
+    var thr = Math.max(2, Math.round((raw.direct_trains || 0) * 0.1));
+    var spine = [];
+    raw.callings.forEach(function (cp) {
+      if (cp.trains_calling >= thr) spine.push(cp.crs);
+    });
+    return {
+      spine: spine,
+      stations: raw.callings,
+      directTrains: raw.direct_trains,
+      source: raw.source,
+    };
+  }
+
   window.RFE_ADAPT = {
     ticketName: ticketName,
     fmtMoney: fmtMoney,
@@ -651,6 +678,7 @@
     fmtPct: fmtPct,
     adaptImpact: adaptImpact,
     adaptResolve: adaptResolve,
+    adaptCallings: adaptCallings,
     adaptAffectedFare: adaptAffectedFare,
     adaptEscalation: adaptEscalation,
   };
