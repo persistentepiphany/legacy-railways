@@ -6,8 +6,13 @@ constants. The slow block freezes C2 (distance + traction) and the
 engine-level carbon block against the real feed, exactly as the
 validator ran them.
 
-The C3 oracle gate is NOT frozen here — it is still SKIP in the
-validation report until data/carbon_oracle_template.json is hand-filled.
+C3 is frozen for the four corridors that PASSED against the RDG Green
+Travel Data calculator (the engine behind the National Rail carbon
+calculator; values recorded 2026-07-03, NOT re-fetched here): MAN-EUS,
+BHM-EDB, BTN-VIC, LDS-KGX. The two DEGRADE corridors (NRW-SHM x1.86
+under, WOK-WAT x1.41 over — both load-factor divergences: the oracle
+uses per-service MOIRA loadings, we use the flat national average) are
+NOT frozen; the diagnosis lives in docs/demand-carbon-validation.md.
 """
 
 from __future__ import annotations
@@ -136,6 +141,50 @@ def test_c2_traction_electric_and_diesel_corridors(feed_paths: FeedPaths) -> Non
     bittern = traction_mix(idx, "NRW", "SHM")
     assert bittern.train_count > 0
     assert bittern.diesel_pct >= C2_TRACTION_MIN_SHARE
+
+
+# RDG Green Travel Data calculator values (kgCO2e/passenger, standard
+# class, one-way), recorded 2026-07-03 — see docs/demand-carbon-validation.md.
+# Only the corridors that PASSED the pre-registered x1.4 band are frozen;
+# raw responses snapshotted in data/carbon_oracle_responses/ (gitignored).
+C3_CASES = (
+    ("MAN->EUS", "MAN", "EUS", 6.13),
+    ("BHM->EDB", "BHM", "EDB", 28.59),
+    ("BTN->VIC", "BTN", "VIC", 3.53),
+    ("LDS->KGX", "LDS", "KGX", 6.47),
+)
+C3_PASS_RATIO = 1.4
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("name,o_crs,d_crs,nr_rail_kg", C3_CASES,
+                         ids=[c[0] for c in C3_CASES])
+def test_c3_oracle_corridors(feed_paths: FeedPaths, msn_path: Path | None,
+                             name, o_crs, d_crs, nr_rail_kg) -> None:
+    """Gate C3 (frozen): our per-passenger rail kgCO2e within the
+    pre-registered x1.4 band of the recorded oracle value. Same
+    arithmetic as tools/validate_demand_carbon.py gate_c3."""
+    dist = flow_distance_km(o_crs, d_crs, rgd_path=feed_paths.rgd,
+                            msn_path=msn_path)
+    assert dist is not None, f"{name}: no distance derivable"
+
+    if feed_paths.timetable_mca is not None and feed_paths.timetable_mca.exists():
+        from src.ingest.timetable import load_timetable_index, traction_mix
+
+        idx = load_timetable_index(feed_paths.timetable_mca)
+        mix = traction_mix(idx, o_crs, d_crs)
+        factor = (rail_factor_for_mix(mix.electric_pct, mix.diesel_pct,
+                                      mix.unknown_pct)[0]
+                  if mix.train_count else RAIL_NATIONAL_KGCO2E_PER_PKM)
+    else:
+        factor = RAIL_NATIONAL_KGCO2E_PER_PKM
+
+    ours = dist.km * factor
+    ratio = ours / nr_rail_kg
+    worst = max(ratio, 1.0 / ratio)
+    assert worst <= C3_PASS_RATIO, (
+        f"{name}: {ours:.2f} kg vs oracle {nr_rail_kg} kg (x{ratio:.2f}) — "
+        "outside the pre-registered band this corridor passed at freeze time")
 
 
 @pytest.mark.slow

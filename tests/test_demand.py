@@ -5,8 +5,8 @@ invariants — pure arithmetic over the published elasticity table, no
 feed. The slow block freezes the engine-level D2/D3 gates against the
 real feed + the ODM fixture, exactly as the validator ran them.
 
-The C3 oracle gate is NOT frozen here — it is still SKIP in the
-validation report until data/carbon_oracle_template.json is hand-filled.
+The C3 oracle gate lives in tests/test_carbon.py (frozen 2026-07-03 for
+the corridors that passed against the RDG Green Travel Data calculator).
 """
 
 from __future__ import annotations

@@ -12,7 +12,12 @@ pre-registered at the top of that script and are not tuned to results.
 | C2 | MAN->EUS distance (rgd_shortest_path) | 297.8 km | 296.0 km ±5.0% | 0.6% err | **PASS** |
 | C2 | MAN->EUS traction (WCML, expect electric) | 100% electric / 0% diesel (512 trains) | >=90% electric | - | **PASS** |
 | C2 | NRW->SHM traction (Bittern line, expect diesel) | 100% diesel / 0% electric (214 trains) | >=90% diesel | - | **PASS** |
-| C3 | oracle comparison | - | - | - | **SKIP** |
+| C3 | Manchester Piccadilly - London Euston (demo, WCML electric) rail kg/passenger | 7.74 kg (297.8 km, rgd_shortest_path) | 6.13 kg (NR calculator) | x1.26 | **PASS** |
+| C3 | Norwich - Sheringham (regional diesel) rail kg/passenger | 2.85 kg (49.1 km, rgd_shortest_path) | 5.30 kg (NR calculator) | x0.54 | **DEGRADE** |
+| C3 | Woking - London Waterloo (short commuter) rail kg/passenger | 1.47 kg (41.5 km, rgd_shortest_path) | 1.04 kg (NR calculator) | x1.41 | **DEGRADE** |
+| C3 | Birmingham New Street - Edinburgh (long cross-country) rail kg/passenger | 22.60 kg (476.2 km, rgd_shortest_path) | 28.59 kg (NR calculator) | x0.79 | **PASS** |
+| C3 | Brighton - London Victoria rail kg/passenger | 2.88 kg (81.3 km, rgd_shortest_path) | 3.53 kg (NR calculator) | x0.82 | **PASS** |
+| C3 | Leeds - London Kings Cross rail kg/passenger | 8.75 kg (298.9 km, rgd_shortest_path) | 6.47 kg (NR calculator) | x1.35 | **PASS** |
 | D1 | TS commuting +10% rise | -5.93% | -5.93% (hand-computed fixture) | 0.003 pp err | **PASS** |
 | D1 | TS commuting -10% cut | +1.53% | +1.53% (hand-computed fixture) | 0.001 pp err | **PASS** |
 | D1 | PDFH LD-London +5% rise | -4.53% | -4.53% (hand-computed fixture) | 0.001 pp err | **PASS** |
@@ -28,11 +33,12 @@ pre-registered at the top of that script and are not tuned to results.
 
 ## Notes per check
 
-- **C3 / oracle comparison**: TODO: carbon_oracle_template.json exists but all nr_rail_kg are null — fill by hand and re-run.
+- **C3 / Norwich - Sheringham (regional diesel) rail kg/passenger**: diagnose: constant offset -> load factor; diesel-only -> traction; grows with distance -> mileage
+- **C3 / Woking - London Waterloo (short commuter) rail kg/passenger**: diagnose: constant offset -> load factor; diesel-only -> traction; grows with distance -> mileage
 - **D2 / zero change rejected at the boundary**: discount_pct must satisfy 0 < x < 1 strictly, got 0.0
 
 ## Module verdicts
 
-- **carbon** (C1, C2, C3): PASS (with SKIPs) — ships with the EST label; skipped gates listed above
+- **carbon** (C1, C2, C3): DEGRADE — ship with the downgrade specified in the row(s) above
 - **demand** (D1, D2, D3): PASS — ships with the EST label
 
