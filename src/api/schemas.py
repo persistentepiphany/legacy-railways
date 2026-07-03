@@ -234,6 +234,10 @@ class AffectedFareModel(BaseModel):
     representative_origin_name: str = ""
     representative_dest_name: str = ""
     blast_station_nlcs: list[str] = []
+    # Full count BEFORE the per-fare cap in src/impact/affected.py — equals
+    # len(blast_station_nlcs) when no truncation occurred. The UI reads this
+    # to surface an honest "showing X of Y" note instead of silently hiding.
+    blast_station_full_count: int = 0
 
 
 class BlastRadiusPairModel(BaseModel):

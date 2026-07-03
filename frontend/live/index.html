@@ -1376,10 +1376,28 @@
                   <div style="font-family:'Source Sans 3',sans-serif;font-size:27px;font-weight:600;color:#adb6c4;line-height:1">{{ demand.headline }}</div>
                   <div style="font-size:10.5px;color:#5f6773;margin-top:5px">{{ demand.sub }}</div>
                   <div style="font-size:10px;color:#7b8390;margin-top:4px">{{ demand.assumptions }}</div>
+                  <div style="font-size:9.5px;color:#5f6773;margin-top:6px;padding-top:6px;border-top:1px dashed #1a1c20"><span style="letter-spacing:.5px;color:#626b76">SOURCE ·</span> {{ demand.cite }}</div>
                 </div>
+                <sc-if value="{{ demand.chart.has }}" hint-placeholder-val="{{ true }}">
+                  <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:9px;padding:11px 12px">
+                    <div style="font-size:10px;letter-spacing:.5px;color:#626b76;margin-bottom:8px">DEMAND Δ% · DISTRIBUTION</div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <sc-for list="{{ demand.chart.items }}" as="ci" hint-placeholder-count="5">
+                        <div>
+                          <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#7b8390;margin-bottom:2px">
+                            <span>{{ ci.label }}</span>
+                            <span style="font-family:'Source Sans 3',sans-serif">{{ ci.value }} <span style="color:#5f6773">· {{ ci.right }}</span></span>
+                          </div>
+                          <div style="height:5px;background:#0d0f13;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ ci.pct }}%;background:{{ ci.color }};opacity:.75;transition:width .55s cubic-bezier(.2,.8,.2,1)"></div></div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="font-size:9px;color:#454c56;margin-top:6px">{{ demand.chart.axisNote }}</div>
+                  </div>
+                </sc-if>
               </div>
               <sc-if value="{{ demand.hasRows }}" hint-placeholder-val="{{ false }}">
-                <div style="font-size:10.5px;letter-spacing:.5px;color:#626b76;margin-bottom:7px">PER-FLOW ELASTICITY ESTIMATES</div>
+                <div style="font-size:10.5px;letter-spacing:.5px;color:#626b76;margin-bottom:7px">PER-FLOW ELASTICITY ESTIMATES · price → demand curve at ε</div>
                 <div style="display:flex;flex-direction:column;gap:4px">
                   <sc-for list="{{ demand.rows }}" as="e" hint-placeholder-count="4">
                     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#090a0c;border:1px solid #15171b;border-radius:7px">
@@ -1387,6 +1405,18 @@
                         <div style="font-size:12px;color:#c8cfd7;font-weight:600">{{ e.ticket }} · flow {{ e.flow }}</div>
                         <div style="font-size:10px;color:#626b76">{{ e.segment }} · elasticity {{ e.elasticity }} · {{ e.source }}</div>
                         <sc-if value="{{ e.validityNote }}" hint-placeholder-val="{{ false }}"><div style="font-size:10px;color:{{ e.warnColor }}">{{ e.validityNote }}</div></sc-if>
+                      </div>
+                      <!-- inline elasticity curve: p→q at ε for this fare;
+                           the current price ratio is marked with a caret. -->
+                      <div title="{{ e.curve.desc }}" style="flex:0 0 auto">
+                        <svg viewBox="0 0 {{ e.curve.w }} {{ e.curve.h }}" width="{{ e.curve.w }}" height="{{ e.curve.h }}" style="display:block">
+                          <line x1="0" y1="{{ e.curve.zeroY }}" x2="{{ e.curve.w }}" y2="{{ e.curve.zeroY }}" stroke="#1e2126" stroke-width="1" stroke-dasharray="2 2"></line>
+                          <path d="{{ e.curve.path }}" fill="none" stroke="{{ e.curve.colorLine }}" stroke-width="1.4" opacity=".85"></path>
+                          <sc-if value="{{ e.curve.hasMark }}" hint-placeholder-val="{{ false }}">
+                            <line x1="{{ e.curve.mark.xLine }}" y1="0" x2="{{ e.curve.mark.xLine }}" y2="{{ e.curve.h }}" stroke="#3a3d43" stroke-width="1" stroke-dasharray="1 2"></line>
+                            <circle cx="{{ e.curve.mark.x }}" cy="{{ e.curve.mark.y }}" r="2.5" fill="#f0f2f6"></circle>
+                          </sc-if>
+                        </svg>
                       </div>
                       <div style="font-family:'Source Sans 3',sans-serif;font-size:11px;color:#7b8390;white-space:nowrap">price {{ e.priceChange }}</div>
                       <div style="font-family:'Source Sans 3',sans-serif;font-size:11px;color:#98a1ae;white-space:nowrap">demand {{ e.grossChange }}</div>
@@ -1402,7 +1432,7 @@
                   </sc-for>
                 </div>
               </sc-if>
-              <div style="margin-top:12px;font-size:10px;color:#5f6773;line-height:1.5">Demand uplift is an elasticity model over resolver price deltas — an ESTIMATE, clearly separated from feed-derived exact figures.</div>
+              <div style="margin-top:12px;font-size:10px;color:#5f6773;line-height:1.5">Demand uplift is an elasticity model over resolver price deltas — an ESTIMATE, clearly separated from feed-derived exact figures. Each per-flow curve is Δq = (1+Δp)^ε − 1 with ε taken from the PDFH tables; the dot marks the CURRENT proposal's price change.</div>
             </div>
           </sc-if>
 
@@ -1417,7 +1447,25 @@
                   <div style="font-size:10px;color:#7b8390;margin-top:4px">{{ carbon.distance }}</div>
                   <div style="font-size:10px;color:#7b8390;margin-top:2px">{{ carbon.factors }}</div>
                   <div style="font-size:10px;color:#5f6773;margin-top:2px">{{ carbon.factorsDesc }}</div>
+                  <div style="font-size:9.5px;color:#5f6773;margin-top:6px;padding-top:6px;border-top:1px dashed #1a1c20"><span style="letter-spacing:.5px;color:#626b76">SOURCE ·</span> {{ carbon.cite }}</div>
                 </div>
+                <sc-if value="{{ carbon.chart.has }}" hint-placeholder-val="{{ true }}">
+                  <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:9px;padding:11px 12px">
+                    <div style="font-size:10px;letter-spacing:.5px;color:#626b76;margin-bottom:8px">CARBON Δ · TOP FARES</div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <sc-for list="{{ carbon.chart.items }}" as="ci" hint-placeholder-count="5">
+                        <div>
+                          <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#7b8390;margin-bottom:2px">
+                            <span style="max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ci.label }}</span>
+                            <span style="font-family:'Source Sans 3',sans-serif">{{ ci.value }} <span style="color:#5f6773">· {{ ci.right }}</span></span>
+                          </div>
+                          <div style="height:5px;background:#0d0f13;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ ci.pct }}%;background:{{ ci.color }};opacity:.75;transition:width .55s cubic-bezier(.2,.8,.2,1)"></div></div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="font-size:9px;color:#454c56;margin-top:6px">{{ carbon.chart.axisNote }}</div>
+                  </div>
+                </sc-if>
               </div>
               <sc-if value="{{ carbon.hasRows }}" hint-placeholder-val="{{ false }}">
                 <div style="font-size:10.5px;letter-spacing:.5px;color:#626b76;margin-bottom:7px">PER-FLOW SAVINGS</div>
@@ -1672,6 +1720,31 @@
                     <div style="font-size:9.5px;color:#626b76;margin-bottom:4px">CARBON</div>
                     <div style="font-size:14px;font-weight:600;color:#6f9e86;font-family:'Source Sans 3',sans-serif">{{ stats.est.carbonStr }}</div>
                   </div>
+                </div>
+                <!-- Real charts: reuse the aggregate KPI chart data so the
+                     Statistics tab shows the same distribution the analyst
+                     sees on the landing panel — no divergence between views. -->
+                <div style="display:flex;gap:9px;margin-bottom:12px">
+                  <sc-for list="{{ stats.charts }}" as="ch" hint-placeholder-count="3">
+                    <sc-if value="{{ ch.has }}" hint-placeholder-val="{{ true }}">
+                      <div style="flex:1;background:#090a0c;border:1px solid #15171b;border-radius:8px;padding:10px 12px">
+                        <div style="font-size:9.5px;letter-spacing:.5px;color:#626b76;margin-bottom:6px">{{ ch.title }}</div>
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                          <sc-for list="{{ ch.items }}" as="ci" hint-placeholder-count="5">
+                            <div>
+                              <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#7b8390;margin-bottom:2px">
+                                <span style="max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ci.label }}</span>
+                                <span style="font-family:'Source Sans 3',sans-serif">{{ ci.value }} <span style="color:#5f6773">· {{ ci.right }}</span></span>
+                              </div>
+                              <div style="height:5px;background:#0d0f13;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ ci.pct }}%;background:{{ ci.color }};opacity:.75;transition:width .5s cubic-bezier(.2,.8,.2,1)"></div></div>
+                            </div>
+                          </sc-for>
+                        </div>
+                        <div style="font-size:9px;color:#454c56;margin-top:6px">{{ ch.axisNote }}</div>
+                        <div style="font-size:9px;color:#5f6773;margin-top:4px;padding-top:5px;border-top:1px dashed #1a1c20"><span style="letter-spacing:.5px;color:#626b76">SOURCE ·</span> {{ ch.cite }}</div>
+                      </div>
+                    </sc-if>
+                  </sc-for>
                 </div>
               </sc-if>
               <!-- adjustable assumption: eligible share -->
@@ -2319,7 +2392,13 @@ class Component extends DCLogic {
       this.animNum('bBreach', pv.breaches||0, cv.breaches||0, (v)=>v);
       this.animNum('bContradiction', pv.contradictions, cv.contradictions, (v)=>v);
       this.animNum('vsFares', pv.affectedTotal, cv.affectedTotal, (v)=>v.toLocaleString());
-      this.animNum('revenueNum', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBigDir(v));
+      // Only animate the revenue big number when the aggregate KPI panel
+      // is actually rendering the revenue headline in total mode. Any
+      // other combination and the animation would overwrite whatever the
+      // template just wrote (fares count / carbon kg / demand %).
+      if (this.state.aggKpi === 'revenue' && this.state.scaleMode === 'total') {
+        this.animNum('revenueNum', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBigDir(v));
+      }
       if (cur.verdict.revenue) this.animNum('vsRev', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBigDir(v));
       this.animateBlast();
       this.animateList('aggList', 55, 300);
@@ -5317,6 +5396,20 @@ class Component extends DCLogic {
       };
       out.hasEst = true;
     }
+    // Reuse the aggregate KPI chart data — same distribution, same axis.
+    // Building it once and rendering in both places guarantees the two views
+    // never disagree; the aggKpis builder ran already this render cycle.
+    const kpis = this.buildAggKpis();
+    if (kpis && kpis.kpi) {
+      const withCite = (k, title) => ({
+        has: k.chart.has, title, items: k.chart.items, axisNote: k.chart.axisNote, cite: k.cite || '',
+      });
+      out.charts = [
+        withCite(kpis.kpi.demand,  'DEMAND Δ% \u00b7 DISTRIBUTION'),
+        withCite(kpis.kpi.revenue, 'REVENUE Δ \u00b7 TOP CONTRIBUTORS'),
+        withCite(kpis.kpi.carbon,  'CARBON Δ \u00b7 TOP FARES'),
+      ].filter((c) => c.has);
+    } else { out.charts = []; }
     return out;
   }
 

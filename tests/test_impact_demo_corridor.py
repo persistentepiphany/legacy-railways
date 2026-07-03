@@ -146,7 +146,11 @@ def test_demo_change_blast_station_nlcs_and_names(demo_report: ImpactReport) -> 
     """The GB-map fields: every canonical row carries (a) human-readable
     .LOC names for its representative pair (never a bare group NLC like
     '0438'), and (b) blast_station_nlcs — individual station NLCs only
-    (group NLCs expanded through LOC membership), deduped, sorted, ≤200."""
+    (group NLCs expanded through LOC membership), deduped, sorted, capped
+    per src.impact.affected._BLAST_STATION_PER_FARE_CAP. The row also
+    carries blast_station_full_count so the UI can say "showing X of Y"
+    when the cap actually bit."""
+    from src.impact.affected import _BLAST_STATION_PER_FARE_CAP
     for fare in demo_report.canonical_affected:
         assert fare.representative_origin_name.strip(), (
             f"{fare.flow_id}/{fare.ticket_code}: empty representative_origin_name"
@@ -154,7 +158,8 @@ def test_demo_change_blast_station_nlcs_and_names(demo_report: ImpactReport) -> 
         assert fare.representative_dest_name.strip()
         stations = fare.blast_station_nlcs
         assert stations, f"{fare.flow_id}/{fare.ticket_code}: no blast stations"
-        assert len(stations) <= 200
+        assert len(stations) <= _BLAST_STATION_PER_FARE_CAP
+        assert fare.blast_station_full_count >= len(stations)
         assert list(stations) == sorted(set(stations)), "must be deduped + sorted"
         # Both blast sides expanded: the raw pair NLCs' member stations are in.
         pair_nlcs = {n for pair in fare.blast_radius_pairs for n in pair}
