@@ -48,3 +48,4 @@ tools/experiments.py
 # Build artefacts
 build/
 dist/
+.vercel

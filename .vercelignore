@@ -1,0 +1,15 @@
+.venv/
+data/
+feed.tar.gz
+frontend/_archive/
+tests/
+docs/*.pdf
+docs/regulation_evidence/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.pyc
+node_modules/
+tmp/
+scripts/
+src/
