@@ -391,7 +391,35 @@
     </div>
 
     <!-- ---------- CENTER ---------- -->
-    <section style="min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) 5px var(--rfe-anah,318px);background:#08090b">
+    <section style="min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 5px var(--rfe-anah,318px);background:#08090b">
+
+      <!-- ① VERDICT STRIP — the change's one-line verdict. Always mounted
+           (height-collapsed when empty) so the height transition survives. -->
+      <div style="min-width:0;overflow:hidden;background:#0d0f12;border-bottom:1px solid #1a1c20;height:{{ verdictBar.h }};transition:height .35s cubic-bezier(.22,.61,.36,1)">
+        <div style="display:flex;align-items:center;gap:10px;padding:0 14px;height:46px;min-width:0">
+          <div style="min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <span style="font-size:12.5px;color:#e7ebf0;font-weight:600">{{ verdictBar.changeLine }}</span>
+            <span style="font-size:11px;color:#5f6773"> · {{ verdictBar.scopeLine }}</span>
+          </div>
+          <div style="width:1px;height:16px;background:#1e2126;flex:0 0 auto"></div>
+          <div style="display:flex;align-items:baseline;gap:5px;flex:0 0 auto">
+            <span ref="{{ refs.vsFares }}" style="font-family:'Source Sans 3',sans-serif;font-size:16px;font-weight:600;color:#e7ebf0">{{ verdictBar.faresN }}</span>
+            <span style="font-size:10px;color:#5f6773">fares affected</span>
+          </div>
+          <sc-for list="{{ verdictBar.chips }}" as="ch" hint-placeholder-count="4">
+            <div onClick="{{ ch.onGo }}" style="flex:0 0 auto;font-size:10.5px;color:{{ ch.color }};border:1px solid {{ ch.border }};border-radius:12px;padding:3px 10px;cursor:pointer;opacity:{{ ch.opacity }};white-space:nowrap" style-hover="border-color:#2f333a">{{ ch.label }}</div>
+          </sc-for>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:baseline;gap:6px;flex:0 0 auto">
+            <span ref="{{ refs.vsRev }}" style="font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:{{ verdictBar.revColor }}">{{ verdictBar.revStr }}</span>
+            <span style="font-size:10px;color:#5f6773">{{ verdictBar.revSub }}</span>
+            <sc-if value="{{ verdictBar.est }}" hint-placeholder-val="{{ false }}"><span style="font-size:8.5px;letter-spacing:.5px;color:#c2a15c;border:1px solid #3a3220;border-radius:4px;padding:1px 5px">EST</span></sc-if>
+          </div>
+          <sc-if value="{{ verdictBar.showApprove }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ verdictBar.onApprove }}" style="flex:0 0 auto;background:#12211a;border:1px solid #24382e;color:#a9c9b7;font-size:11px;font-weight:600;padding:6px 13px;border-radius:6px;cursor:pointer" style-hover="border-color:#35513f">Continue to approve →</button>
+          </sc-if>
+        </div>
+      </div>
 
       <!-- CENTER TOP: map + aggregate impact -->
       <div data-screen-label="Blast radius map" style="min-height:0;min-width:0;overflow:hidden;display:flex;border-bottom:0">
@@ -640,20 +668,6 @@
 
       <!-- CENTER BOTTOM: analysis tabs -->
       <div data-screen-label="Analysis" style="min-height:0;display:flex;flex-direction:column;background:#0c0d0f;border-top:0">
-        <!-- ③ review headline: net revenue + issue chips (review stage only) -->
-        <sc-if value="{{ reviewBar.show }}" hint-placeholder-val="{{ false }}">
-          <div style="flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d0f12;border-bottom:1px solid #1a1c20">
-            <div style="display:flex;align-items:baseline;gap:8px;flex:0 0 auto">
-              <div style="font-family:'Source Sans 3',sans-serif;font-size:20px;font-weight:600;color:{{ reviewBar.revColor }}">{{ reviewBar.revStr }}</div>
-              <div style="font-size:10px;color:#5f6773">net annual revenue · {{ reviewBar.faresStr }}</div>
-            </div>
-            <div style="flex:1"></div>
-            <sc-for list="{{ reviewBar.chips }}" as="ch" hint-placeholder-count="3">
-              <div onClick="{{ ch.onGo }}" style="flex:0 0 auto;font-size:10.5px;color:{{ ch.color }};border:1px solid {{ ch.border }};border-radius:12px;padding:3px 10px;cursor:pointer" style-hover="border-color:#2f333a">{{ ch.label }}</div>
-            </sc-for>
-            <button onClick="{{ reviewBar.onApprove }}" style="flex:0 0 auto;background:#12211a;border:1px solid #24382e;color:#a9c9b7;font-size:11px;font-weight:600;padding:6px 13px;border-radius:6px;cursor:pointer" style-hover="border-color:#35513f">Continue to approve →</button>
-          </div>
-        </sc-if>
         <!-- tab bar -->
         <div style="flex:0 0 auto;display:flex;align-items:stretch;border-bottom:1px solid #1a1c20;background:#0d0e11;padding:0 4px;overflow-x:auto">
           <sc-for list="{{ analysisTabs }}" as="t" hint-placeholder-count="6">
@@ -1147,11 +1161,22 @@
     </aside>
   </div>
 
-  <!-- bottom splitter -->
-  <div onPointerDown="{{ onDrag.bottom }}" style="height:5px;flex:0 0 5px;cursor:row-resize;background:#1a1c20" style-hover="background:#2f333a"></div>
+  <!-- bottom splitter (inert while the drawer is collapsed) -->
+  <div onPointerDown="{{ drawer.splitDown }}" style="height:5px;flex:0 0 5px;cursor:{{ drawer.splitCursor }};background:#1a1c20" style-hover="background:#2f333a"></div>
 
-  <!-- ============ BOTTOM BAR ============ -->
-  <footer data-screen-label="Feed & status" style="flex:0 0 auto;height:var(--rfe-bottom,178px);display:flex;background:#0c0d0f;border-top:0;min-height:0">
+  <!-- ============ STATUS DRAWER (collapsed strip ⇄ full telemetry) ============ -->
+  <footer data-screen-label="Feed & status" style="flex:0 0 auto;height:{{ drawer.h }};transition:height var(--rfe-drawer-tr,.35s) cubic-bezier(.22,.61,.36,1);display:flex;flex-direction:column;background:#0c0d0f;border-top:0;min-height:0;overflow:hidden">
+    <!-- collapsed 34px strip: ambient telemetry, click to expand -->
+    <div onClick="{{ drawer.onToggle }}" style="flex:0 0 34px;display:flex;align-items:center;gap:9px;padding:0 12px;cursor:pointer;min-width:0" style-hover="background:#0e1013">
+      <div style="width:6px;height:6px;border-radius:50%;background:{{ mode.dotColor }};animation:{{ mode.anim }};flex:0 0 auto"></div>
+      <span style="font-size:9.5px;letter-spacing:.7px;color:#7b8390;font-weight:600;flex:0 0 auto">FEED · {{ mode.label }}</span>
+      <span style="font-size:10.5px;color:#626b76;font-family:'Source Sans 3',sans-serif;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ drawer.latest }}</span>
+      <div style="width:7px;height:7px;border-radius:50%;background:{{ status.dotColor }};flex:0 0 auto"></div>
+      <span style="font-size:10px;color:{{ status.color }};flex:0 0 auto">{{ status.label }}</span>
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#7b8390" stroke-width="2" style="flex:0 0 auto;transform:rotate({{ drawer.chev }});transition:transform .35s"><path d="M18 15l-6-6-6 6"></path></svg>
+    </div>
+    <!-- expanded body (always mounted; clipped by the footer height) -->
+    <div style="flex:1;min-height:0;display:flex;border-top:1px solid #141519;opacity:{{ drawer.bodyOp }};transition:opacity .3s">
     <!-- settlement feed -->
     <sc-if value="{{ showTicker }}" hint-placeholder-val="{{ true }}">
     <div style="flex:1.9 1 236px;min-width:0;display:flex;flex-direction:column;border-right:1px solid #1a1c20">
@@ -1196,20 +1221,6 @@
       </div>
     </div>
 
-    <!-- aggregate counts -->
-    <div style="flex:1.5 1 208px;min-width:0;display:flex;flex-direction:column;border-right:1px solid #1a1c20;padding:9px 12px">
-      <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76;font-weight:600;margin-bottom:9px">IMPACT LEDGER</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <sc-for list="{{ ledger }}" as="l" hint-placeholder-count="4">
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="width:8px;height:8px;border-radius:2px;background:{{ l.color }};flex:0 0 auto"></div>
-            <div ref="{{ l.ref }}" style="font-family:'Source Sans 3',sans-serif;font-size:17px;font-weight:600;color:{{ l.color }};min-width:22px">{{ l.count }}</div>
-            <div style="font-size:10px;color:#7b8390;line-height:1.1">{{ l.label }}</div>
-          </div>
-        </sc-for>
-      </div>
-    </div>
-
     <!-- status + revenue -->
     <div style="flex:1.2 1 186px;min-width:0;display:flex;flex-direction:column;padding:9px 12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
@@ -1229,6 +1240,7 @@
       <sc-if value="{{ status.ok }}" hint-placeholder-val="{{ true }}">
         <div style="font-size:10.5px;color:#5f6773;line-height:1.5">{{ status.detail }}</div>
       </sc-if>
+    </div>
     </div>
   </footer>
 
@@ -1422,6 +1434,7 @@ class Component extends DCLogic {
       lookup:'', lookupErr:null, lookupSugs:[], lookupSugIdx:0, lookupBusy:false,
       feed:[], animEpoch:0,
       env:'demo', envNote:false, showReport:false, feedFilter:'all', feedPaused:false,
+      drawerOpen:false,
       activeRailcard:'highland', productMenuOpen:false, wizard:null,
       mapFull:false, stationDetail:null,
       // Guided flow: ① scope → ② author → ③ review → ④ approve.
@@ -1444,7 +1457,7 @@ class Component extends DCLogic {
     this._lastAnimEpoch = -1; this._lastSelFlow = null; this._lastFareEpoch = -1;
     this._ref = {};
     ['countTotal','revenueNum','resolvedFare','blastList','bClean','bAnomaly','bBreach','bContradiction',
-     'lClean','lAnomaly','lBreach','lContradiction','mapSvg','provList','aggList'].forEach((k) => { this._ref[k] = (el) => { this._els[k] = el; }; });
+     'vsFares','vsRev','mapSvg','provList','aggList'].forEach((k) => { this._ref[k] = (el) => { this._els[k] = el; }; });
   }
 
   /* ---------------- lifecycle ---------------- */
@@ -1482,11 +1495,9 @@ class Component extends DCLogic {
       this.animNum('bAnomaly', pv.inversions||0, cv.inversions||0, (v)=>v);
       this.animNum('bBreach', pv.breaches||0, cv.breaches||0, (v)=>v);
       this.animNum('bContradiction', pv.contradictions, cv.contradictions, (v)=>v);
-      this.animNum('lClean', pv.cleanRows, cv.cleanRows, (v)=>v);
-      this.animNum('lAnomaly', pv.inversions||0, cv.inversions||0, (v)=>v);
-      this.animNum('lBreach', pv.breaches||0, cv.breaches||0, (v)=>v);
-      this.animNum('lContradiction', pv.contradictions, cv.contradictions, (v)=>v);
+      this.animNum('vsFares', pv.affectedTotal, cv.affectedTotal, (v)=>v.toLocaleString());
       this.animNum('revenueNum', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBigDir(v));
+      if (cur.verdict.revenue) this.animNum('vsRev', prev ? prev.revenue.totalP : 0, cur.revenue.totalP, (v)=>window.RFE.fmtBigDir(v));
       this.animateBlast();
       this.animateList('aggList', 55, 300);
       // Money shot (explicit Run impact only — not slider recomputes): pull
@@ -1585,6 +1596,9 @@ class Component extends DCLogic {
   }
   startDrag(key, e) {
     e.preventDefault();
+    // The drawer height transitions on toggle; suspend it while dragging so
+    // the footer tracks the pointer instead of lagging .35s behind it.
+    if (key === 'bottom') document.documentElement.style.setProperty('--rfe-drawer-tr', '0s');
     const W = window.innerWidth;
     const cfg = { left:{axis:'x',sign:1,min:240,max:Math.max(240, W - this._sizes.right - 370)},
       right:{axis:'x',sign:-1,min:300,max:Math.max(300, W - this._sizes.left - 370)},
@@ -1600,6 +1614,7 @@ class Component extends DCLogic {
     const up = () => {
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
       document.body.style.cursor = ''; document.body.style.userSelect = '';
+      if (key === 'bottom') document.documentElement.style.removeProperty('--rfe-drawer-tr');
       /* CLAUDE.md: no localStorage — splitter sizes intentionally not persisted */
     };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
@@ -1708,32 +1723,43 @@ class Component extends DCLogic {
         onSelect:() => this.selectToc(t.code) };
     });
   }
-  buildReviewBar() {
+  /* ① Verdict strip — the change's one-line verdict at the top of the stage.
+     Every number reads the adapter's single verdict object, so the strip can
+     never disagree with the aggregate panel, tabs, or report modal. */
+  buildVerdictBar() {
     const S = this.state, imp = this._impact, RFE = window.RFE, C = this.C;
-    if (S.stage !== 'review' || !imp) return { show:false, chips:[] };
-    const rev = imp.revenue;
+    if (!RFE || !imp) return { h:'0px', changeLine:'', scopeLine:'', faresN:'0', chips:[],
+      revStr:'', revSub:'', revColor:C.tx1, est:false, showApprove:false, onApprove:null };
+    const v = imp.verdict, rev = imp.revenue, p = S.params;
+    const verb = p.changeType === 'withdraw' ? 'Withdraw' : (p.changeType === 'adjust' ? 'Adjust' : 'Add');
+    const changeLine = verb + ' ' + p.railcardName + ' · ' + p.discountPct + '% ' + (p.peakOn ? 'peak-valid' : 'off-peak');
+    const cor = (RFE.CORRIDORS || []).find((c) => c.id === S.selCorridor);
+    const scopeLine = S.scopeKind === 'toc' ? ('TOC ' + (S.selToc || '—')) : (cor ? cor.name : '');
     const chips = [];
     const chip = (n, label, tone, go) => {
       const clean = n === 0;
       chips.push({ label: n + ' ' + label, color: clean ? '#6f9e86' : tone,
         border: clean ? '#1d2a23' : (tone === C.bad ? '#3a2320' : '#3a3220'),
-        onGo: go });
+        opacity:'1', onGo: go });
     };
-    const v = imp.verdict;
-    const breachN = v.breaches != null ? v.breaches : 0;
-    const invN = v.inversions != null ? v.inversions : 0;
-    chip(breachN, breachN === 1 ? 'cap breach' : 'cap breaches', C.bad,
-      () => this.setState({ activeAnalysis:'compliance' }));
-    chip(invN, invN === 1 ? 'inversion' : 'inversions', C.warn,
-      () => this.setState({ activeAnalysis:'anomalies' }));
-    chip(v.contradictions, v.contradictions === 1 ? 'contradiction' : 'contradictions', C.bad,
-      () => this.setState({ activeRight:'contra' }));
+    const off = (label, tab) => chips.push({ label: label + ' off', color:'#5f6773',
+      border:'#171a1e', opacity:'.55', onGo:() => this.setState({ activeAnalysis:tab }) });
+    if (v.breaches != null) chip(v.breaches, v.breaches === 1 ? 'cap breach' : 'cap breaches', C.bad, () => this.setState({ activeAnalysis:'compliance' }));
+    else off('compliance', 'compliance');
+    if (v.inversions != null) chip(v.inversions, v.inversions === 1 ? 'inversion' : 'inversions', C.warn, () => this.setState({ activeAnalysis:'anomalies' }));
+    else off('validity', 'anomalies');
+    if (v.splitsOpened != null) chip(v.splitsOpened, v.splitsOpened === 1 ? 'split opened' : 'splits opened', C.warn, () => this.setState({ activeAnalysis:'splits' }));
+    else off('splits', 'splits');
+    chip(v.contradictions, v.contradictions === 1 ? 'contradiction' : 'contradictions', C.bad, () => this.setState({ activeRight:'contra' }));
     return {
-      show:true,
-      revStr: rev ? RFE.fmtBigDir(rev.totalP) : '—',
-      revColor: rev && rev.totalP < 0 ? C.down : (rev && rev.totalP > 0 ? C.up : C.tx1),
-      faresStr: v.affectedTotal.toLocaleString() + ' fares in scope',
+      h:'46px', changeLine, scopeLine,
+      faresN: v.affectedTotal.toLocaleString(),
       chips,
+      revStr: v.revenue ? RFE.fmtBigDir(rev.totalP) : '',
+      revSub: v.revenue ? 'net/yr' : 'revenue off',
+      revColor: v.revenue ? (rev.totalP < 0 ? C.down : (rev.totalP > 0 ? C.up : C.tx1)) : '#5f6773',
+      est: !!(v.revenue && v.revenue.est),
+      showApprove: S.stage === 'review',
       onApprove:() => this.setStage('approve'),
     };
   }
@@ -2342,7 +2368,7 @@ class Component extends DCLogic {
       tocsEmpty: S.scopeKind === 'toc' && V.tocList.length === 0,
       authorCta: S.stage === 'author',
     };
-    V.reviewBar = this.buildReviewBar();
+    V.verdictBar = this.buildVerdictBar();
 
     // change builder
     V.change = this.buildChange();
@@ -2387,16 +2413,24 @@ class Component extends DCLogic {
     V.queue = q;
     V.contra = this.buildContradiction();
 
-    // bottom mini + ledger — all counts off the adapter's single verdict
+    // bottom drawer minis — counts off the adapter's single verdict
     const vd = this._impact ? this._impact.verdict
-      : { cleanRows:0, inversions:0, breaches:0, contradictions:0 };
-    V.ledger = [
-      { label:'clean', count:vd.cleanRows, color:C.ok, ref:this._ref.lClean },
-      { label:'inversion', count:(vd.inversions != null ? vd.inversions : 0), color:C.warn, ref:this._ref.lAnomaly },
-      { label:'breach', count:(vd.breaches != null ? vd.breaches : 0), color:C.bad, ref:this._ref.lBreach },
-      { label:'contradiction', count:vd.contradictions, color:C.viol, ref:this._ref.lContradiction }
-    ];
-    V.mini = { anomalyStr:String(vd.inversions != null ? vd.inversions : 0), splitStr:String(this._impact ? this._impact.splits.length : 0) };
+      : { cleanRows:0, inversions:0, breaches:0, contradictions:0, splitsOpened:null };
+    // splitStr counts listed opportunities (pre-existing + new) to match the
+    // splits panel; the strip's "splits opened" chip counts only new ones.
+    V.mini = { anomalyStr:String(vd.inversions != null ? vd.inversions : 0),
+      splitStr:String(this._impact ? this._impact.splits.length : 0) };
+    // status drawer: telemetry is ambient — a 34px strip until expanded
+    const f0 = S.feed[0];
+    V.drawer = {
+      h: S.drawerOpen ? 'var(--rfe-bottom,178px)' : '34px',
+      bodyOp: S.drawerOpen ? '1' : '0',
+      chev: S.drawerOpen ? '180deg' : '0deg',
+      latest: f0 ? (f0.ts + ' · ' + f0.text) : 'feed idle',
+      onToggle:() => this.setState((s) => ({ drawerOpen:!s.drawerOpen })),
+      splitDown: S.drawerOpen ? (e) => this.startDrag('bottom', e) : (e) => { e.preventDefault(); },
+      splitCursor: S.drawerOpen ? 'row-resize' : 'default',
+    };
 
     V.tb = this.buildToolbar();
     V.feedView = this.buildFeedView();
