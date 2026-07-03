@@ -556,6 +556,7 @@
         active: true,
         inP: null, outP: outP,
         note: note,
+        detail: detail, // merge point (visual-copilot): map cross-highlight reads *_nlc keys
         cite: p.source,
         source: p.raw_record ? {
           title: p.step + " raw record",

@@ -510,6 +510,26 @@
             </sc-for>
           </div>
 
+          <!-- corridor strip (visual-copilot session): calling order + split badges -->
+          <sc-if value="{{ strip.show }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:4;max-width:58%;background:rgba(12,13,15,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid #1f2228;border-radius:9px;padding:8px 12px 7px">
+              <div style="display:flex;align-items:flex-start;overflow-x:auto;scrollbar-width:none">
+                <sc-for list="{{ strip.stations }}" as="cs" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:flex-start;flex:0 0 auto">
+                    <div onClick="{{ cs.onClick }}" title="{{ cs.crs }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:0 2px">
+                      <div style="width:{{ cs.dotSize }}px;height:{{ cs.dotSize }}px;border-radius:50%;background:{{ cs.dotColor }};margin-top:{{ cs.dotPad }}px"></div>
+                      <div style="font-size:9px;color:{{ cs.nameColor }};font-weight:{{ cs.weight }};white-space:nowrap">{{ cs.label }}</div>
+                      <sc-if value="{{ cs.hasSplit }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size:8.5px;color:#c2a15c;border:1px solid #3a3324;background:#191713;border-radius:8px;padding:1px 6px;white-space:nowrap">{{ cs.splitSave }}</div>
+                      </sc-if>
+                    </div>
+                    <sc-if value="{{ cs.showLine }}" hint-placeholder-val="{{ true }}"><div style="width:20px;height:1px;background:#2a2e34;margin:0 1px;flex:0 0 auto;margin-top:3px"></div></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
           <!-- expanded-map chrome: slim glass panels over the map edges -->
           <sc-if value="{{ mapFull.show }}" hint-placeholder-val="{{ false }}">
             <div style="position:absolute;top:52px;left:14px;z-index:6;display:flex;align-items:center;gap:8px">
@@ -1025,7 +1045,7 @@
             <!-- steps -->
             <div ref="{{ refs.provList }}" style="position:relative">
               <sc-for list="{{ prov.steps }}" as="s" hint-placeholder-count="5">
-                <div onClick="{{ s.onClick }}" style="position:relative;display:flex;gap:11px;cursor:pointer;padding-bottom:14px">
+                <div onClick="{{ s.onClick }}" onMouseEnter="{{ s.onEnter }}" onMouseLeave="{{ s.onLeave }}" style="position:relative;display:flex;gap:11px;cursor:pointer;padding-bottom:14px">
                   <!-- rail + dot -->
                   <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:14px">
                     <div style="width:12px;height:12px;border-radius:50%;border:2px solid {{ s.dotColor }};background:{{ s.dotFill }};z-index:2"></div>
@@ -2570,6 +2590,7 @@ class Component extends DCLogic {
     // map + impact
     V.map = this.buildMap();
     V.mapFull = this.buildMapFull();
+    V.strip = this.buildCorridorStrip();
     V.stationCard = this.buildStationDetail();
     V.impact = this.buildImpact();
 
@@ -2661,6 +2682,40 @@ class Component extends DCLogic {
         labelColor:(on&&!unavail)?'#d0d6dd':'#7b8390', statusLabel, modeColor, modeDot,
         onToggle:()=>{ if(!unavail) this.setInclude(d.id); } };
     });
+  }
+
+  // Corridor strip (visual-copilot session): the selected corridor's real
+  // calling order along the map's bottom edge, with split-ticket badges
+  // joined from the impact splits by intermediate NLC. Data-presence keyed:
+  // no timetable callings ⇒ no strip.
+  buildCorridorStrip() {
+    const C = this.C, S = this.state, RFE = window.RFE;
+    if (!RFE || !S.selCorridor || S.mapFull) return { show:false };
+    const cd = RFE.corridorCallings(S.selCorridor);
+    if (!cd || !cd.stations || cd.stations.length < 2) return { show:false };
+    const splitByNlc = {};
+    if (this._impact && S.resultsCurrent) this._impact.splits.forEach((sp) => {
+      const cur = splitByNlc[sp.mid];
+      if (!cur || cur.saveP < sp.saveP) splitByNlc[sp.mid] = sp;
+    });
+    const n = cd.stations.length;
+    const stations = cd.stations.map((st, i) => {
+      const sp = splitByNlc[st.nlc] || null;
+      const end = i === 0 || i === n - 1;
+      return {
+        label: (end || sp) ? st.name : st.crs, crs: st.crs,
+        dotSize: end ? 7 : (sp ? 6 : 5),
+        dotPad: end ? 0 : (sp ? 0.5 : 1),
+        dotColor: end ? C.acHi : (sp ? C.warn : C.tx3),
+        nameColor: end ? C.tx0 : (sp ? C.warn : C.tx2),
+        weight: (end || sp) ? 600 : 400,
+        hasSplit: !!sp,
+        splitSave: sp ? ('split · saves ' + RFE.fmtMoney(sp.saveP)) : '',
+        showLine: i < n - 1,
+        onClick: () => this.setBusHighlight([st.nlc], true),
+      };
+    });
+    return { show:true, stations };
   }
 
   buildMap() {
@@ -3242,6 +3297,15 @@ class Component extends DCLogic {
     const steps = res.steps.map((st, i) => {
       const term = st.terminal;
       const termColor = noFare ? C.warn : C.ok;
+      // Cross-highlight (visual-copilot session): the NLCs a step cites light
+      // up on the map while hovered. No geography for the value ⇒ no-op.
+      const hlNlcs = [];
+      const det = st.detail || {};
+      Object.keys(det).forEach((k) => {
+        if (!/nlc|^origin$|^dest$/i.test(k)) return;
+        const v = String(det[k]);
+        if (/^[0-9a-z]{4}$/i.test(v) && hlNlcs.indexOf(v) < 0) hlNlcs.push(v);
+      });
       return { key:st.key, label:st.label, note:st.note,
         cite: st.cite, outStr: st.outP==null?'—':RFE.fmtMoney(st.outP),
         outColor: term ? termColor : (st.active ? '#dbe0e7' : '#5f6773'),
@@ -3249,6 +3313,8 @@ class Component extends DCLogic {
         dotColor: term ? termColor : (st.active ? C.ac : '#2f333a'), dotFill: st.active||term ? (term?termColor:C.ac) : '#0c0d0f',
         cardBg: (S.selStep===st.key) ? '#121418' : '#0c0d10', cardBorder: (S.selStep===st.key) ? '#2f333a' : '#15171b',
         lineColor: st.active ? C.line2 : C.line, showLine: i < res.steps.length - 1,
+        onEnter:() => { if (hlNlcs.length) this.setBusHighlight(hlNlcs, false); },
+        onLeave:() => { if (hlNlcs.length) this.setBusHighlight([], false); },
         onClick:() => this.setState({ selStep:st.key }) };
     });
     const sel = res.steps.find((s) => s.key === S.selStep) || res.steps[0];
