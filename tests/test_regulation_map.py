@@ -30,6 +30,7 @@ DATA = REPO_ROOT / "data"
 FFL = DATA / "RJFAF805.FFL"
 LOC = DATA / "RJFAF805.LOC"
 TTY = DATA / "RJFAF805.TTY"
+FSC = DATA / "RJFAF805.FSC"
 
 # NLCs verified from the .LOC file (see tools/classify_corridor.py for the
 # inline reader). MAN PICC / EUSTON / STOKE-ON-TRENT are the §5 corridors.
@@ -47,7 +48,7 @@ EXTRA_TICKETS = ("SDR",)
 @pytest.fixture(scope="module")
 def regmap() -> RegulationMap:
     """Build the §5 corridor regulation map once per test module."""
-    for p in (FFL, LOC, TTY):
+    for p in (FFL, LOC, TTY, FSC):
         if not p.exists():
             pytest.skip(f"missing feed file: {p}")
     return build_regulation_map(
@@ -55,7 +56,7 @@ def regmap() -> RegulationMap:
             CorridorSpec("MAN-EUS", MAN_PICC_NLC, EUSTON_NLC, is_london_flow=True),
             CorridorSpec("SOT-MAN", STOKE_NLC, MAN_PICC_NLC, is_london_flow=False),
         ],
-        ffl_path=FFL, loc_path=LOC, tty_path=TTY,
+        ffl_path=FFL, loc_path=LOC, tty_path=TTY, fsc_path=FSC,
         extra_tickets=EXTRA_TICKETS,
     )
 

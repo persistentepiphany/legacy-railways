@@ -30,8 +30,17 @@ from src.ingest.inspect import (
     RailcardRecord,
     RcmMinFare,
     StatusDiscount,
+    raw_feed_line,
 )
 from src.resolver.resolve import ProvenanceStep
+
+
+def _raw(path: Path | None, line_no: int) -> str | None:
+    """Raw feed line for provenance; None when the caller supplied no path
+    (synthetic-railcard rows have no file to cite — that stays honest)."""
+    if path is None:
+        return None
+    return raw_feed_line(Path(path), line_no)
 
 
 # Rule "01" is the standard rounding rule for adult fares after a railcard
@@ -73,6 +82,13 @@ def apply_railcard_from_feed(
     rcm_label: str = "RJFAF805.RCM",
     frr_label: str = "RJFAF805.FRR",
     tty_label: str = "RJFAF805.TTY",
+    # Optional feed paths: when given, every step that cites "line N" also
+    # carries the raw fixed-width record for the SOURCE RECORD inspector.
+    rlc_path: Path | None = None,
+    dis_path: Path | None = None,
+    rcm_path: Path | None = None,
+    frr_path: Path | None = None,
+    tty_path: Path | None = None,
 ) -> RailcardOutcome:
     """Apply the feed-derived railcard discount chain to one adult fare.
 
@@ -102,6 +118,7 @@ def apply_railcard_from_feed(
             "ADULT_STATUS":  rlc.adult_status,
             "CHILD_STATUS":  rlc.child_status,
         },
+        raw_record=_raw(rlc_path, rlc.line_no),
     ))
 
     # --- Step 2: .TTY ticket -> DISCOUNT_CATEGORY ---------------------------
@@ -125,6 +142,7 @@ def apply_railcard_from_feed(
             "TICKET_CODE":       ticket_code,
             "DISCOUNT_CATEGORY": discount_category,
         },
+        raw_record=_raw(tty_path, tty_line),
     ))
 
     # --- Step 3: .DIS (status, category) -> indicator + percentage ----------
@@ -153,10 +171,11 @@ def apply_railcard_from_feed(
             "DISCOUNT_INDICATOR":  dis.discount_indicator,
             "DISCOUNT_PERCENTAGE": f"{dis.discount_percentage} (= {dis.discount_percentage / 10:.1f}%)",
         },
+        raw_record=_raw(dis_path, dis.line_no),
     ))
 
     # --- Step 4: apply discount per indicator -------------------------------
-    discounted = _apply_discount(base_pence, dis, prov, dis_label)
+    discounted = _apply_discount(base_pence, dis, prov, dis_label, dis_path)
     if discounted is None:
         return RailcardOutcome(
             None, prov,
@@ -187,6 +206,7 @@ def apply_railcard_from_feed(
                 "binding":      "yes",
                 "explanation":  "discounted price was below .RCM minimum; raised to floor",
             },
+            raw_record=_raw(rcm_path, rcm.line_no),
         ))
         discounted = rcm.minimum_fare_pence
     else:
@@ -199,10 +219,11 @@ def apply_railcard_from_feed(
                 "binding":      "no",
                 "explanation":  "discounted price is above the floor; no adjustment",
             },
+            raw_record=_raw(rcm_path, rcm.line_no),
         ))
 
     # --- Step 6: .FRR rounding ----------------------------------------------
-    rounded = _apply_rounding(discounted, frr_rules, prov, frr_label)
+    rounded = _apply_rounding(discounted, frr_rules, prov, frr_label, frr_path)
     if rounded is None:
         return RailcardOutcome(
             None, prov,
@@ -217,6 +238,7 @@ def _apply_discount(
     dis: StatusDiscount,
     prov: list[ProvenanceStep],
     dis_label: str,
+    dis_path: Path | None = None,
 ) -> int | None:
     """Apply the discount per the DIS record's indicator. Returns the
     discounted fare in pence, or None if the indicator is unsupported."""
@@ -232,6 +254,7 @@ def _apply_discount(
                 "after":              str(base_pence),
                 "explanation":        "indicator 'X'/'N' = no discount applies",
             },
+            raw_record=_raw(dis_path, dis.line_no),
         ))
         return base_pence
     if ind == "0":
@@ -254,6 +277,7 @@ def _apply_discount(
                 "discount":            f"{discount} (ceil({base_pence} × {num} / {denom}))",
                 "after":               str(after),
             },
+            raw_record=_raw(dis_path, dis.line_no),
         ))
         return after
     # 'F'/'M'/'H'/'L' would need the linked .DIS S-record's flat/min fares.
@@ -268,6 +292,7 @@ def _apply_discount(
                 "fares; not yet wired — quarantining instead of guessing"
             ),
         },
+        raw_record=_raw(dis_path, dis.line_no),
     ))
     return None
 
@@ -277,6 +302,7 @@ def _apply_rounding(
     frr_rules: dict[str, list[FrrBand]],
     prov: list[ProvenanceStep],
     frr_label: str,
+    frr_path: Path | None = None,
 ) -> int | None:
     """Find the first FRR band (rule '01') whose MAX_AMOUNT >= fare and round
     UP to its ROUND_AMOUNT. Returns None if the rule is missing entirely."""
@@ -315,6 +341,7 @@ def _apply_rounding(
                 "after":        str(fare_pence),
                 "note":         "already a multiple of the band amount; no rounding applied",
             },
+            raw_record=_raw(frr_path, band.line_no),
         ))
         return fare_pence
     rounded = (fare_pence // round_to) * round_to
@@ -330,6 +357,7 @@ def _apply_rounding(
             "after":        str(rounded),
             "direction":    "DOWN (floor to band; matches BRFares oracle, not spec's literal 'round UP')",
         },
+        raw_record=_raw(frr_path, band.line_no),
     ))
     return rounded
 

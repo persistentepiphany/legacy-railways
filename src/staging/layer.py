@@ -48,6 +48,31 @@ def propose(
     that a staged change would mutate) are not yet detected — deferred to
     v2 because they require deeper feed wiring."""
     contradictions = _detect_contradictions(impact, layer.all_cards())
+    # Honour any A/B choices the human has already made on prior escalations
+    # (delivered via change.contradiction_choice). Keys are "<flow_id>:<ticket_code>".
+    # Filtering here — NOT auto-resolving — is what preserves the "engine
+    # never picks a side" invariant: the human picked, we recorded, we move on.
+    # Only 'B' (the proposal wins) clears a contradiction; 'A' (keep the
+    # existing card) means the proposal as written still conflicts, so the
+    # row stays escalated until the proposal is amended. Unknown keys are an
+    # error, never silently ignored — a stale/typo'd key must not look like
+    # a resolved contradiction.
+    if change.contradiction_choice:
+        detected_keys = {f"{cp.flow_id}:{cp.ticket_code}" for cp in contradictions}
+        unknown = set(change.contradiction_choice.keys()) - detected_keys
+        if unknown:
+            raise ValueError(
+                f"contradiction_choice key(s) {sorted(unknown)} do not match "
+                f"any detected contradiction; detected keys: {sorted(detected_keys)}"
+            )
+        resolved = {
+            key for key, pick in change.contradiction_choice.items()
+            if pick == "B"
+        }
+        contradictions = tuple(
+            cp for cp in contradictions
+            if f"{cp.flow_id}:{cp.ticket_code}" not in resolved
+        )
     if contradictions:
         return Escalation(
             reason=(
@@ -111,6 +136,20 @@ def approve(layer: StagingLayer, card_id: str) -> ProposalOutcome:
         # chose). Defensive recheck against approved is what matters here.
         layer.approved,
     )
+    # Honour the human's recorded A/B choices exactly as propose() does:
+    # a card accepted at propose time WITH an explicit 'B' pick must not be
+    # blocked here by the same contradiction the analyst already resolved.
+    # (No unknown-key check: approve detects against `approved` only, so a
+    # choice key from propose time may legitimately match nothing now.)
+    if pending_card.change.contradiction_choice:
+        resolved = {
+            key for key, pick in pending_card.change.contradiction_choice.items()
+            if pick == "B"
+        }
+        contradictions = tuple(
+            cp for cp in contradictions
+            if f"{cp.flow_id}:{cp.ticket_code}" not in resolved
+        )
     if contradictions:
         return Escalation(
             reason=(

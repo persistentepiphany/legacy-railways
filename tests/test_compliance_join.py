@@ -168,6 +168,44 @@ def test_check_compliance_compliant_when_below_cap() -> None:
     assert verdict.status == "compliant"
 
 
+def test_check_compliance_discount_on_pricier_route_not_breach() -> None:
+    """The §4 fallback map cap is the corridor-CHEAPEST fare per ticket, so
+    a fare on a pricier route sits above it even before the change. Its own
+    current price is its fallback baseline: a discount must be compliant,
+    reported against the effective cap max(map cap, old price)."""
+    entry = RegulationEntry(
+        origin_nlc=MAN_PICC_NLC, dest_nlc=EUSTON_NLC, ticket_code="SVR",
+        regulated=True, cap_price_2025_pence=5650, citation=_citation(),
+    )
+    regmap = _regmap_with(entry)
+    # Route-00129 SVR: 16740p discounted to 11145p — above the corridor-
+    # cheapest 5650p cap but a decrease against its own price.
+    fare = _affected_fare(old_pence=16740, new_pence=11145)
+    verdict = check_compliance(
+        fare, regmap,
+        corridor_origin_nlc=MAN_PICC_NLC, corridor_dest_nlc=EUSTON_NLC,
+    )
+    assert verdict.status == "compliant"
+    assert verdict.cap_price_2025_pence == 16740  # effective cap = old price
+
+
+def test_check_compliance_increase_on_pricier_route_still_breach() -> None:
+    """The effective cap only lifts to the fare's own current price — an
+    INCREASE above that price still breaches the 0% freeze."""
+    entry = RegulationEntry(
+        origin_nlc=MAN_PICC_NLC, dest_nlc=EUSTON_NLC, ticket_code="SVR",
+        regulated=True, cap_price_2025_pence=5650, citation=_citation(),
+    )
+    regmap = _regmap_with(entry)
+    fare = _affected_fare(old_pence=16740, new_pence=17000)
+    verdict = check_compliance(
+        fare, regmap,
+        corridor_origin_nlc=MAN_PICC_NLC, corridor_dest_nlc=EUSTON_NLC,
+    )
+    assert verdict.status == "breach"
+    assert verdict.cap_price_2025_pence == 16740
+
+
 def test_check_compliance_not_regulated_for_advance() -> None:
     """An entry with regulated=False (Advance, First Class, etc.) returns
     not_regulated. The citation is still echoed so the UI can show *why*
@@ -413,12 +451,11 @@ def test_regulated_scope_svr_rows_classify_with_off_peak_return_citation(
     breach}, never not_regulated) and cite §1 Off-Peak Return — proves the
     regmap join hit and used the right rule.
 
-    Whether an individual SVR row is compliant or breach depends on the
-    §4 cap-fallback: the cap is the CHEAPEST current SVR on the corridor,
-    so more expensive SVR routes whose discounted price still exceeds the
-    cheapest SVR are flagged as breach (an artifact of the fallback, not
-    a real freeze violation). This is acknowledged in the regulation map
-    notes and is the v2 fix (source the true 1 Mar 2025 reference)."""
+    The map's §4 fallback cap is the CHEAPEST current SVR on the corridor,
+    but the check uses max(map cap, the row's own old price) as the
+    effective cap — so a discounted SVR on a pricier route is compliant
+    (its own current price is its fallback baseline), not a false breach.
+    Sourcing the true 1 Mar 2025 reference remains the v2 fix."""
     svr_rows = [
         f for f in regulated_scope_report.canonical_affected
         if f.ticket_code == "SVR"

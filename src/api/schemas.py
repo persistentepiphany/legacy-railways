@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from src.impact.change_request import ChangeRequest
 from src.impact.report import ImpactReport
 from src.resolver.resolve import ResolvedFare
+from src.routeing.engine import ValidityVerdict
 from src.staging.types import (
     Accepted,
     ApprovalCard,
@@ -34,6 +35,7 @@ class ProvenanceStepModel(BaseModel):
     step: str
     source: str
     detail: dict[str, str]
+    raw_record: str | None = None
 
 
 class ResolvedFareModel(BaseModel):
@@ -59,6 +61,15 @@ class ChangeRequestModel(BaseModel):
     corridor_dest_nlc: str
     peak_valid: bool
     description: str
+    # Optional UI-driven overrides (see ChangeRequest for semantics).
+    rounding_rule: Literal["near5", "near10", "down10", "none"] | None = None
+    min_floor_pct: float | None = None
+    cluster_name: str | None = None
+    contradiction_choice: dict[str, Literal["A", "B"]] | None = None
+    # Scope: "corridor" (default) or "toc" (operator-wide; corridor NLCs
+    # must be empty strings and toc_code a 3-char .FFL fare-TOC).
+    scope: Literal["corridor", "toc"] = "corridor"
+    toc_code: str | None = None
 
     def to_dataclass(self) -> ChangeRequest:
         return ChangeRequest(
@@ -70,6 +81,12 @@ class ChangeRequestModel(BaseModel):
             corridor_dest_nlc=self.corridor_dest_nlc,
             peak_valid=self.peak_valid,
             description=self.description,
+            rounding_rule=self.rounding_rule,
+            min_floor_pct=self.min_floor_pct,
+            cluster_name=self.cluster_name,
+            contradiction_choice=self.contradiction_choice,
+            scope=self.scope,
+            toc_code=self.toc_code,
         )
 
 
@@ -105,6 +122,9 @@ class AffectedFareModel(BaseModel):
     provenance: list[ProvenanceStepModel]
     blast_radius_pairs: list[tuple[str, str]]
     compliance: ComplianceVerdictModel | None = None
+    representative_origin_name: str = ""
+    representative_dest_name: str = ""
+    blast_station_nlcs: list[str] = []
 
 
 class BlastRadiusPairModel(BaseModel):
@@ -113,6 +133,7 @@ class BlastRadiusPairModel(BaseModel):
     canonical_index: int
     expansion_reason: Literal[
         "direct", "loc_group_origin", "loc_group_dest", "loc_group_both",
+        "fsc_cluster_origin", "fsc_cluster_dest", "fsc_cluster_both",
     ]
 
 
@@ -135,6 +156,7 @@ class ComplianceBlockModel(BaseModel):
     breach_count: int
     breaches: list[AffectedFareModel]
     regulation_map_notes: list[str]
+    partial: bool = False  # True when joined over retained top-N rows only
 
 
 class AnomaliesBlockModel(BaseModel):
@@ -288,12 +310,30 @@ class CarbonBlockModel(BaseModel):
     notes: list[str]
 
 
+class ScopeStatsModel(BaseModel):
+    """Scale bookkeeping for the affected set (see ScopeStats dataclass):
+    at operator scope aggregates run over the full set but only top-N
+    detailed rows are returned — these counters expose the cut."""
+    scope: Literal["corridor", "toc"]
+    toc_code: str | None
+    flows_total: int
+    flows_actual: int
+    flows_generated_skipped: int
+    canonical_total: int
+    canonical_returned: int
+    blast_pairs_total: int
+    blast_pairs_returned: int
+    truncated: bool
+    toc_station_nlcs: list[str] = []
+
+
 class ImpactReportModel(BaseModel):
     change: ChangeRequestModel
     canonical_affected: list[AffectedFareModel]
     skipped: list[AffectedFareModel]
     blast_radius_pairs: list[BlastRadiusPairModel]
     notes: list[str]
+    scope_stats: ScopeStatsModel | None = None
     compliance: ComplianceBlockModel | None = None
     anomalies: AnomaliesBlockModel | None = None
     revenue: RevenueBlockModel | None = None
@@ -347,6 +387,81 @@ ProposalOutcomeModel = Annotated[
 ]
 
 
+# --- Metadata surface (snapshot / corridors / stations / railcards) --------
+
+
+class SnapshotModel(BaseModel):
+    id: str
+    date: str            # YYYY-MM-DD, best-effort from the FFL header
+    feed: str            # e.g. "RJFAF"
+    sequence: str        # e.g. "805"
+    records: int         # wc -l of the .FFL
+    generated_at: str    # from feed header; empty string if not parseable
+    set_kind: str        # "full refresh (F)" | "changes only (C)" | ""
+
+
+class CorridorModel(BaseModel):
+    id: str
+    name: str
+    sub: str
+    origin_crs: str
+    origin_nlc: str
+    dest_crs: str
+    dest_nlc: str
+    default_ticket: str
+    toc: str
+    path_crs: list[str]
+
+
+class RouteModel(BaseModel):
+    """Timetable-derived route for a free-form OD pair. `found=False` is a
+    typed miss (no through service / no fares NLC) — never a fabricated path."""
+    found: bool
+    reason: str | None = None
+    origin_crs: str
+    dest_crs: str
+    origin_nlc: str | None = None
+    dest_nlc: str | None = None
+    name: str = ""
+    sub: str = ""
+    path_crs: list[str] = []
+    direct_trains: int = 0
+    reversed_path: bool = False   # path taken from the opposite-direction service
+    source: str = ""
+
+
+class StationModel(BaseModel):
+    crs: str
+    nlc: str | None       # None when MSN carries the station but LOC has no matching CRS
+    name: str
+    x: float
+    y: float
+    easting: int
+    northing: int
+
+
+class TocModel(BaseModel):
+    """One fare-TOC for the operator-scope picker. Counts and station list
+    are None until the FFL indexes are warm — the endpoint never triggers
+    the ~30s parse on the request thread."""
+    code: str                        # 3-char fare-TOC code from .FFL (e.g. 'NTH')
+    toc_2char: str | None            # 2-char timetable code from .TOC, if known
+    name: str | None                 # operator name from .TOC, if known
+    flow_count: int | None           # all flows carrying this code
+    actual_flow_count: int | None    # usage_code 'A' only (what impact iterates)
+    station_nlcs: list[str] = []     # deduped O/D NLCs of 'A' flows, capped
+
+
+class RailcardMetaModel(BaseModel):
+    code: str
+    display: str
+    hint_pct: float       # suggested discount percentage 0..100
+    off_peak_only: bool
+    sub: str
+    national: bool
+    in_feed: bool         # True if the code appears in the current .RLC snapshot
+
+
 # --- Conversion helpers ----------------------------------------------------
 
 
@@ -361,6 +476,59 @@ def impact_to_model(dc: ImpactReport) -> ImpactReportModel:
 def perf_to_model(dc) -> PerformanceResultModel:
     """Wrap a PerformanceResult dataclass as its Pydantic mirror for /api/performance."""
     return PerformanceResultModel.model_validate(asdict(dc))
+
+
+# --- Routeing / Validity ---------------------------------------------------
+
+
+class RouteingProvenanceLineModel(BaseModel):
+    step: str
+    source: str
+    detail: dict[str, str]
+
+
+class PermittedRouteModel(BaseModel):
+    start_routeing_point: str
+    end_routeing_point: str
+    map_sequence: list[str]
+
+
+class EasementMatchModel(BaseModel):
+    easement_ref: str
+    outcome: Literal["match", "no_match", "excepted", "outside_window"]
+    is_positive: bool
+    reasons: list[str]
+
+
+class ValidityVerdictModel(BaseModel):
+    """Return shape of GET /api/validity.
+
+    `status` is the engine's typed verdict — the frontend switches the UI
+    off this (green/red/amber/escalate), never a naked string comparison."""
+    status: Literal[
+        "permitted",
+        "permitted_by_easement",
+        "not_permitted",
+        "denied_by_easement",
+        "contradiction",
+        "unknown_no_data",
+        "unknown_origin",
+        "unknown_dest",
+    ]
+    query: dict
+    origin_routeing_points: list[str]
+    dest_routeing_points: list[str]
+    permitted_routes: list[PermittedRouteModel]
+    firing_positive: list[EasementMatchModel]
+    firing_negative: list[EasementMatchModel]
+    considered_easement_refs: list[str]
+    easement_texts: dict[str, str]
+    provenance: list[RouteingProvenanceLineModel]
+    notes: list[str]
+
+
+def validity_to_model(vv: ValidityVerdict) -> ValidityVerdictModel:
+    return ValidityVerdictModel.model_validate(asdict(vv))
 
 
 def card_to_model(dc: ApprovalCard) -> ApprovalCardModel:
@@ -391,6 +559,7 @@ __all__ = [
     "ComplianceBlockModel",
     "ComplianceVerdictModel",
     "ContradictingPairModel",
+    "EasementMatchModel",
     "EscalationModel",
     "FareInversionModel",
     "ImpactReportModel",
@@ -398,20 +567,26 @@ __all__ = [
     "ODMRevenueEstimateModel",
     "PerformanceBlockModel",
     "PerformanceResultModel",
+    "PermittedRouteModel",
     "ProposalOutcomeModel",
     "ProvenanceStepModel",
     "RegulationCitationModel",
     "ResolvedFareModel",
     "RevenueBlockModel",
+    "RouteingProvenanceLineModel",
+    "ScopeStatsModel",
     "ServicePerformanceModel",
     "ServiceToleranceModel",
     "SplitCandidateModel",
     "SplitOpportunityResultModel",
     "StagingLayerModel",
+    "TocModel",
+    "ValidityVerdictModel",
     "card_to_model",
     "impact_to_model",
     "layer_to_model",
     "outcome_to_model",
     "perf_to_model",
     "resolved_to_model",
+    "validity_to_model",
 ]

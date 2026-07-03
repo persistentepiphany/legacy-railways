@@ -21,12 +21,14 @@ from src.ingest.inspect import (
     load_rcm_min_fares,
     load_status_discounts,
     load_ticket_discount_categories,
+    load_toc_meta,
     parse_dis_discount,
     parse_dis_status,
     parse_frr,
     parse_rcm,
     parse_rlc,
     parse_tty,
+    raw_feed_line,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -199,3 +201,56 @@ def test_load_ticket_discount_categories_sor() -> None:
     line_no, cat = entry
     assert line_no > 0
     assert cat == "01"
+
+
+# --- .TOC operator names (operator-scope picker) ----------------------------
+
+
+def test_load_toc_meta_northern_from_real_feed() -> None:
+    """The NTH F-row (line 39 of RJFAF805.TOC: 'FNTHNTNORTHERN...') yields
+    fare-TOC 'NTH', timetable id 'NT', name 'NORTHERN'. This is the join the
+    /api/tocs picker uses; a T-row ('TGNTHAMESLINK...') must NOT be parsed."""
+    toc_path = DATA / "RJFAF805.TOC"
+    _require(toc_path)
+    by_code = load_toc_meta(toc_path)
+    rec = by_code.get("NTH")
+    assert rec is not None
+    assert rec.fare_toc == "NTH"
+    assert rec.toc_2char == "NT"
+    assert rec.name == "NORTHERN"
+    assert rec.line_no == 39
+    # 'GNT' appears only inside a T-row ("TGNT...") — never as an F-row code.
+    assert "GNT" not in by_code
+
+
+def test_load_toc_meta_inline(tmp_path: Path) -> None:
+    """Offsets per the .TOC layout: F at pos 1, code pos 2-4, 2-char pos 5-6,
+    name pos 7-36. Comment and T-rows are skipped."""
+    p = tmp_path / "X.TOC"
+    p.write_text(
+        "/!! Start of file\n"
+        "FNTHNTNORTHERN                      \n"
+        "TGNTHAMESLINK AND GT NORTHERN GN         Y\n",
+        encoding="latin-1",
+    )
+    by_code = load_toc_meta(p)
+    assert set(by_code) == {"NTH"}
+    assert by_code["NTH"].toc_2char == "NT"
+    assert by_code["NTH"].name == "NORTHERN"
+
+
+# --- raw_feed_line: sparse-offset random access ------------------------------
+
+
+def test_raw_feed_line_checkpoint_math(tmp_path: Path) -> None:
+    """Lines straddling the 10,000-line checkpoint stride must resolve
+    exactly: the reader seeks to offsets[k] (line k*stride+1) then scans
+    forward. 25,001 lines exercises three checkpoints plus a tail."""
+    p = tmp_path / "big.FFL"
+    n = 25_001
+    p.write_text("".join(f"L{i:07d}\n" for i in range(1, n + 1)), encoding="latin-1")
+    for line_no in (1, 2, 9_999, 10_000, 10_001, 20_000, 20_001, n):
+        assert raw_feed_line(p, line_no) == f"L{line_no:07d}", line_no
+    assert raw_feed_line(p, 0) is None
+    assert raw_feed_line(p, n + 1) is None
+    assert raw_feed_line(p, 10 * n) is None

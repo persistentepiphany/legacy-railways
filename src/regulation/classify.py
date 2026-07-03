@@ -46,6 +46,21 @@ REGULATED_WALKUPS_LONDON: frozenset[str] = frozenset({"SDR"})
 REGULATED_SEASONS: frozenset[str] = frozenset({"7DS", "1MS", "3MS", "AMS"})
 
 
+def _devolved_nation(county: str) -> str | None:
+    """Map a .LOC COUNTY code to a devolved nation, or None for England /
+    unknown. Bands are feed-validated (see the Rule R3 comment below)."""
+    code = county.strip()
+    if code in {"NI", "IR", "CI"}:
+        return "outside Great Britain"
+    if code.isdigit():
+        n = int(code)
+        if 31 <= n <= 37:
+            return "Wales"
+        if 38 <= n <= 43:
+            return "Scotland"
+    return None
+
+
 def classify_ticket(
     ticket_code: str,
     ticket_meta: TtyRecord | None,
@@ -95,15 +110,19 @@ def classify_ticket(
         )
 
     # Rule R3: Devolved nation — Scotland/Wales out of scope of the freeze.
-    # COUNTY codes starting with 'S' = Scottish in the .LOC convention;
-    # English counties are numeric (e.g. '01' = Greater London, '15' = Greater
-    # Manchester, '24' = Staffordshire). The check is loose but conservative
-    # (a false negative just leaves the row marked English — caught by the
-    # 5-case verification test before any compliance gate fires).
-    if origin_county.startswith("S"):
+    # RSPS5045 (.LOC COUNTY, p.57): "Used to decide if a location is in
+    # Scotland, England & Wales or elsewhere. County codes on the mainland
+    # are all numeric values. Other values are 'NI', 'IR', 'CI'." The spec
+    # does NOT publish the numeric table, so the bands below are validated
+    # against the feed itself (station-name sample per code): 01-30 England,
+    # 31-37 Wales (Clwyd..Powys), 38-43 Scotland (Fife/Central..Tayside).
+    # Unknown/blank counties fall through as England — over-flagging is the
+    # conservative failure mode for a compliance gate.
+    devolved = _devolved_nation(origin_county)
+    if devolved is not None:
         return False, RegulationCitation(
             section="§3",
-            rule_text="devolved nation (Scotland) — 0% freeze does not apply",
+            rule_text=f"devolved nation ({devolved}) — 0% freeze does not apply",
             evidence=base_evidence,
         )
 

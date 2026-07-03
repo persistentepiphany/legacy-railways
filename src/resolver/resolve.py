@@ -18,6 +18,7 @@ Deferred to later slices (called out where they would slot in):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -34,7 +35,15 @@ from src.ingest.inspect import (
     load_rcm_min_fares,
     load_status_discounts,
     load_ticket_discount_categories,
+    raw_feed_line,
 )
+
+
+def _raw_line(feed_path: Path, line_no: int) -> str | None:
+    """Raw fixed-width feed line at `line_no` for provenance. Delegates to
+    the sparse-checkpoint reader (seek + short scan) — unlike `linecache`
+    it never slurps the whole file, which on the 253MB .FFL cost ~900MB."""
+    return raw_feed_line(Path(feed_path), line_no)
 
 
 # --- Provenance types ------------------------------------------------------
@@ -51,6 +60,7 @@ class ProvenanceStep:
     step: str               # e.g. "flow_lookup", "flow_record", "fare_lookup", "fare_record"
     source: str             # e.g. "data/RJFAF805.FFL line 1247"; "(query)" for lookups
     detail: dict[str, str]  # the parsed fields / query parameters at this step
+    raw_record: str | None = None  # the fixed-width feed line at `source`, when accessible
 
 
 ResolveStatus = Literal[
@@ -107,6 +117,7 @@ def resolve_fare(
     tty_path: Path | None = None,
     route_code: str | None = None,
     railcard_code: str | None = None,
+    on_date: date | None = None,
 ) -> ResolvedFare:
     """Resolve one fare on one corridor for one ticket code.
 
@@ -231,6 +242,7 @@ def resolve_fare(
             "TOC":           chosen.toc,
             "FLOW_ID":       chosen.flow_id,
         },
+        raw_record=_raw_line(feed_path, chosen.line_no),
     ))
 
     # --- NFO override layer (highest precedence per RSPS5045 §4.13) --------
@@ -240,8 +252,8 @@ def resolve_fare(
     if nfo_path is not None:
         nfo_index = load_nfo_overrides(Path(nfo_path))
         override_result = _apply_nfo_override(
-            nfo_index, chosen, ticket_code, railcard_code or "   ",
-            prov, Path(nfo_path).name,
+            nfo_index, chosen, ticket_code, railcard_code or _NFO_NO_RAILCARD,
+            prov, Path(nfo_path), on_date=on_date,
         )
         if override_result is not None:
             # Override fully decides the answer: apply, suppress, or contradict.
@@ -294,6 +306,7 @@ def resolve_fare(
             "FARE_pence":       str(match.fare_pence),
             "RESTRICTION_CODE": match.restriction_code or "(none)",
         },
+        raw_record=_raw_line(feed_path, match.line_no),
     ))
 
     # --- Railcard discount chain (.RLC -> .TTY -> .DIS -> .RCM -> .FRR) ---
@@ -351,6 +364,8 @@ def resolve_fare(
             ticket_categories=load_ticket_discount_categories(tty),
             rlc_label=rlc.name, dis_label=dis.name, rcm_label=rcm.name,
             frr_label=frr.name, tty_label=tty.name,
+            rlc_path=rlc, dis_path=dis, rcm_path=rcm,
+            frr_path=frr, tty_path=tty,
         )
         prov.extend(outcome.provenance)
         if outcome.price_pence is None:
@@ -375,13 +390,44 @@ _NFO_ANY_ROUTE_WILDCARDS = {"*****", "     ", ""}
 _NFO_NO_RAILCARD = "   "  # blank-padded; means "adult fare, no railcard"
 
 
+def _parse_ddmmyyyy(raw: str) -> date | None:
+    """Parse a DDMMYYYY feed date. Returns None for the null sentinels —
+    all-zero or blank dates (CLAUDE.md: 'All-zero or absent dates = null')
+    and anything unparseable (treated as no constraint, never a guess)."""
+    raw = raw.strip()
+    if not raw or set(raw) == {"0"}:
+        return None
+    try:
+        return date(int(raw[4:8]), int(raw[2:4]), int(raw[0:2]))
+    except ValueError:
+        return None
+
+
+# CLAUDE.md sentinel: high date 31122999 = no end date.
+_NFO_NO_END_DATE = "31122999"
+
+
+def _nfo_active(override: NfoOverride, on_date: date) -> bool:
+    """Is the override in force on `on_date` (START_DATE <= on_date <= END_DATE)?
+    END_DATE 31122999 = no end; null/blank dates constrain nothing."""
+    start = _parse_ddmmyyyy(override.start_date)
+    if start is not None and on_date < start:
+        return False
+    if override.end_date.strip() != _NFO_NO_END_DATE:
+        end = _parse_ddmmyyyy(override.end_date)
+        if end is not None and on_date > end:
+            return False
+    return True
+
+
 def _apply_nfo_override(
     nfo_index: dict[tuple[str, str, str, str, str], list[NfoOverride]],
     chosen: FlowRecord,
     ticket_code: str,
     railcard_code: str,
     prov: list[ProvenanceStep],
-    nfo_label: str,
+    nfo_path: Path,
+    on_date: date | None = None,
 ) -> tuple[int | None, ResolveStatus] | None:
     """Look up an NFO override for the chosen flow + ticket + railcard.
     Returns (price, status) when an override decides the answer; None means
@@ -390,7 +436,11 @@ def _apply_nfo_override(
     Match order — exact origin/dest/ticket/railcard, then route-wildcard:
       1. (origin, dest, chosen.route, railcard, ticket) — exact route
       2. (origin, dest, '*****' or '     ' or '', railcard, ticket) — any-route
-    """
+
+    When `on_date` is given, overrides outside their START_DATE..END_DATE
+    window are skipped (visibly, via an nfo_date_skip provenance step).
+    `on_date=None` disables date filtering (pure snapshot semantics)."""
+    nfo_label = nfo_path.name
     o, d, route, rlc, tkt = (
         chosen.origin_nlc, chosen.dest_nlc, chosen.route_code, railcard_code, ticket_code,
     )
@@ -399,6 +449,27 @@ def _apply_nfo_override(
     # Add any-route wildcard rows under the same other-fields key.
     for wildcard in _NFO_ANY_ROUTE_WILDCARDS:
         hits.extend(nfo_index.get((o, d, wildcard, rlc, tkt), []))
+
+    if on_date is not None and hits:
+        inactive = [h for h in hits if not _nfo_active(h, on_date)]
+        if inactive:
+            prov.append(ProvenanceStep(
+                step="nfo_date_skip",
+                source=f"{nfo_label} lines {','.join(str(h.line_no) for h in inactive)}",
+                detail={
+                    "key":        f"{o}->{d} route={route} rlc={rlc!r} ticket={tkt}",
+                    "on_date":    on_date.isoformat(),
+                    "skipped":    ";".join(
+                        f"L{h.line_no} start={h.start_date} end={h.end_date}"
+                        for h in inactive
+                    ),
+                    "explanation": (
+                        "NFO override(s) outside their START_DATE..END_DATE "
+                        "window on the query date; skipped, not applied"
+                    ),
+                },
+            ))
+            hits = [h for h in hits if _nfo_active(h, on_date)]
 
     if not hits:
         return None  # no override; resolver continues with the flow fare
@@ -416,6 +487,10 @@ def _apply_nfo_override(
                 ),
                 "explanation":   "multiple NFO Y-records match the same key; escalating instead of picking",
             },
+            # All contending raw records, one per line — the human picks a side.
+            raw_record="\n".join(
+                r for h in hits if (r := _raw_line(nfo_path, h.line_no)) is not None
+            ) or None,
         ))
         return (None, "contradiction")
 
@@ -429,6 +504,7 @@ def _apply_nfo_override(
                 "sentinel":     "ADULT_FARE=99999999",
                 "explanation":  "NFO override marks this fare as unavailable (suppression sentinel, NOT £999,999)",
             },
+            raw_record=_raw_line(nfo_path, override.line_no),
         ))
         return (None, "suppressed")
 
@@ -441,6 +517,7 @@ def _apply_nfo_override(
             "matched_route":     override.route_code or "(any)",
             "explanation":       "NFO override takes precedence over the flow fare",
         },
+        raw_record=_raw_line(nfo_path, override.line_no),
     ))
     return (override.adult_fare_pence, "resolved")
 
@@ -479,6 +556,10 @@ def _expand(
                     "group_nlc":      meta.group_nlc,
                     "explanation":    f"{role} {nlc} ({meta.station_name}) is a member of LOC group {meta.group_nlc}",
                 },
+                raw_record=(
+                    _raw_line(Path(loc_path), meta.line_no)
+                    if loc_path is not None else None
+                ),
             ))
             if meta.group_nlc not in out:
                 out.append(meta.group_nlc)
