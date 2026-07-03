@@ -28,5 +28,5 @@ packages = ["src"]
 testpaths = ["tests"]
 addopts = "-ra"
 markers = [
-  "slow: BRFares oracle validation; requires data/RJFAF805.* and data/brfares_*.json",
+  "slow: needs the real feed in data/ (fares files, and for some tests the timetable .MCA / routeing .RGD); full-feed parses take minutes",
 ]
