@@ -41,3 +41,6 @@ tools/experiments.py
 # Build artefacts
 build/
 dist/
+
+# Fetch.ai uAgent secrets
+private_keys.json
