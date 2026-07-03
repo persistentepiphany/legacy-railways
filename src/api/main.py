@@ -48,6 +48,9 @@ from src.api.schemas import (
     CorridorStatsModel,
     EscalationModel,
     ImpactReportModel,
+    MasterCorridorSimModel,
+    MasterSimulateRequest,
+    MasterSimulateResponse,
     OverviewCorridorModel,
     OverviewModel,
     PerformanceResultModel,
@@ -346,11 +349,17 @@ def _compute_overview_baseline(fp: FeedPaths, corridors: list[dict]) -> dict:
     from dataclasses import asdict
 
     from src.impact.baseline_scan import baseline_affected
+    from src.impact.carbon import _corridor_rail_factor
+    from src.impact.carbon_factors import car_factor_per_passenger_km
+    from src.impact.distance import flow_distance_km
     from src.impact.inversions import detect_inversions
     from src.ingest.inspect import load_ticket_type_meta
+    from src.regulation.classify import classify_ticket
 
     notes: list[str] = []
     tty = load_ticket_type_meta(fp.tty)
+    loc_meta = load_loc_meta(fp.loc) if fp.loc.exists() else {}
+    msn = default_msn_path(DATA_DIR)
 
     tt_idx = None
     tt_source = None
@@ -365,7 +374,7 @@ def _compute_overview_baseline(fp: FeedPaths, corridors: list[dict]) -> dict:
     odm = None
     if fp.odm_csv is not None and fp.odm_csv.exists():
         from src.impact.odm import load_odm_index_cached
-        odm = load_odm_index_cached(fp.odm_csv, loc=load_loc_meta(fp.loc))
+        odm = load_odm_index_cached(fp.odm_csv, loc=loc_meta)
     else:
         notes.append("no ODM at data/odm/odm.csv — passenger volumes "
                      "unavailable; run tools/fetch_odm.py")
@@ -393,12 +402,45 @@ def _compute_overview_baseline(fp: FeedPaths, corridors: list[dict]) -> dict:
             m = tty.get(tc)
             return m.description.strip() if m else tc
 
+        # The cheapest/dearest HEADLINE is restricted to single-journey
+        # retail walk-up products. Excluded (visibly, via a row note):
+        #   - placeholder prices: trade/complimentary products sit at 5p,
+        #     tour-op/group dummies at 99900/99999p — feed conventions,
+        #     not fares a passenger pays;
+        #   - seasons (.TTY TKT_TYPE 'N') and carnets: real prices but
+        #     multi-journey products, so they distort the fare spread;
+        #   - trade/group/comp products by .TTY description (ITX inclusive
+        #     tours, TOUR OP, GRP/GROUP travel, COMP complimentary).
+        # Everything still flows through the affected set and the scan —
+        # this filter only shapes the summary headline.
+        _TRADE_WORDS = ("ITX", "TOUR", "GRP", "GROUP", "COMP", "CARNET",
+                        "CORP", "TEST")
+
+        def headline_excluded(tc: str, price: int) -> bool:
+            if price <= 25 or price in (99900, 99999, 100000, 999800):
+                return True
+            m = tty.get(tc)
+            if m is not None and m.tkt_type == "N":
+                return True
+            d = desc(tc).upper()
+            return any(w in d for w in _TRADE_WORDS)
+
+        retail = {t: p for t, p in best_by_ticket.items()
+                  if not headline_excluded(t, p)}
+        excluded = sorted(set(best_by_ticket) - set(retail))
+        if excluded:
+            row_notes.append(
+                "excluded from headline pricing (trade/placeholder/season "
+                "products): " + ", ".join(
+                    f"{t} {desc(t)}" for t in excluded))
+
         default_tc = c.get("default_ticket")
         if default_tc and default_tc in best_by_ticket:
             key_fares.append({
                 "ticket_code": default_tc, "description": desc(default_tc),
                 "price_pence": best_by_ticket[default_tc], "label": "default"})
-        if best_by_ticket:
+        if retail:
+            best_by_ticket = retail
             lo = min(best_by_ticket, key=lambda t: best_by_ticket[t])
             hi = max(best_by_ticket, key=lambda t: best_by_ticket[t])
             for tc, label in ((lo, "cheapest"), (hi, "dearest")):
@@ -406,7 +448,7 @@ def _compute_overview_baseline(fp: FeedPaths, corridors: list[dict]) -> dict:
                     key_fares.append({
                         "ticket_code": tc, "description": desc(tc),
                         "price_pence": best_by_ticket[tc], "label": label})
-        else:
+        elif not best_by_ticket:
             row_notes.append("no baseline flow fares found for the direct "
                              "pair — corridor may price via clusters only")
 
@@ -419,11 +461,60 @@ def _compute_overview_baseline(fp: FeedPaths, corridors: list[dict]) -> dict:
             train_count = len(seen)
 
         j_out = j_back = None
+        implied_yield = None
         if odm is not None:
             j_out = odm.by_pair.get((o_nlc, d_nlc))
             j_back = odm.by_pair.get((d_nlc, o_nlc))
+            implied_yield = odm.yield_pence(o_nlc, d_nlc)
             if j_out is None and j_back is None:
                 row_notes.append("no ODM row for this pair")
+
+        # -- distance + per-passenger carbon (rail vs car) -------------------
+        # `flow_distance_km` is a cached O(1) lookup once the RGD graph is
+        # built at first call, so scanning all curated corridors here is fast.
+        dist_km: float | None = None
+        dist_method: str | None = None
+        rail_kg = car_kg = save_kg = None
+        annual_saving_kg = None
+        dist = flow_distance_km(
+            c["origin_crs"], c["dest_crs"],
+            rgd_path=fp.rgd, msn_path=msn,
+        )
+        if dist is not None:
+            dist_km = dist.km
+            dist_method = dist.method
+            rail_factor, _desc, _e, _d, _cnotes = _corridor_rail_factor(
+                fp, c["origin_crs"], c["dest_crs"])
+            rail_kg = round(rail_factor * dist.km, 2)
+            car_kg = round(car_factor_per_passenger_km() * dist.km, 2)
+            save_kg = round(car_kg - rail_kg, 2)
+            j_total = (j_out or 0) + (j_back or 0)
+            if j_total > 0 and save_kg is not None:
+                annual_saving_kg = round(j_total * save_kg, 2)
+
+        # -- default-ticket regulation classification (§1 / §3 rules) --------
+        # `classify_ticket` is pure and cheap: reads .TTY metadata + station
+        # county from .LOC (already loaded). Never asserts regulation on a
+        # missing ticket — surfaces as None + a note.
+        default_tc = c.get("default_ticket")
+        reg_flag = None
+        reg_cite = None
+        if default_tc:
+            tty_rec = tty.get(default_tc)
+            origin_meta = loc_meta.get(o_nlc)
+            origin_county = origin_meta.county if origin_meta is not None else ""
+            # London-flow heuristic mirrors compliance.py: any of the London
+            # terminal group NLCs triggers the §1 Anytime Day Return rule.
+            from src.impact.compliance import _LONDON_TERMINAL_NLCS
+            is_london = (o_nlc in _LONDON_TERMINAL_NLCS
+                         or d_nlc in _LONDON_TERMINAL_NLCS)
+            regulated, citation = classify_ticket(
+                default_tc, tty_rec,
+                origin_county=origin_county,
+                is_london_flow=is_london,
+            )
+            reg_flag = bool(regulated)
+            reg_cite = f"{citation.section} · {citation.rule_text}"
 
         rows.append({
             "id": c["id"], "name": c["name"], "sub": c.get("sub"),
@@ -437,6 +528,15 @@ def _compute_overview_baseline(fp: FeedPaths, corridors: list[dict]) -> dict:
             "train_count": train_count,
             "odm_journeys_out": j_out,
             "odm_journeys_back": j_back,
+            "distance_km": dist_km,
+            "distance_method": dist_method,
+            "rail_kgco2e_per_journey": rail_kg,
+            "car_kgco2e_per_journey": car_kg,
+            "carbon_saving_per_journey_kg": save_kg,
+            "annual_carbon_saving_kg": annual_saving_kg,
+            "implied_yield_pence": implied_yield,
+            "default_ticket_regulated": reg_flag,
+            "default_ticket_citation": reg_cite,
             "notes": row_notes,
         })
 
@@ -1100,6 +1200,176 @@ def api_overview(request: Request) -> OverviewModel:
         timetable_source=cache["timetable_source"],
         corridors=corridors,
         notes=cache["notes"],
+    )
+
+
+def _apply_rounding(pence: int, rule: str) -> int:
+    """Deterministic pence rounding for the master-tab scale simulation.
+    Mirrors the resolver's rounding vocabulary (see .FRR §4.19) but lives
+    here because master doesn't route through compute_impact."""
+    if pence <= 0 or rule == "none":
+        return pence
+    if rule == "near5":
+        return int(round(pence / 5.0) * 5)
+    if rule == "near10":
+        return int(round(pence / 10.0) * 10)
+    if rule == "down10":
+        return (pence // 10) * 10
+    return pence
+
+
+@app.post("/api/master/simulate", response_model=MasterSimulateResponse)
+def api_master_simulate(
+    body: MasterSimulateRequest, request: Request,
+) -> MasterSimulateResponse:
+    """Scale-wide fare-raise simulation over every curated corridor.
+
+    Deterministic: reuses the overview baseline (default ticket price + ODM
+    journeys + regulation classification + carbon-per-journey). For each
+    corridor it applies `raise_pct` to the DEFAULT ticket's baseline price,
+    rounds per rule, and returns:
+
+      - `new_price_pence`, `delta_pence`
+      - `breach` — regulated AND new > old (0% freeze cap, REGULATION.md §3)
+      - `revenue_delta_pence` — delta × (out+back ODM journeys) where known
+      - `carbon_delta_kg` — first-order elasticity: -0.6 own-price elasticity
+        × ΔP/P × baseline_journeys × per-journey saving; negative when the
+        raise pushes passengers off rail. Estimate, disclosed as such.
+
+    Nothing here mutates the baseline. This is a preview to help an analyst
+    scope where a scale-wide raise would sting; individual corridor approval
+    still goes through /api/staging/propose."""
+    cache = request.app.state.overview
+    if cache is None:
+        raise ValueError(
+            "overview baseline not yet computed — poll /api/overview until "
+            "ready before requesting a scale-wide simulation")
+
+    if body.raise_pct < -0.5 or body.raise_pct > 2.0:
+        raise ValueError(
+            f"raise_pct {body.raise_pct} outside allowed range [-0.5, 2.0]")
+
+    toc_filter = (body.toc_filter or "").strip().upper() or None
+    notes: list[str] = [
+        "ESTIMATE — scale-wide preview: applies raise_pct to each corridor's "
+        "DEFAULT ticket baseline price. Individual staging propose remains "
+        "the authoritative path for regulator-facing impact.",
+        "Compliance rule: regulated Standard-class fares may not exceed the "
+        "1 Mar 2025 baseline (0% freeze, REGULATION.md §3). A raise on any "
+        "regulated default ticket is a breach.",
+    ]
+    if cache.get("odm_period_label"):
+        notes.append(
+            f"Revenue Δ = per-journey Δ × ODM journeys per publication period "
+            f"({cache['odm_period_label']}). Corridors without an ODM row "
+            "report journeys=None and skip revenue Δ.")
+    else:
+        notes.append("no ODM index available — revenue Δ is unavailable; "
+                     "carbon Δ falls back to per-passenger only.")
+
+    OWN_PRICE_ELASTICITY = -0.6  # PDFH convention for walk-up standard-class
+
+    rows_out: list[MasterCorridorSimModel] = []
+    breach_count = 0
+    reg_count = 0
+    total_rev_delta = 0
+    total_journeys = 0
+    total_carbon_kg: float = 0.0
+    any_carbon = False
+
+    for row in cache["rows"]:
+        toc = (row.get("toc") or "").upper() or None
+        if toc_filter and toc != toc_filter:
+            continue
+
+        default_tc = None
+        old_p: int | None = None
+        for kf in row["key_fares"]:
+            if kf["label"] == "default":
+                default_tc = kf["ticket_code"]
+                old_p = kf["price_pence"]
+                break
+        if default_tc is None and row["key_fares"]:
+            default_tc = row["key_fares"][0]["ticket_code"]
+            old_p = row["key_fares"][0]["price_pence"]
+
+        if old_p is None:
+            rows_out.append(MasterCorridorSimModel(
+                id=row["id"], name=row["name"], toc=row.get("toc"),
+                origin_crs=row["origin_crs"], dest_crs=row["dest_crs"],
+                default_ticket=default_tc,
+                old_price_pence=None, new_price_pence=None, delta_pence=None,
+                regulated=row.get("default_ticket_regulated"),
+                breach=False, breach_reason=None,
+                journeys_per_period=None, revenue_delta_pence=None,
+                carbon_delta_kg=None,
+                citation=row.get("default_ticket_citation"),
+            ))
+            continue
+
+        raw_new = int(round(old_p * (1.0 + body.raise_pct)))
+        new_p = _apply_rounding(raw_new, body.rounding)
+        delta_p = new_p - old_p
+
+        regulated = row.get("default_ticket_regulated")
+        breach = bool(regulated) and new_p > old_p
+        breach_reason = None
+        if breach:
+            reg_count += 1
+            breach_count += 1
+            breach_reason = (
+                f"{default_tc} on this corridor classifies as regulated "
+                f"(§1 walk-up); the 0% freeze caps it at baseline "
+                f"£{old_p/100:.2f}. Proposed £{new_p/100:.2f} breaches by "
+                f"£{delta_p/100:.2f}.")
+        elif regulated:
+            reg_count += 1
+
+        j_out = row.get("odm_journeys_out") or 0
+        j_back = row.get("odm_journeys_back") or 0
+        journeys = (j_out + j_back) if (j_out or j_back) else None
+        rev_delta = None
+        if journeys is not None:
+            rev_delta = delta_p * journeys
+            total_rev_delta += rev_delta
+            total_journeys += journeys
+
+        # Carbon Δ: first-order elasticity. Negative delta_p (raise > 0)
+        # reduces journeys → reduces avoided emissions → NEGATIVE saving.
+        carbon_delta: float | None = None
+        saving_per_journey = row.get("carbon_saving_per_journey_kg")
+        if saving_per_journey is not None and journeys is not None and old_p > 0:
+            pct_price = (new_p - old_p) / old_p
+            demand_change_ratio = OWN_PRICE_ELASTICITY * pct_price
+            shifted_journeys = journeys * demand_change_ratio
+            carbon_delta = round(shifted_journeys * saving_per_journey, 2)
+            total_carbon_kg += carbon_delta
+            any_carbon = True
+
+        rows_out.append(MasterCorridorSimModel(
+            id=row["id"], name=row["name"], toc=row.get("toc"),
+            origin_crs=row["origin_crs"], dest_crs=row["dest_crs"],
+            default_ticket=default_tc,
+            old_price_pence=old_p, new_price_pence=new_p,
+            delta_pence=delta_p,
+            regulated=regulated,
+            breach=breach, breach_reason=breach_reason,
+            journeys_per_period=journeys,
+            revenue_delta_pence=rev_delta,
+            carbon_delta_kg=carbon_delta,
+            citation=row.get("default_ticket_citation"),
+        ))
+
+    return MasterSimulateResponse(
+        raise_pct=body.raise_pct,
+        corridors=rows_out,
+        breach_count=breach_count,
+        regulated_count=reg_count,
+        total_revenue_delta_pence=total_rev_delta,
+        total_journeys=total_journeys,
+        aggregate_carbon_delta_kg=(round(total_carbon_kg, 2)
+                                   if any_carbon else None),
+        notes=notes,
     )
 
 

@@ -55,7 +55,7 @@ class ComplianceVerdict:
     later LLM shell) have a self-contained verdict without re-joining."""
     status: ComplianceStatus
     cap_price_2025_pence: int | None
-    new_price_pence: int
+    new_price_pence: int | None
     citation: RegulationCitation | None
     explanation: str
 
@@ -165,7 +165,7 @@ def check_compliance(
         return ComplianceVerdict(
             status="not_regulated",
             cap_price_2025_pence=None,
-            new_price_pence=0,
+            new_price_pence=None,
             citation=None,
             explanation=(
                 "row has no new_price_pence (status != 'resolved'); "

@@ -52,6 +52,9 @@
   var _cstatsInflight = new Set();
   var _overviewCache = null;         // /api/overview payload
   var _overviewInflight = false;
+  var _masterSimCache = null;        // /api/master/simulate payload
+  var _masterSimInflight = false;
+  var _masterSimReqSig = null;       // parameters of last request
   // Merge point (visual-copilot session): {corridorId: adaptedCallings}.
   // null = fetch in flight, false = typed miss (degrade to static path).
   var _callingsCache = {};
@@ -383,6 +386,29 @@
     });
   }
 
+  /* /api/master/simulate — scale-wide raise preview. Debounce guard: skip
+     if an identical request is already in flight or the cache matches. */
+  function _fetchMasterSim(payload) {
+    var sig = sigOf(payload);
+    if (_masterSimCache && _masterSimReqSig === sig) return;
+    if (_masterSimInflight && _masterSimReqSig === sig) return;
+    _masterSimInflight = true;
+    _masterSimReqSig = sig;
+    A.masterSimulate(payload).then(function (data) {
+      // Discard stale response if params changed while in flight.
+      if (_masterSimReqSig !== sig) return;
+      _masterSimInflight = false;
+      _masterSimCache = data;
+      _requestRerender();
+    }).catch(function (e) {
+      _masterSimInflight = false;
+      if (e && e.name === "AbortError") return;
+      console.error("[rfe] /api/master/simulate failed", e);
+      _masterSimCache = { error: (e && e.body && e.body.detail) || (e && e.message) || "fetch failed", corridors: [], notes: [] };
+      _requestRerender();
+    });
+  }
+
   /* ---- surface constructors ------------------------------------------- */
   function _makeStations() {
     return _stations.map(function (s) {
@@ -665,6 +691,17 @@
         return _overviewCache;
       },
       invalidateOverview: function () { _overviewCache = null; },
+      /* Master-tab scale-wide simulation. Sync-returns the cached response
+         for the last matching request, kicks the fetch when parameters
+         differ. `null` = first request in flight; error responses come back
+         with an `error` field the UI reads. */
+      masterSimulate: function (payload) {
+        _fetchMasterSim(payload);
+        return _masterSimCache;
+      },
+      invalidateMasterSim: function () {
+        _masterSimCache = null; _masterSimReqSig = null;
+      },
 
       /* staging: propose returns {kind:'accepted',card,layer} | {kind:'escalation',...} */
       proposeChange: function (input, selCorridor, contradictionChoice) {

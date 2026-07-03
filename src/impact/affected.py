@@ -80,6 +80,10 @@ class AffectedFare:
     # both sides of blast_radius_pairs expanded through LOC group membership,
     # deduped, sorted, capped. This is what the GB map lights up.
     blast_station_nlcs: tuple[str, ...] = ()
+    # Total number of blast stations BEFORE the cap — so the UI can honestly
+    # say "showing 200 of 847". Equal to len(blast_station_nlcs) when no cap
+    # was hit.
+    blast_station_full_count: int = 0
 
 
 ExpansionReason: TypeAlias = Literal[
@@ -376,7 +380,8 @@ def _compute_affected_set_corridor(change: ChangeRequest, feed_paths: FeedPaths)
             blast_radius_pairs=tuple(sorted(rec.blast_pairs)),
             representative_origin_name=_loc_name(rec.rep_origin, loc),
             representative_dest_name=_loc_name(rec.rep_dest, loc),
-            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:_BLAST_STATION_PER_FARE_CAP]),
+            blast_station_full_count=len(blast_stations),
         ))
         for (mo, md) in sorted(rec.blast_pairs):
             o_kind, d_kind = rec.blast_pairs[(mo, md)]
@@ -511,7 +516,8 @@ def _compute_affected_set_apply_cap_corridor(
             blast_radius_pairs=tuple(sorted(rec.blast_pairs)),
             representative_origin_name=_loc_name(rec.rep_origin, loc),
             representative_dest_name=_loc_name(rec.rep_dest, loc),
-            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:_BLAST_STATION_PER_FARE_CAP]),
+            blast_station_full_count=len(blast_stations),
         ))
         for (mo, md) in sorted(rec.blast_pairs):
             o_kind, d_kind = rec.blast_pairs[(mo, md)]
@@ -636,7 +642,8 @@ def _compute_affected_set_adjust_fares_corridor(
             blast_radius_pairs=tuple(sorted(rec.blast_pairs)),
             representative_origin_name=_loc_name(rec.rep_origin, loc),
             representative_dest_name=_loc_name(rec.rep_dest, loc),
-            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:_BLAST_STATION_PER_FARE_CAP]),
+            blast_station_full_count=len(blast_stations),
         ))
         for (mo, md) in sorted(rec.blast_pairs):
             o_kind, d_kind = rec.blast_pairs[(mo, md)]
@@ -750,7 +757,8 @@ def _compute_affected_set_withdraw_corridor(
             blast_radius_pairs=tuple(sorted(rec.blast_pairs)),
             representative_origin_name=_loc_name(rec.rep_origin, loc),
             representative_dest_name=_loc_name(rec.rep_dest, loc),
-            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:_BLAST_STATION_PER_FARE_CAP]),
+            blast_station_full_count=len(blast_stations),
         ))
         for (mo, md) in sorted(rec.blast_pairs):
             o_kind, d_kind = rec.blast_pairs[(mo, md)]
@@ -796,6 +804,12 @@ def _compute_affected_set_withdraw_corridor(
 _TOC_BLAST_PAIR_CAP = 5_000    # total BlastRadiusPairs emitted per report
 _TOC_ROW_PAIR_CAP = 512        # per canonical row
 _TOC_STATION_CAP = 2_500       # network union (GB has ~2,570 stations)
+# Per-fare blast-station cap: the previous 200 hid genuine cluster fan-out
+# from the map. GB has ~2,570 stations; 2,000 covers any realistic single
+# fare's blast radius while keeping the payload bounded. When we do truncate,
+# `blast_station_full_count` on the row still records the true total so the
+# UI can say "showing 2000 of 2470".
+_BLAST_STATION_PER_FARE_CAP = 2_000
 
 
 def _expansion_kind(
@@ -939,7 +953,8 @@ def _compute_affected_set_toc(change: ChangeRequest, feed_paths: FeedPaths) -> A
             )[:_TOC_ROW_PAIR_CAP],
             representative_origin_name=_loc_name(r.origin_nlc, loc),
             representative_dest_name=_loc_name(r.dest_nlc, loc),
-            blast_station_nlcs=tuple(sorted(blast_stations)[:200]),
+            blast_station_nlcs=tuple(sorted(blast_stations)[:_BLAST_STATION_PER_FARE_CAP]),
+            blast_station_full_count=len(blast_stations),
         ))
         expansions.append((o_members, d_members, reason))
 

@@ -1026,19 +1026,71 @@
             </sc-for>
           </div>
 
-          <!-- revenue headline + how-this-was-computed chip strip -->
+          <!-- SCALE TOGGLE: kills the ballooning-number bug by making the
+               unit explicit. per-ride never multiplies the per-fare Δ by an
+               ODM journey count — those two are structurally different
+               figures and the toggle makes which one is on-screen obvious. -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:9.5px;letter-spacing:.7px;color:#5f6773">SCALE</div>
+            <div style="display:flex;background:#090a0c;border:1px solid #15171b;border-radius:6px;overflow:hidden">
+              <div onClick="{{ aggKpis.scaleToggle.onTotal }}" style="font-size:10px;padding:4px 9px;cursor:pointer;color:{{ aggKpis.scaleToggle.totalActive ? '#f0f2f6' : '#7b8390' }};background:{{ aggKpis.scaleToggle.totalActive ? '#16181c' : 'transparent' }}">total</div>
+              <div onClick="{{ aggKpis.scaleToggle.onPerRide }}" style="font-size:10px;padding:4px 9px;cursor:pointer;color:{{ aggKpis.scaleToggle.perRideActive ? '#f0f2f6' : '#7b8390' }};background:{{ aggKpis.scaleToggle.perRideActive ? '#16181c' : 'transparent' }}">per ride</div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:#454c56;margin-bottom:10px;line-height:1.5">{{ aggKpis.scaleToggle.note }}</div>
+
+          <!-- KPI TABS: fares | revenue | demand | carbon. Same pattern
+               as the lower analysis tab bar so the eye recognises the
+               affordance instantly (same underline, same weight shift). -->
+          <div style="display:flex;gap:0;border-bottom:1px solid #1a1c20;margin-bottom:10px">
+            <sc-for list="{{ aggKpis.tabs }}" as="t" hint-placeholder-count="4">
+              <div onClick="{{ t.onSelect }}" style="flex:1;text-align:center;padding:6px 4px;cursor:pointer;position:relative">
+                <div style="font-size:10.5px;color:{{ t.color }};font-weight:{{ t.weight }}">{{ t.label }}</div>
+                <div style="position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:{{ t.edge }};border-radius:2px 2px 0 0"></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- Selected KPI panel: headline + citation + inline horizontal
+               bars + explainer. All four KPI shapes are identical so the
+               same block renders any of them — one code path, four views. -->
           <div style="padding:11px 12px;background:#090a0c;border:1px solid #15171b;border-radius:9px;margin-bottom:11px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-              <div style="font-size:10px;letter-spacing:.6px;color:#626b76">REVENUE {{ impact.revLabel }}</div>
-              <div style="font-size:8.5px;letter-spacing:.6px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px">EST</div>
+              <div style="font-size:10px;letter-spacing:.6px;color:#626b76">{{ aggKpis.panel.unit }}</div>
+              <sc-if value="{{ aggKpis.panel.has }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size:8.5px;letter-spacing:.6px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px">EST</div>
+              </sc-if>
             </div>
-            <div ref="{{ refs.revenueNum }}" title="{{ impact.revTip }}" onClick="{{ impact.onRevGo }}" style="font-family:'Source Sans 3',sans-serif;font-size:22px;font-weight:600;color:{{ impact.revColor }};line-height:1;cursor:pointer" style-hover="opacity:.85">{{ impact.revenueStr }}</div>
-            <div style="font-size:10px;color:#5f6773;margin-top:5px">{{ impact.journeysLine }}</div>
-            <div style="display:flex;gap:4px;margin-top:8px;height:5px;border-radius:3px;overflow:hidden;background:#101215">
-              <div style="height:100%;width:{{ impact.exactPct }}%;background:#6f9e86;opacity:.8"></div>
-              <div style="height:100%;flex:1;background:#c2a15c;opacity:.55"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:#5f6773;margin-top:4px"><span>{{ impact.exactPct }}% feed-derived</span><span>{{ impact.estPct }}% modelled</span></div>
+            <!-- Reuse the existing ref for the revenue big number so the
+                 animation lands (only when the revenue KPI is active).  -->
+            <div ref="{{ refs.revenueNum }}" title="{{ aggKpis.panel.explain }}" style="font-family:'Source Sans 3',sans-serif;font-size:22px;font-weight:600;color:{{ aggKpis.panel.color }};line-height:1">{{ aggKpis.panel.headline }}</div>
+            <div style="font-size:10px;color:#5f6773;margin-top:5px">{{ aggKpis.panel.sub }}</div>
+
+            <!-- Inline mini-chart: horizontal bars, same styling as the
+                 analysis-tab bar rows. Value labels live on the right. -->
+            <sc-if value="{{ aggKpis.panel.chart.has }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:11px;display:flex;flex-direction:column;gap:5px">
+                <sc-for list="{{ aggKpis.panel.chart.items }}" as="ci" hint-placeholder-count="5">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#7b8390;margin-bottom:2px">
+                      <span style="max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ci.label }}</span>
+                      <span style="font-family:'Source Sans 3',sans-serif">{{ ci.value }} <span style="color:#5f6773">· {{ ci.right }}</span></span>
+                    </div>
+                    <div style="height:5px;background:#0d0f13;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ ci.pct }}%;background:{{ ci.color }};opacity:.75;transition:width .55s cubic-bezier(.2,.8,.2,1)"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font-size:9px;color:#454c56;margin-top:6px">{{ aggKpis.panel.chart.axisNote }}</div>
+            </sc-if>
+
+            <!-- Formula + provenance citation — every headline shown carries
+                 a source, per project rule ("provenance is part of the return
+                 type, never bolted on"). -->
+            <div style="font-size:9px;letter-spacing:.7px;color:#5f6773;margin-top:10px;padding-top:9px;border-top:1px dashed #1a1c20">FORMULA</div>
+            <div style="font-family:'Source Sans 3',sans-serif;font-size:10.5px;color:#98a1ae;margin-top:4px;line-height:1.4">{{ aggKpis.panel.formula }}</div>
+            <div style="font-size:9px;letter-spacing:.7px;color:#5f6773;margin-top:9px">SOURCE · CITED</div>
+            <div title="{{ aggKpis.panel.citeTip }}" style="font-size:10px;color:#98a1ae;margin-top:3px;line-height:1.4">{{ aggKpis.panel.cite }}</div>
+
             <!-- basis chips: every field cited comes from a NAMED backend
                  field via the adapter. Click a chip → jump to the tab
                  where that number was computed. -->
@@ -1050,7 +1102,7 @@
             </div>
           </div>
 
-          <div style="font-size:9.5px;color:#454c56;line-height:1.5">{{ impact.scaleNote }}</div>
+          <div style="font-size:9.5px;color:#454c56;line-height:1.5">{{ aggKpis.panel.explain }}</div>
         </div>
         </sc-if>
 
@@ -1103,6 +1155,9 @@
                   <div onClick="{{ blast.onClearFilter }}" style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:#adb6c4;background:#16181c;border:1px solid #23262c;border-radius:14px;padding:3px 6px 3px 9px;cursor:pointer">filtered: {{ blast.filterName }} <span style="color:#7b8390">✕</span></div>
                 </sc-if>
               </div>
+              <sc-if value="{{ blast.hasTruncNote }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:0 0 auto;padding:5px 13px;background:#12100b;border-bottom:1px solid #201d10;font-size:10px;color:#c2a15c;letter-spacing:.3px">⚠ {{ blast.truncNote }}</div>
+              </sc-if>
               <!-- header -->
               <div style="flex:0 0 auto;display:grid;grid-template-columns:minmax(160px,1.6fr) 70px 74px 74px 78px 96px;gap:8px;padding:6px 13px;border-bottom:1px solid #141519;font-size:9.5px;letter-spacing:.5px;color:#5f6773">
                 <div>FLOW · TICKET</div><div style="text-align:right">BEFORE</div><div style="text-align:right">AFTER</div><div style="text-align:right">Δ</div><div>SHIFT</div><div style="text-align:right">COMPLIANCE</div>
@@ -1390,78 +1445,187 @@
             </div>
           </sc-if>
 
-          <!-- NETWORK — master overview: every corridor's baseline state -->
-          <sc-if value="{{ analysis.showNetwork }}" hint-placeholder-val="{{ false }}">
+          <!-- MASTER — network master overview + scale-wide raise simulation -->
+          <sc-if value="{{ analysis.showMaster }}" hint-placeholder-val="{{ false }}">
             <div style="height:100%;display:flex;flex-direction:column">
-              <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:7px 13px;border-bottom:1px solid #141519">
-                <div style="font-size:10.5px;letter-spacing:.6px;color:#626b76">NETWORK BASELINE</div>
-                <div style="font-size:10px;color:#5f6773;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ network.statusLine }}</div>
-              </div>
-              <sc-if value="{{ network.ready }}" hint-placeholder-val="{{ false }}">
-                <div style="flex:0 0 auto;display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(160px,2fr) 64px 90px 88px 92px;gap:8px;padding:6px 13px;border-bottom:1px solid #141519;font-size:9.5px;letter-spacing:.5px;color:#5f6773">
-                  <div>CORRIDOR</div><div>KEY FARES (BASELINE)</div><div style="text-align:right">TRAINS</div><div style="text-align:right">JOURNEYS/YR</div><div style="text-align:right">ABERRATIONS</div><div style="text-align:right">IN FLIGHT</div>
+              <!-- header: aggregate KPIs across the filtered network -->
+              <div style="flex:0 0 auto;display:flex;align-items:stretch;gap:8px;padding:9px 13px;border-bottom:1px solid #141519;background:#0a0b0d">
+                <div style="display:flex;flex-direction:column;justify-content:center;padding-right:8px;border-right:1px solid #141519">
+                  <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76;font-weight:600">MASTER · OUTBOUND ROUTES</div>
+                  <div style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ master.statusLine }}</div>
                 </div>
-                <div style="flex:1;min-height:0;overflow-y:auto">
-                  <sc-for list="{{ network.rows }}" as="nr" hint-placeholder-count="8">
-                    <div style="border-bottom:1px solid #0f1116;background:{{ nr.rowBg }}">
-                      <div onClick="{{ nr.onToggle }}" style="display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(160px,2fr) 64px 90px 88px 92px;gap:8px;align-items:center;padding:8px 13px;cursor:pointer" style-hover="background:#0f1117">
-                        <div style="min-width:0">
-                          <div style="font-size:12px;color:#c8cfd7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nr.name }}</div>
-                          <div style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ nr.od }} · {{ nr.toc }}</div>
-                        </div>
-                        <div style="font-size:10.5px;color:#8b93a0;font-family:'Source Sans 3',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="default · cheapest · dearest baseline fares">{{ nr.faresLine }}</div>
-                        <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12px;color:#adb6c4">{{ nr.trainsStr }}</div>
-                        <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12px;color:#adb6c4">{{ nr.journeysStr }}</div>
-                        <div style="text-align:right"><span style="font-size:10px;font-family:'Source Sans 3',sans-serif;color:{{ nr.aberrColor }};border:1px solid {{ nr.aberrBorder }};border-radius:9px;padding:2px 8px">{{ nr.aberrN }}</span></div>
-                        <div style="text-align:right;display:flex;justify-content:flex-end;gap:4px">
-                          <sc-if value="{{ nr.hasPending }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-family:'Source Sans 3',sans-serif;color:#c2a15c;border:1px solid #3a3220;border-radius:9px;padding:2px 7px">{{ nr.pendingN }} pending</span></sc-if>
-                          <sc-if value="{{ nr.hasApproved }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-family:'Source Sans 3',sans-serif;color:#6f9e86;border:1px solid #1d2a23;border-radius:9px;padding:2px 7px">{{ nr.approvedN }} staged</span></sc-if>
-                        </div>
-                      </div>
-                      <!-- expanded detail: aberration rows + basis notes -->
-                      <sc-if value="{{ nr.expanded }}" hint-placeholder-val="{{ false }}">
-                        <div style="padding:4px 13px 11px 13px">
-                          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px">
-                            <sc-for list="{{ nr.fares }}" as="kf" hint-placeholder-count="3">
-                              <div style="font-size:10px;color:#98a1ae;background:#0a0b0d;border:1px solid #15171b;border-radius:6px;padding:4px 8px"><span style="color:#5f6773">{{ kf.label }}</span> · {{ kf.code }} {{ kf.desc }} <span style="font-family:'Source Sans 3',sans-serif;color:#dbe0e7;font-weight:600">{{ kf.priceStr }}</span></div>
-                            </sc-for>
-                          </div>
-                          <sc-if value="{{ nr.hasAberrs }}" hint-placeholder-val="{{ false }}">
-                            <div style="font-size:9px;letter-spacing:.6px;color:#8a8064;margin-bottom:4px">BASELINE STRUCTURAL ABERRATIONS · {{ nr.scannedStr }} fares scanned</div>
-                            <div style="display:flex;flex-direction:column;gap:3px">
-                              <sc-for list="{{ nr.aberrs }}" as="ab" hint-placeholder-count="3">
-                                <div style="display:flex;align-items:center;gap:8px;font-size:10.5px;padding:5px 8px;background:#110e08;border:1px solid #2d2617;border-radius:5px">
-                                  <span style="font-size:9px;letter-spacing:.4px;color:#c2a15c;flex:0 0 auto">{{ ab.rule }}</span>
-                                  <span style="font-family:'Source Sans 3',sans-serif;color:#d3cbb6;flex:0 0 auto">{{ ab.text }}</span>
-                                  <span style="color:#8a8064;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ab.explanation }}</span>
-                                </div>
-                              </sc-for>
-                            </div>
-                          </sc-if>
-                          <sc-if value="{{ nr.hasRowNotes }}" hint-placeholder-val="{{ false }}">
-                            <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">
-                              <sc-for list="{{ nr.rowNotes }}" as="n" hint-placeholder-count="2">
-                                <div style="font-size:9.5px;color:#7b8390;line-height:1.5;padding:4px 8px;background:#090a0c;border:1px solid #15171b;border-radius:5px">{{ n }}</div>
-                              </sc-for>
-                            </div>
-                          </sc-if>
-                          <div onClick="{{ nr.onOpen }}" style="margin-top:7px;font-size:10.5px;color:#a9c9b7;cursor:pointer" style-hover="color:#c4e0d0">open this corridor in the cockpit →</div>
-                        </div>
-                      </sc-if>
-                    </div>
-                  </sc-for>
-                  <sc-if value="{{ network.hasNotes }}" hint-placeholder-val="{{ false }}">
-                    <div style="padding:9px 13px;display:flex;flex-direction:column;gap:4px">
-                      <sc-for list="{{ network.notes }}" as="n" hint-placeholder-count="2">
-                        <div style="font-size:10px;color:#7b8390;line-height:1.5;padding:6px 9px;background:#090a0c;border:1px solid #15171b;border-radius:6px">{{ n }}</div>
-                      </sc-for>
-                    </div>
+                <sc-for list="{{ master.kpis }}" as="k" hint-placeholder-count="5">
+                  <div style="flex:1;min-width:0;background:#090a0c;border:1px solid #15171b;border-radius:7px;padding:6px 10px">
+                    <div style="font-size:9px;letter-spacing:.55px;color:#5f6773">{{ k.label }}</div>
+                    <div style="font-family:'Source Sans 3',sans-serif;font-size:16px;font-weight:600;color:{{ k.color }};line-height:1.15">{{ k.value }}</div>
+                    <div style="font-size:9px;color:#5f6773;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ k.sub }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ master.ready }}" hint-placeholder-val="{{ false }}">
+              <!-- filter + scale-wide raise control -->
+              <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:8px 13px;border-bottom:1px solid #141519;background:#0b0c0f">
+                <div style="display:flex;align-items:center;gap:6px;background:#090a0c;border:1px solid #191b20;border-radius:7px;padding:4px 8px;flex:0 0 200px">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#5f6773" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+                  <input value="{{ master.filter }}" onInput="{{ master.onFilterInput }}" placeholder="Filter corridors…" style="flex:1;min-width:0;background:transparent;border:0;color:#dbe0e7;font-size:11px;padding:2px 0"/>
+                  <sc-if value="{{ master.hasFilter }}" hint-placeholder-val="{{ false }}">
+                    <span onClick="{{ master.onFilterClear }}" style="cursor:pointer;color:#7b8390;font-size:11px">✕</span>
                   </sc-if>
                 </div>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span style="font-size:9.5px;letter-spacing:.5px;color:#5f6773">TOC</span>
+                  <sc-for list="{{ master.tocOptions }}" as="tc" hint-placeholder-count="4">
+                    <div onClick="{{ tc.onSelect }}" style="font-size:10.5px;color:{{ tc.color }};border:1px solid {{ tc.border }};background:{{ tc.bg }};border-radius:12px;padding:3px 9px;cursor:pointer;font-weight:{{ tc.weight }}" style-hover="border-color:#2f333a">{{ tc.label }}</div>
+                  </sc-for>
+                </div>
+                <div style="flex:1"></div>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span style="font-size:9.5px;letter-spacing:.5px;color:#5f6773">SORT</span>
+                  <sc-for list="{{ master.sortOptions }}" as="so" hint-placeholder-count="4">
+                    <div onClick="{{ so.onSelect }}" style="font-size:10.5px;color:{{ so.color }};border:1px solid {{ so.border }};background:{{ so.bg }};border-radius:12px;padding:3px 9px;cursor:pointer;font-weight:{{ so.weight }}" style-hover="border-color:#2f333a">{{ so.label }}</div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <!-- SCALE-WIDE RAISE control: slider + compliance verdict summary -->
+              <div style="flex:0 0 auto;display:flex;align-items:stretch;gap:10px;padding:10px 13px;border-bottom:1px solid #141519;background:#0c0e11">
+                <div style="flex:2;min-width:0;background:#090a0c;border:1px solid {{ master.simBorder }};border-radius:8px;padding:9px 12px">
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#adb6c4" stroke-width="1.8"><path d="M3 17 9 11l4 4 8-8"></path><path d="M14 7h7v7"></path></svg>
+                    <span style="font-size:10.5px;letter-spacing:.55px;color:#adb6c4;font-weight:600">SCALE-WIDE RAISE · applies to every default fare in scope</span>
+                    <span style="font-size:8.5px;letter-spacing:.5px;color:#c2a15c;border:1px dashed #574828;border-radius:4px;padding:1px 5px">EST</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <div style="font-family:'Source Sans 3',sans-serif;font-size:26px;font-weight:600;color:{{ master.raiseColor }};min-width:88px;line-height:1">{{ master.raiseStr }}</div>
+                    <input type="range" min="-10" max="25" step="1" value="{{ master.raisePct }}" onInput="{{ master.onRaiseInput }}" style="flex:1;accent-color:#8a93a3"/>
+                    <div style="display:flex;gap:4px">
+                      <sc-for list="{{ master.presets }}" as="pr" hint-placeholder-count="5">
+                        <div onClick="{{ pr.onSelect }}" style="font-size:10px;color:{{ pr.color }};border:1px solid {{ pr.border }};background:{{ pr.bg }};border-radius:6px;padding:3px 7px;cursor:pointer;font-weight:{{ pr.weight }}">{{ pr.label }}</div>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:9px;margin-top:6px">
+                    <span style="font-size:10px;color:#7b8390">rounding</span>
+                    <sc-for list="{{ master.roundOptions }}" as="ro" hint-placeholder-count="4">
+                      <div onClick="{{ ro.onSelect }}" style="font-size:10px;color:{{ ro.color }};border:1px solid {{ ro.border }};background:{{ ro.bg }};border-radius:5px;padding:2px 6px;cursor:pointer;font-weight:{{ ro.weight }}">{{ ro.label }}</div>
+                    </sc-for>
+                    <div style="flex:1"></div>
+                    <sc-if value="{{ master.simActive }}" hint-placeholder-val="{{ false }}">
+                      <span onClick="{{ master.onReset }}" style="font-size:10px;color:#adb6c4;cursor:pointer" style-hover="color:#dbe0e7">reset to baseline</span>
+                    </sc-if>
+                  </div>
+                </div>
+                <div style="flex:1;min-width:0;background:{{ master.verdictBg }};border:1px solid {{ master.verdictBorder }};border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;justify-content:center">
+                  <div style="font-size:9px;letter-spacing:.6px;color:{{ master.verdictLabelColor }};margin-bottom:3px">{{ master.verdictLabel }}</div>
+                  <div style="font-family:'Source Sans 3',sans-serif;font-size:19px;font-weight:600;color:{{ master.verdictColor }};line-height:1.15">{{ master.verdictHead }}</div>
+                  <div style="font-size:10px;color:#7b8390;line-height:1.35;margin-top:3px">{{ master.verdictSub }}</div>
+                </div>
+              </div>
+              <sc-if value="{{ master.simLoading }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:5px 13px;background:#0a0b0d;font-size:10px;color:#7b8390;border-bottom:1px solid #141519">
+                  <div style="width:9px;height:9px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .8s linear infinite"></div>
+                  simulating scale-wide raise on backend…
+                </div>
               </sc-if>
-              <sc-if value="{{ network.notReady }}" hint-placeholder-val="{{ false }}">
+
+              <!-- column header + rich row grid -->
+              <div style="flex:0 0 auto;display:grid;grid-template-columns:minmax(150px,1.4fr) 90px 96px 92px 90px 108px 76px;gap:8px;padding:6px 13px;border-bottom:1px solid #141519;font-size:9.5px;letter-spacing:.5px;color:#5f6773">
+                <div>CORRIDOR</div>
+                <div style="text-align:right">BASELINE</div>
+                <div style="text-align:right">SIMULATED</div>
+                <div style="text-align:right">JOURNEYS/PER</div>
+                <div style="text-align:right">CARBON/PSGR</div>
+                <div style="text-align:right">REV Δ</div>
+                <div style="text-align:right">VERDICT</div>
+              </div>
+              <div style="flex:1;min-height:0;overflow-y:auto">
+                <sc-for list="{{ master.rows }}" as="mr" hint-placeholder-count="12">
+                  <div style="border-bottom:1px solid #0f1116;background:{{ mr.rowBg }}">
+                    <div onClick="{{ mr.onToggle }}" style="display:grid;grid-template-columns:minmax(150px,1.4fr) 90px 96px 92px 90px 108px 76px;gap:8px;align-items:center;padding:8px 13px;cursor:pointer;border-left:2px solid {{ mr.edgeColor }}" style-hover="background:#0f1117">
+                      <div style="min-width:0">
+                        <div style="font-size:12px;color:#c8cfd7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mr.name }}</div>
+                        <div style="font-size:9.5px;color:#5f6773;font-family:'Source Sans 3',sans-serif">{{ mr.od }} · {{ mr.toc }} · {{ mr.distanceStr }}</div>
+                      </div>
+                      <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12px;color:#adb6c4">{{ mr.baseStr }}</div>
+                      <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:12.5px;color:{{ mr.simColor }};font-weight:{{ mr.simWeight }}">{{ mr.simStr }}<div style="font-size:9px;color:{{ mr.deltaColor }};font-weight:400;margin-top:-1px">{{ mr.deltaStr }}</div></div>
+                      <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:11.5px;color:#98a1ae">{{ mr.journeysStr }}</div>
+                      <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:11px;color:#6f9e86">{{ mr.carbonStr }}</div>
+                      <div style="text-align:right;font-family:'Source Sans 3',sans-serif;font-size:11.5px;color:{{ mr.revColor }};font-weight:{{ mr.revWeight }}">{{ mr.revStr }}</div>
+                      <div style="text-align:right"><span style="font-size:9px;letter-spacing:.35px;color:{{ mr.verdictColor }};border:1px solid {{ mr.verdictBorder }};background:{{ mr.verdictBg }};border-radius:4px;padding:2px 6px">{{ mr.verdictLabel }}</span></div>
+                    </div>
+                    <!-- baseline sparkline strip: fare range + carbon-savings mini bars -->
+                    <div style="padding:0 13px 6px 15px;display:flex;align-items:center;gap:10px">
+                      <div style="flex:1;height:5px;background:#0e1013;border-radius:2px;position:relative;overflow:hidden" title="{{ mr.fareTip }}">
+                        <div style="position:absolute;top:0;height:100%;left:{{ mr.fareL }}%;width:{{ mr.fareW }}%;background:linear-gradient(90deg,#3d5a4c,#6f9e86);border-radius:2px"></div>
+                      </div>
+                      <div style="flex:0 0 90px;height:5px;background:#0e1013;border-radius:2px;overflow:hidden" title="{{ mr.volumeTip }}">
+                        <div style="height:100%;width:{{ mr.volW }}%;background:{{ mr.volColor }}"></div>
+                      </div>
+                      <div style="flex:0 0 68px;text-align:right;font-size:9px;color:#5f6773">{{ mr.aberrLine }}</div>
+                    </div>
+                    <!-- expanded detail: key fares + regulation citation + aberrations + jump to corridor -->
+                    <sc-if value="{{ mr.expanded }}" hint-placeholder-val="{{ false }}">
+                      <div style="padding:4px 15px 12px 15px">
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px">
+                          <sc-for list="{{ mr.fares }}" as="kf" hint-placeholder-count="3">
+                            <div style="font-size:10px;color:#98a1ae;background:#0a0b0d;border:1px solid #15171b;border-radius:6px;padding:4px 8px"><span style="color:#5f6773">{{ kf.label }}</span> · {{ kf.code }} {{ kf.desc }} <span style="font-family:'Source Sans 3',sans-serif;color:#dbe0e7;font-weight:600">{{ kf.priceStr }}</span></div>
+                          </sc-for>
+                          <sc-if value="{{ mr.hasReg }}" hint-placeholder-val="{{ false }}">
+                            <div style="font-size:10px;color:{{ mr.regChipColor }};background:#0a0b0d;border:1px solid {{ mr.regChipBorder }};border-radius:6px;padding:4px 8px">{{ mr.regChip }}</div>
+                          </sc-if>
+                          <sc-if value="{{ mr.hasCarbon }}" hint-placeholder-val="{{ false }}">
+                            <div style="font-size:10px;color:#6f9e86;background:#0a0b0d;border:1px solid #1d2a23;border-radius:6px;padding:4px 8px">carbon: {{ mr.carbonDetail }}</div>
+                          </sc-if>
+                        </div>
+                        <sc-if value="{{ mr.hasBreachReason }}" hint-placeholder-val="{{ false }}">
+                          <div style="padding:8px 10px;background:#130c0f;border:1px solid #2f201d;border-radius:6px;font-size:10.5px;color:#d3b9b3;margin-bottom:7px">
+                            <span style="color:#c17f6e;font-weight:600">BREACH</span> · {{ mr.breachReason }}
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ mr.hasAberrs }}" hint-placeholder-val="{{ false }}">
+                          <div style="font-size:9px;letter-spacing:.6px;color:#8a8064;margin-bottom:4px">BASELINE STRUCTURAL ABERRATIONS · {{ mr.scannedStr }} fares scanned</div>
+                          <div style="display:flex;flex-direction:column;gap:3px">
+                            <sc-for list="{{ mr.aberrs }}" as="ab" hint-placeholder-count="3">
+                              <div style="display:flex;align-items:center;gap:8px;font-size:10.5px;padding:5px 8px;background:#110e08;border:1px solid #2d2617;border-radius:5px">
+                                <span style="font-size:9px;letter-spacing:.4px;color:#c2a15c;flex:0 0 auto">{{ ab.rule }}</span>
+                                <span style="font-family:'Source Sans 3',sans-serif;color:#d3cbb6;flex:0 0 auto">{{ ab.text }}</span>
+                                <span style="color:#8a8064;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ab.explanation }}</span>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ mr.hasRowNotes }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">
+                            <sc-for list="{{ mr.rowNotes }}" as="n" hint-placeholder-count="2">
+                              <div style="font-size:9.5px;color:#7b8390;line-height:1.5;padding:4px 8px;background:#090a0c;border:1px solid #15171b;border-radius:5px">{{ n }}</div>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                          <div onClick="{{ mr.onOpen }}" style="font-size:10.5px;color:#a9c9b7;cursor:pointer" style-hover="color:#c4e0d0">open corridor in cockpit →</div>
+                          <sc-if value="{{ mr.hasPending }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-family:'Source Sans 3',sans-serif;color:#c2a15c;border:1px solid #3a3220;border-radius:9px;padding:2px 7px">{{ mr.pendingN }} pending</span></sc-if>
+                          <sc-if value="{{ mr.hasApproved }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-family:'Source Sans 3',sans-serif;color:#6f9e86;border:1px solid #1d2a23;border-radius:9px;padding:2px 7px">{{ mr.approvedN }} staged</span></sc-if>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ master.empty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:22px;text-align:center;color:#5f6773;font-size:11.5px">no corridors match the filter — try clearing search or the TOC pick</div>
+                </sc-if>
+                <sc-if value="{{ master.hasNotes }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:9px 13px;display:flex;flex-direction:column;gap:4px">
+                    <sc-for list="{{ master.notes }}" as="n" hint-placeholder-count="2">
+                      <div style="font-size:10px;color:#7b8390;line-height:1.5;padding:6px 9px;background:#090a0c;border:1px solid #15171b;border-radius:6px">{{ n }}</div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              </sc-if>
+              <sc-if value="{{ master.notReady }}" hint-placeholder-val="{{ false }}">
                 <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#5f6773;font-size:11.5px">
-                  <div style="display:flex;align-items:center;gap:9px"><div style="width:12px;height:12px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .8s linear infinite"></div>{{ network.statusLine }}</div>
+                  <div style="display:flex;align-items:center;gap:9px"><div style="width:12px;height:12px;border:2px solid #2a2e34;border-top-color:#adb6c4;border-radius:50%;animation:rfe-spin .8s linear infinite"></div>{{ master.statusLine }}</div>
                 </div>
               </sc-if>
             </div>
@@ -2009,17 +2173,34 @@ class Component extends DCLogic {
         tickets:[], deltaMode:'pct', deltaValue:0.0,
         // withdraw_product fields — single ticket + confirmation toggle.
         withdrawTicket:null, withdrawConfirmed:false },
-      includes:{ compliance:true, splits:true, performance:true, revenue:true, validity:true, demand:true, carbon:false },
+      includes:{ compliance:true, splits:true, performance:true, revenue:true, validity:true, demand:true, carbon:true },
       perfAvailable:true, feedMode:'live', feedFetchedSec:2,
       disp:{ contradiction:null }, queueDisp:{},
       escalation:null, proposing:false, mainCardId:null, stagingCounts:{ approved:0, pending:0 }, stagingRows:[],
       selFlow:'ABD-EDB:OPR', selCorridor:'abd', selStep:'railcard',
-      activeRight:'prov', activeAnalysis:'blast',
+      activeRight:'prov', activeAnalysis:'master',
       // Statistics-tab knob: eligible-share % for the demand model (backend
       // default 15). Part of the impact request signature via fare-engine.
       eligibleSharePct:15,
+      // Aggregate scale toggle: "total" = annualised aggregate figure
+      // (default; matches what the backend already returns), "perRide" =
+      // per-journey unit (revenue Δ/journey, kg/journey, elasticity-driven
+      // % demand change/journey). Fixes the perceived "ballooning" —
+      // per-ride never multiplies by ODM journey counts. Purely client-side
+      // recasting of already-received impact figures; nothing refetched.
+      scaleMode:'total',
+      // Aggregate impact sub-tab: which KPI mini-panel is expanded in the
+      // right rail (fares / revenue / demand / carbon). Mirrors the lower
+      // analysis tabs, but each block also renders an inline SVG mini-graph
+      // so the analyst can eyeball distribution without leaving the landing.
+      aggKpi:'revenue',
       // Headline £ dropdown (verdict strip) + expanded network-overview row.
       headlineOpen:false, netExpanded:null,
+      // Master tab: filter/sort/scale-wide-raise state. `masterRaisePct` is
+      // in whole percent (5 = +5.0%). masterActive gates whether the sim
+      // results overlay the baseline rows or the tab shows baseline-only.
+      masterFilter:'', masterTocFilter:'', masterRaisePct:0,
+      masterActive:false, masterRounding:'near5', masterSortBy:'name',
       hoverNode:null, filterStation:null,
       computing:false, resultsCurrent:true, computeError:null, degraded:false,
       lookup:'', lookupErr:null, lookupSugs:[], lookupSugIdx:0, lookupBusy:false,
@@ -3585,6 +3766,7 @@ class Component extends DCLogic {
     V.strip = this.buildCorridorStrip();
     V.stationCard = this.buildStationDetail();
     V.impact = this.buildImpact();
+    V.aggKpis = this.buildAggKpis();
 
     // analysis
     const at = this.buildAnalysisTabs();
@@ -3597,7 +3779,7 @@ class Component extends DCLogic {
     V.revenue = this.buildRevenue();
     V.demand = this.buildDemand();
     V.carbon = this.buildCarbon();
-    V.network = this.buildNetwork();
+    V.master = this.buildMaster();
     V.stats = this.buildStats();
     V.headDrop = this.buildHeadlineDrop();
 
@@ -4169,6 +4351,239 @@ class Component extends DCLogic {
       scaleNote:'Node size scales with per-station fare count; fan-out ripples outward from the selected corridor in geographic distance order.' };
   }
 
+  /* --- aggregate KPIs (fares · revenue · demand · carbon) with mini-graphs
+     and per-figure provenance. Every headline is a client-side reshape of
+     an already-received /api/impact block — nothing here is refetched or
+     recomputed off the resolver chain. Two scale modes:
+        total   — annualised aggregate figure (matches the backend defaults)
+        perRide — average per journey (kills the "ballooning" where a
+                  per-fare Δ × journey count leaks into a per-ride slot).
+     Chart data is HTML/CSS bar rows so the template can render them via
+     the existing sc-for pattern — no chart library, matches the current
+     div-based bar style used throughout the cockpit. */
+  buildAggKpis() {
+    const C = this.C, S = this.state, RFE = window.RFE, imp = this._dispImpact();
+    const scale = S.scaleMode;
+    const active = S.aggKpi;
+    const empty = { has:false, headline:'—', unit:'', sub:'', cite:'', citeTip:'',
+      chart:{ has:false, items:[], axisNote:'', kind:'' }, formula:'', explain:'', color:C.tx1 };
+    const kpi = { fares: Object.assign({}, empty), revenue: Object.assign({}, empty),
+      demand: Object.assign({}, empty), carbon: Object.assign({}, empty) };
+    const scaleToggle = {
+      totalActive: scale === 'total', perRideActive: scale === 'perRide',
+      onTotal: () => this.setState({ scaleMode:'total' }),
+      onPerRide: () => this.setState({ scaleMode:'perRide' }),
+      note: scale === 'perRide'
+        ? 'per-ride mode: figures are per single journey — never multiplied by ODM volume.'
+        : 'total mode: annualised aggregate over the modelled journey volume.',
+    };
+    const tabs = [
+      { id:'fares', label:'Fares', tone:C.ac },
+      { id:'revenue', label:'Revenue', tone:C.ok },
+      { id:'demand', label:'Demand', tone:C.info },
+      { id:'carbon', label:'Carbon', tone:C.ok },
+    ].map((t) => ({
+      id:t.id, label:t.label,
+      color: active === t.id ? '#f0f2f6' : '#7b8390',
+      weight: active === t.id ? 600 : 400,
+      edge: active === t.id ? '#adb6c4' : 'transparent',
+      onSelect: () => this.setState({ aggKpi: t.id }),
+    }));
+    if (!imp || !RFE) return { has:false, tabs, active, panel:empty, scaleToggle };
+
+    /* ---- FARES: |Δ| distribution across the affected set. ------------- */
+    (function () {
+      const rows = imp.rows || [];
+      if (!rows.length) { kpi.fares = Object.assign({}, empty, { has:true, headline:'0', sub:'no affected fares' }); return; }
+      // Five buckets by relative |Δ|: large-down / small-down / held / small-up / large-up.
+      let maxAbs = 1;
+      rows.forEach((r) => { if (Math.abs(r.deltaP || 0) > maxAbs) maxAbs = Math.abs(r.deltaP || 0); });
+      const buckets = { largeDown:0, smallDown:0, held:0, smallUp:0, largeUp:0 };
+      rows.forEach((r) => {
+        const d = r.deltaP;
+        if (d == null || d === 0) buckets.held++;
+        else if (d < 0) (Math.abs(d) >= 0.5 * maxAbs ? buckets.largeDown++ : buckets.smallDown++);
+        else (d >= 0.5 * maxAbs ? buckets.largeUp++ : buckets.smallUp++);
+      });
+      const total = rows.length;
+      const items = [
+        { label:'big cuts',  value:buckets.largeDown, color:C.down,  pct: total ? Math.round(buckets.largeDown/total*100) : 0 },
+        { label:'small cuts',value:buckets.smallDown, color:'#4a7566', pct: total ? Math.round(buckets.smallDown/total*100) : 0 },
+        { label:'held',      value:buckets.held,       color:C.tx2,    pct: total ? Math.round(buckets.held/total*100)      : 0 },
+        { label:'small rises', value:buckets.smallUp,  color:'#a37556', pct: total ? Math.round(buckets.smallUp/total*100)   : 0 },
+        { label:'big rises', value:buckets.largeUp,    color:C.up,     pct: total ? Math.round(buckets.largeUp/total*100)    : 0 },
+      ].map((b) => ({ label:b.label, value:b.value.toLocaleString(), pct:Math.max(2, b.pct), color:b.color, right: b.pct + '%' }));
+      const perFareMeanP = rows.reduce((a, r) => a + Math.abs(r.deltaP || 0), 0) / total;
+      const headline = scale === 'perRide'
+        ? RFE.fmtMoney(Math.round(perFareMeanP)) + ' · mean |Δ|'
+        : total.toLocaleString();
+      kpi.fares = { has:true,
+        headline, unit: scale === 'perRide' ? 'per fare' : 'affected fares',
+        sub: scale === 'perRide'
+          ? total.toLocaleString() + ' fares · unweighted mean of |new − old|'
+          : 'across ' + Object.keys(imp.stationStats).length + ' stations',
+        cite: 'resolver · deterministic old→new per (flow_id, ticket_code)',
+        citeTip: 'Every row is one resolver invocation; Δ is (new − old) in pence. Rounding per .FRR.',
+        chart: { has:true, kind:'hbar', items, axisNote:'buckets by |Δ| ÷ max|Δ| in this run' },
+        formula: 'buckets share of ' + total.toLocaleString() + ' affected fares',
+        explain: scale === 'perRide'
+          ? 'Per-ride view of the fare-count KPI reports the unweighted mean |Δ| across every affected fare — a single-fare feel for the change, not annualised.'
+          : 'Distribution of the resolver-computed |Δ| across every affected fare, bucketed relative to the largest |Δ| in this run.',
+        color:C.ac };
+    })();
+
+    /* ---- REVENUE: total vs per-journey (kills the "ballooning" leak). - */
+    (function () {
+      const r = imp.revenue;
+      if (!r || !imp.have.revenue) { kpi.revenue = Object.assign({}, empty, { has:false, sub:'revenue module off' }); return; }
+      const totalP = r.totalP || 0;
+      const journeys = r.journeys;
+      // Per-ride figure: Δ per single journey. Backend already gives us
+      // journey-weighted numerator; divide by journeys count.
+      let perRideP = null;
+      if (journeys && journeys > 0) perRideP = totalP / journeys;
+      else if ((r.odmRows || []).length) {
+        const j = (r.odmRows || []).reduce((a, e) => a + (e.journeys || 0), 0);
+        if (j > 0) perRideP = totalP / j;
+      }
+      // Top-5 |revenue Δ| contributors as horizontal bars.
+      const src = (r.odmRows && r.odmRows.length)
+        ? r.odmRows.map((e) => ({ label: e.flowId + ' · ' + e.ticket, valueP: e.revenueDeltaP || 0 }))
+        : (r.fareRows || []).map((f) => ({ label: (f.oName || f.flowId) + ' · ' + f.code, valueP: f.deltaP || 0 }));
+      src.sort((a, b) => Math.abs(b.valueP) - Math.abs(a.valueP));
+      const top = src.slice(0, 8);
+      let bMax = 1; top.forEach((t) => { if (Math.abs(t.valueP) > bMax) bMax = Math.abs(t.valueP); });
+      const items = top.map((t) => ({
+        label:t.label, value:RFE.fmtBigDir(t.valueP),
+        pct: Math.max(3, Math.round(Math.abs(t.valueP) / bMax * 100)),
+        color: t.valueP < 0 ? C.down : (t.valueP > 0 ? C.up : C.tx2),
+        right: (t.valueP >= 0 ? '+' : '') + Math.round(Math.abs(t.valueP) / Math.max(1, Math.abs(totalP)) * 100) + '%',
+      }));
+      const headlineP = scale === 'perRide' ? perRideP : totalP;
+      const headline = headlineP == null
+        ? '—'
+        : (scale === 'perRide' ? RFE.fmtMoney(Math.round(headlineP)) : RFE.fmtBigDir(headlineP));
+      const basis = r.basis === 'odm_revenue' ? 'ODM journey-weighted Δ'
+        : (r.basis === 'per_flow_exposure' ? 'per-flow static exposure' : 'revenue basis unavailable');
+      const cite = r.basis === 'odm_revenue'
+        ? 'ODM matrix · ' + (r.periodLabel || 'per period') + ' · ' + r.matchedFlows + ' matched flows'
+        : 'src/impact/revenue.py:27-34 (per-flow exposure)';
+      kpi.revenue = { has:true,
+        headline, unit: scale === 'perRide' ? 'per journey' : (r.periodLabel || 'per period'),
+        sub: basis + (journeys != null ? ' · ' + journeys.toLocaleString() + ' journeys' : ''),
+        cite, citeTip: r.basis === 'odm_revenue'
+          ? 'Σ (new − old) × journeys/period over matched flows. Cluster fan-out (perPair) is NOT cited as revenue.'
+          : 'Σ (new − old) over distinct repriced fares — no passenger weighting.',
+        chart: { has: top.length > 0, kind:'hbar', items,
+          axisNote:'top ' + top.length + ' contributors by |Δ| · share of headline' },
+        formula: scale === 'perRide'
+          ? (RFE.fmtBigDir(totalP) + ' ÷ ' + (journeys ? journeys.toLocaleString() : 'journeys') + ' = ' + (perRideP != null ? RFE.fmtMoney(Math.round(perRideP)) : '—'))
+          : (r.basis === 'odm_revenue'
+              ? 'Σ Δ × journeys · ' + r.matchedFlows + ' matched flows'
+              : 'Σ Δ · ' + ((r.fareRows || []).length) + ' distinct fares'),
+        explain: scale === 'perRide'
+          ? 'Per-ride revenue Δ is the mean revenue impact per single journey. NEVER the cluster-fan-out per-pair figure (which is a map-only diagnostic — revenue.py explicitly warns not to cite it as revenue).'
+          : 'Aggregate revenue exposure over the modelled journey volume. Cluster fan-out (per-pair) figure is available as a diagnostic on the Revenue tab and clearly marked "not revenue".',
+        color: totalP < 0 ? C.down : (totalP > 0 ? C.up : C.tx1) };
+    })();
+
+    /* ---- DEMAND: elasticity-driven % change per fare, aggregated. ----- */
+    (function () {
+      const d = imp.demand;
+      if (!d || !imp.have.demand) { kpi.demand = Object.assign({}, empty, { has:false, sub:'demand module off' }); return; }
+      const rowRows = d.rowRows || [];
+      // Weighted mean gross demand % change (weight by net_new_journeys if we have it,
+      // else unweighted mean).
+      let wSum = 0, jSum = 0, unWSum = 0, unN = 0;
+      rowRows.forEach((e) => {
+        const pct = parseFloat((e.grossDemandChange || '').replace('%', ''));
+        if (isNaN(pct)) return;
+        unWSum += pct; unN++;
+        const j = e.netNewJourneys;
+        if (j != null) { wSum += pct * Math.abs(j); jSum += Math.abs(j); }
+      });
+      const meanPct = jSum > 0 ? wSum / jSum : (unN > 0 ? unWSum / unN : null);
+      // Histogram of per-flow % change, 6 buckets from -30% to +30%.
+      const bucketDefs = [
+        { label:'≤ −20%', min:-9e9, max:-20, color:C.down },
+        { label:'−20…−5%', min:-20, max:-5, color:'#4a7566' },
+        { label:'−5…+5%',  min:-5, max:5, color:C.tx2 },
+        { label:'+5…+20%', min:5, max:20, color:'#a37556' },
+        { label:'≥ +20%',  min:20, max:9e9, color:C.up },
+      ];
+      const counts = bucketDefs.map(() => 0);
+      rowRows.forEach((e) => {
+        const pct = parseFloat((e.grossDemandChange || '').replace('%', ''));
+        if (isNaN(pct)) return;
+        for (let i = 0; i < bucketDefs.length; i++) {
+          if (pct > bucketDefs[i].min && pct <= bucketDefs[i].max) { counts[i]++; break; }
+        }
+      });
+      const total = counts.reduce((a, b) => a + b, 0) || 1;
+      const items = bucketDefs.map((b, i) => ({
+        label:b.label, value:counts[i].toLocaleString(),
+        pct: Math.max(2, Math.round(counts[i] / total * 100)),
+        color:b.color, right: Math.round(counts[i] / total * 100) + '%',
+      }));
+      const headline = scale === 'perRide'
+        ? (meanPct != null ? (meanPct >= 0 ? '+' : '') + meanPct.toFixed(1) + '%' : '—')
+        : (d.totalNetNewJourneys != null ? RFE.fmtInt(d.totalNetNewJourneys) : '% only');
+      kpi.demand = { has:true,
+        headline, unit: scale === 'perRide' ? 'mean Δ demand · per journey' : 'net-new journeys/yr',
+        sub: d.flowsWithVolume + ' flows w/ ODM · ' + d.flowsPercentOnly + ' %-only'
+             + (d.validityWarnings ? ' · ' + d.validityWarnings + ' outside validity' : ''),
+        cite: d.primaryElasticitySource || 'PDFH-style elasticities · src/impact/elasticities.py',
+        citeTip: 'Direction-sensitive elasticities from PDFH (increase vs reduction). Multiplicative form: Δq = (p1/p0)^ε − 1.',
+        chart: { has: rowRows.length > 0, kind:'hbar', items,
+          axisNote: rowRows.length + ' fares · % change bucketed' },
+        formula: scale === 'perRide'
+          ? 'weighted mean Δ%q = Σ(Δ%q_i × |journeys_i|) ÷ Σ|journeys_i|'
+          : 'Σ ((p1/p0)^ε − 1) × eligible-share × ODM journeys',
+        explain: scale === 'perRide'
+          ? 'Average % change in demand per journey, weighted by the ODM journey count. Direction-sensitive — decreases carry stronger elasticity than increases on the same corridor.'
+          : 'Total net-new journeys per year across every fare, from PDFH-style elasticities applied to ODM journey volumes at the current eligible-share assumption.',
+        color: (meanPct != null && meanPct > 0) ? C.up : ((meanPct != null && meanPct < 0) ? C.down : C.info) };
+    })();
+
+    /* ---- CARBON: DEFRA rail vs car over distance & net-new journeys. -- */
+    (function () {
+      const cb = imp.carbon;
+      if (!cb || !imp.have.carbon) { kpi.carbon = Object.assign({}, empty, { has:false, sub:'carbon module off' }); return; }
+      const rowRows = cb.rowRows || [];
+      // Top-N by saving.
+      const src = rowRows.slice().sort((a, b) => Math.abs(b.savingKg || 0) - Math.abs(a.savingKg || 0)).slice(0, 8);
+      let bMax = 1; src.forEach((e) => { if (Math.abs(e.savingKg || 0) > bMax) bMax = Math.abs(e.savingKg || 0); });
+      const items = src.map((e) => ({
+        label: e.flowId + ' · ' + e.ticket,
+        value: e.savingText, pct: Math.max(3, Math.round(Math.abs(e.savingKg || 0) / bMax * 100)),
+        color:C.ok,
+        right: e.distanceKm != null ? Math.round(e.distanceKm) + ' km' : '—',
+      }));
+      const perRide = cb.perPassengerKg != null ? cb.perPassengerKg : null;
+      const headline = scale === 'perRide'
+        ? (perRide != null ? perRide.toFixed(2) + ' kg' : '—')
+        : (cb.totalSavingText || '—');
+      kpi.carbon = { has:true,
+        headline, unit: scale === 'perRide' ? 'per shifted passenger' : 'total CO₂e saved',
+        sub: cb.corridorKm != null ? ('corridor ' + cb.corridorKm.toFixed(0) + ' km · ' + (cb.distanceMethod || '')) : 'distance unavailable',
+        cite: cb.railFactorDesc || 'DEFRA/DESNZ carbon factors · src/impact/carbon_factors.py',
+        citeTip: 'rail ' + cb.railKgPerPkm.toFixed(5) + ' vs car ' + cb.carKgPerPkm.toFixed(5) + ' kgCO₂e/pkm. Distance from src/impact/distance.py.',
+        chart: { has: src.length > 0, kind:'hbar', items,
+          axisNote: 'top ' + src.length + ' fares by savingKg · km on the right' },
+        formula: scale === 'perRide'
+          ? 'per-passenger saving = corridor_km × (car − rail) kgCO₂e/pkm'
+          : 'Σ net_new_journeys × distance_km × (car − rail) kgCO₂e/pkm',
+        explain: scale === 'perRide'
+          ? 'Per-passenger carbon saving is corridor km × (car − rail) DEFRA emission factors. Same number regardless of demand volume — it only depends on modal choice and distance.'
+          : 'Aggregate CO₂e saved from modal shift. Varies per fare because distance × net_new_journeys varies; identical values across a single corridor mean demand collapsed to the same volume (not a bug).',
+        color: C.ok };
+    })();
+
+    // Which panel to actually render?
+    const panel = kpi[active] || kpi.revenue;
+    return { has:true, tabs, active, panel, scaleToggle, kpi };
+  }
+
   buildAnalysisTabs() {
     const C = this.C, S = this.state, inc = this.effIncludes(), imp = this._dispImpact();
     // Network aberration badge: total baseline inversions across corridors
@@ -4176,7 +4591,7 @@ class Component extends DCLogic {
     const ov = (window.RFE && window.RFE.overview && this.state.ready) ? window.RFE.overview() : null;
     const aberrN = (ov && ov.ready) ? ov.corridors.reduce((a, c) => a + c.aberration_count, 0) : 0;
     const defs = [
-      { id:'network', label:'Network', on:true, badge:aberrN, badgeTone:'warn' },
+      { id:'master', label:'Master', on:true, badge:aberrN, badgeTone:'warn' },
       { id:'blast', label:'Blast radius', on:true, badge: imp?imp.verdict.affectedTotal:0, badgeTone:'ac' },
       { id:'compliance', label:'Compliance', on:inc.compliance, badge: imp?(imp.verdict.breaches||0):0, badgeTone:'bad' },
       { id:'anomalies', label:'Anomalies', on:inc.validity, badge: imp?(imp.verdict.inversions||0):0, badgeTone:'warn' },
@@ -4206,7 +4621,7 @@ class Component extends DCLogic {
       showAnomalies:S.activeAnalysis==='anomalies' && act.on, showSplits:S.activeAnalysis==='splits' && act.on,
       showPerformance:S.activeAnalysis==='performance' && act.on, showRevenue:S.activeAnalysis==='revenue' && act.on,
       showDemand:S.activeAnalysis==='demand' && act.on, showCarbon:S.activeAnalysis==='carbon' && act.on,
-      showNetwork: S.activeAnalysis==='network', showStats: S.activeAnalysis==='stats',
+      showMaster: S.activeAnalysis==='master', showStats: S.activeAnalysis==='stats',
       activeOff,
       offTitle: perfUnavail ? 'Performance feed unavailable' : (act.label + ' module is off'),
       offBody: perfUnavail ? 'The live performance source dropped out. Split-ticket calling-pattern verification falls back to unverified until it reconnects.'
@@ -4243,7 +4658,17 @@ class Component extends DCLogic {
     const countLabel = agg
       ? ('top ' + out.length.toLocaleString() + ' of ' + agg.totalFares.toLocaleString() + ' affected fares · operator scope · before → after')
       : (out.length + ' affected fares · before → after');
-    return { rows:out, count:out.length, countLabel, filter:S.filterStation, filterName: S.filterStation?RFE.ST[S.filterStation].name:'', onClearFilter:() => this.setState({filterStation:null}) };
+    // Cluster fan-out truncation: when a fare's blast radius exceeds the
+    // per-fare cap in affected.py, surface the shortfall so nothing is
+    // silently missing from the map / blast list. Counts come from the
+    // adapter (rfe.adapt.js) — never re-counted locally.
+    const bt = imp.blastTruncation;
+    const truncNote = bt
+      ? ('blast radius · showing ' + bt.shown.toLocaleString() + ' of ' + bt.full.toLocaleString()
+         + ' stations · ' + bt.missing.toLocaleString() + ' hidden across ' + bt.rows + ' fare(s) (per-fare cluster fan-out cap in affected.py)')
+      : '';
+    return { rows:out, count:out.length, countLabel, truncNote, hasTruncNote: !!truncNote,
+      filter:S.filterStation, filterName: S.filterStation?RFE.ST[S.filterStation].name:'', onClearFilter:() => this.setState({filterStation:null}) };
   }
 
   buildCompliance() {
@@ -4375,8 +4800,12 @@ class Component extends DCLogic {
       color: r.totalP < 0 ? C.down : (r.totalP > 0 ? C.up : C.tx1),
       label: withdraw ? 'recovered' : 'exposure',
       methodLabel: r.methodLabel || '',
+      // Headline is per-flow (revenue.py:27-34 "the honest answer"). Per-pair
+      // is the cluster fan-out for the GB map only — labelled explicitly as
+      // "NOT revenue" so it can never be confused with the headline again.
       exposureLine: r.perFlowExposureP != null
-        ? ('per-flow ' + RFE.fmtBig(r.perFlowExposureP) + ' · per-pair ' + RFE.fmtBig(r.perPairExposureP))
+        ? ('per-flow ' + RFE.fmtBig(r.perFlowExposureP)
+           + ' · cluster fan-out ' + RFE.fmtBig(r.perPairExposureP) + ' (GB-map only, not revenue)')
         : '',
       rows:fareRows, hasRows:fareRows.length>0,
       rowsLabel: fareRows.length + ((r.fareRows||[]).length > fareRows.length ? (' of ' + r.fareRows.length) : '') + ' fares by |Δ| · click a row for its provenance chain',
@@ -4387,21 +4816,86 @@ class Component extends DCLogic {
   buildDemand() {
     const C = this.C, imp = this._dispImpact();
     const d = imp ? imp.demand : null;
-    if (!d) return { has:false, rows:[], notes:[], hasNotes:false, headline:'—', sub:'', assumptions:'' };
+    if (!d) return { has:false, rows:[], notes:[], hasNotes:false, headline:'—', sub:'', assumptions:'',
+      chart:{ has:false, items:[], axisNote:'' } };
     const RFE = window.RFE;
-    const rows = (d.rowRows || []).map((e) => ({
-      key:e.key, flow:e.flowId, ticket:e.ticket, segment:e.segment,
-      elasticity:e.elasticityText, source:e.elasticitySource,
-      priceChange:e.priceChange, grossChange:e.grossDemandChange,
-      netNew:e.netNewText,
-      warnColor: e.withinValidity ? C.tx2 : C.warn,
-      validityNote: e.withinValidity ? '' : 'outside ticket validity',
+    const rows = (d.rowRows || []).map((e) => {
+      // Per-fare price→demand elasticity curve (PDFH multiplicative form:
+      // Δq = (p1/p0)^ε − 1). 21 sample points across ±30% price change so
+      // the curve renders as a smooth SVG polyline. The current price ratio
+      // gets a marker so the analyst can see where THIS proposal sits.
+      const eps = e.elasticity != null ? e.elasticity : parseFloat(String(e.elasticity || 0)) || 0;
+      const curPricePct = parseFloat((e.priceChange || '').replace('%', ''));
+      const cur = isNaN(curPricePct) ? null : curPricePct;
+      const N = 21;
+      const W = 140, H = 40; // svg dims match the row height (compact inline).
+      const pts = [];
+      let yMin = 0, yMax = 0;
+      for (let i = 0; i < N; i++) {
+        const pxPct = -30 + (60 * i) / (N - 1); // -30 .. +30
+        const ratio = 1 + pxPct / 100;
+        const q = ratio > 0 ? (Math.pow(ratio, eps) - 1) * 100 : 0;
+        pts.push({ x: pxPct, y: q });
+        if (q > yMax) yMax = q; if (q < yMin) yMin = q;
+      }
+      // Symmetric axis so zero sits mid-height.
+      const yAbs = Math.max(Math.abs(yMin), Math.abs(yMax), 1);
+      const toSvgX = (px) => Math.round(((px + 30) / 60) * W);
+      const toSvgY = (qy) => Math.round((H / 2) - (qy / yAbs) * (H / 2 - 3));
+      const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + toSvgX(p.x) + ' ' + toSvgY(p.y)).join(' ');
+      const zeroY = toSvgY(0);
+      const mark = cur != null
+        ? { x: toSvgX(cur), y: toSvgY((Math.pow(1 + cur / 100, eps) - 1) * 100),
+            xLine: toSvgX(cur), label: (cur >= 0 ? '+' : '') + cur.toFixed(1) + '%' }
+        : null;
+      return {
+        key:e.key, flow:e.flowId, ticket:e.ticket, segment:e.segment,
+        elasticity:e.elasticityText, source:e.elasticitySource,
+        priceChange:e.priceChange, grossChange:e.grossDemandChange,
+        netNew:e.netNewText,
+        warnColor: e.withinValidity ? C.tx2 : C.warn,
+        validityNote: e.withinValidity ? '' : 'outside ticket validity',
+        curve: {
+          w:W, h:H, path, zeroY,
+          colorLine: e.direction === 'reduction' ? C.ok : C.up,
+          mark, hasMark: !!mark,
+          desc: 'ε=' + eps.toFixed(2) + ' · Δq = (1+Δp)^ε − 1 · curve spans ±30% Δp',
+        },
+      };
+    });
+
+    // Distribution of gross % demand change across rows — 5 buckets for a
+    // shape-at-a-glance histogram at the top of the tab.
+    const distDefs = [
+      { label:'≤ −20%', min:-9e9, max:-20, color:C.down },
+      { label:'−20…−5%', min:-20, max:-5, color:'#4a7566' },
+      { label:'−5…+5%',  min:-5, max:5, color:C.tx2 },
+      { label:'+5…+20%', min:5, max:20, color:'#a37556' },
+      { label:'≥ +20%',  min:20, max:9e9, color:C.up },
+    ];
+    const distCounts = distDefs.map(() => 0);
+    (d.rowRows || []).forEach((e) => {
+      const pct = parseFloat((e.grossDemandChange || '').replace('%', ''));
+      if (isNaN(pct)) return;
+      for (let i = 0; i < distDefs.length; i++) {
+        if (pct > distDefs[i].min && pct <= distDefs[i].max) { distCounts[i]++; break; }
+      }
+    });
+    const total = distCounts.reduce((a, b) => a + b, 0) || 1;
+    const chartItems = distDefs.map((b, i) => ({
+      label:b.label, value:distCounts[i].toLocaleString(),
+      pct: Math.max(2, Math.round(distCounts[i] / total * 100)),
+      color:b.color, right: Math.round(distCounts[i] / total * 100) + '%',
     }));
+
     return { has:true,
       headline: d.totalNetNewJourneys != null ? RFE.fmtInt(d.totalNetNewJourneys) : '% only',
       sub: d.flowsWithVolume + ' flows with ODM volume · ' + d.flowsPercentOnly + ' %-only' +
            (d.validityWarnings ? (' · ' + d.validityWarnings + ' validity warnings') : ''),
       assumptions: 'eligible share assumption ' + Math.round(d.eligibleShare * 100) + '% · PDFH-style elasticities',
+      cite: d.primaryElasticitySource || 'PDFH-style elasticities · src/impact/elasticities.py',
+      chart:{ has: chartItems.some((c) => c.pct > 2), items:chartItems,
+        axisNote: (d.rowRows || []).length + ' fares · demand Δ% bucketed' },
       rows, hasRows:rows.length>0,
       notes:d.notes || [], hasNotes:(d.notes || []).length>0 };
   }
@@ -4409,12 +4903,26 @@ class Component extends DCLogic {
   buildCarbon() {
     const C = this.C, imp = this._dispImpact();
     const cb = imp ? imp.carbon : null;
-    if (!cb) return { has:false, rows:[], notes:[], hasNotes:false, headline:'—', factors:'', distance:'' };
+    if (!cb) return { has:false, rows:[], notes:[], hasNotes:false, headline:'—', factors:'', distance:'',
+      chart:{ has:false, items:[], axisNote:'' } };
     const rows = (cb.rowRows || []).map((e) => ({
       key:e.key, flow:e.flowId, ticket:e.ticket,
       journeys:(e.netNewJourneys != null ? e.netNewJourneys.toLocaleString() : '—'),
       km: e.distanceKm != null ? (e.distanceKm.toFixed(0) + ' km · ' + (e.distanceMethod || '')) : '—',
       saving:e.savingText,
+      // Same value carried as a number so the inline chart can scale it.
+      _savingKg: e.savingKg || 0,
+    }));
+    // Explains the "all carbon values look identical" concern: same
+    // net_new_journeys × same distance × same factors = same saving. NOT
+    // a bug — it's what the model says. The chart makes the variance (or
+    // lack of it) visible; the row list shows the km & journeys inputs.
+    const src = rows.slice().sort((a, b) => Math.abs(b._savingKg) - Math.abs(a._savingKg)).slice(0, 8);
+    let bMax = 1; src.forEach((e) => { if (Math.abs(e._savingKg) > bMax) bMax = Math.abs(e._savingKg); });
+    const chartItems = src.map((e) => ({
+      label: e.flow + ' · ' + e.ticket,
+      value: e.saving, pct: Math.max(3, Math.round(Math.abs(e._savingKg) / bMax * 100)),
+      color: C.ok, right: e.km,
     }));
     const traction = cb.tractionElectricPct != null
       ? (' · traction ' + Math.round(cb.tractionElectricPct) + '% electric') : '';
@@ -4426,6 +4934,9 @@ class Component extends DCLogic {
         : 'corridor distance unavailable at this scope',
       factors: 'DEFRA factors — rail ' + cb.railKgPerPkm.toFixed(5) + ' vs car ' + cb.carKgPerPkm.toFixed(5) + ' kgCO₂e/pkm' + traction,
       factorsDesc: cb.railFactorDesc || '',
+      cite: cb.railFactorDesc || 'DEFRA/DESNZ · src/impact/carbon_factors.py',
+      chart:{ has: chartItems.length > 0, items:chartItems,
+        axisNote: 'top ' + chartItems.length + ' fares by saving · corridor km on the right' },
       rows, hasRows:rows.length>0,
       notes:cb.notes || [], hasNotes:(cb.notes || []).length>0 };
   }
@@ -4434,15 +4945,78 @@ class Component extends DCLogic {
      pricing, structural aberrations (R1/R2/R3 on the UNCHANGED feed),
      service level, ODM volumes and in-flight staged activity. All figures
      from /api/overview (computed at backend boot; staging overlaid live). */
-  buildNetwork() {
+  buildMaster() {
     const C = this.C, S = this.state, RFE = window.RFE;
     const ov = (RFE && RFE.overview) ? RFE.overview() : null;
-    const empty = { ready:false, notReady:true, rows:[], notes:[], hasNotes:false };
+    const empty = { ready:false, notReady:true, rows:[], notes:[], hasNotes:false,
+      kpis:[], tocOptions:[], sortOptions:[], roundOptions:[], presets:[] };
     if (!ov) return Object.assign(empty, { statusLine:'contacting /api/overview\u2026' });
     if (!ov.ready) return Object.assign(empty, {
       statusLine: ov.error ? ('overview unavailable \u2014 ' + ov.error)
         : 'baseline scan running at backend boot \u2014 pricing, aberrations and service levels land here shortly\u2026' });
-    const rows = (ov.corridors || []).map((c) => {
+
+    const filterText = (S.masterFilter || '').trim().toLowerCase();
+    const tocFilter = (S.masterTocFilter || '').trim().toUpperCase();
+    const raisePct = (typeof S.masterRaisePct === 'number') ? S.masterRaisePct : 0;
+    const simActive = raisePct !== 0;
+    // Fire the simulation request (sync-returns cached data; kicks fetch when
+    // params differ). Reset raise==0 skips the network call: baseline only.
+    let sim = null;
+    if (simActive && RFE && RFE.masterSimulate) {
+      sim = RFE.masterSimulate({
+        raise_pct: raisePct / 100,
+        toc_filter: tocFilter || null,
+        rounding: S.masterRounding || 'near5',
+      });
+    }
+    const simByCorridor = {};
+    if (sim && Array.isArray(sim.corridors)) {
+      sim.corridors.forEach((r) => { simByCorridor[r.id] = r; });
+    }
+
+    // -- shape per-corridor rows -----------------------------------------
+    const corridorsAll = (ov.corridors || []).map((c) => {
+      const journeys = (c.odm_journeys_out != null || c.odm_journeys_back != null)
+        ? ((c.odm_journeys_out || 0) + (c.odm_journeys_back || 0)) : null;
+      const prices = (c.key_fares || []).map((f) => f.price_pence).filter((p) => p != null && p > 0);
+      const defFare = (c.key_fares || []).find((f) => f.label === 'default') || (c.key_fares || [])[0] || null;
+      return { c, journeys, prices,
+        lo: prices.length ? Math.min.apply(null, prices) : null,
+        hi: prices.length ? Math.max.apply(null, prices) : null,
+        defFare };
+    });
+    // Filter by TOC + text.
+    const filtered = corridorsAll.filter((s) => {
+      if (tocFilter && (s.c.toc || '').toUpperCase() !== tocFilter) return false;
+      if (!filterText) return true;
+      const hay = ((s.c.name || '') + ' ' + (s.c.sub || '') + ' ' + (s.c.origin_crs || '') + ' '
+        + (s.c.dest_crs || '') + ' ' + (s.c.toc || '')).toLowerCase();
+      return hay.indexOf(filterText) >= 0;
+    });
+
+    // Scales for the mini bars.
+    const volMax = Math.max(1, ...corridorsAll.map((s) => s.journeys || 0));
+    const fareMax = Math.max(1, ...corridorsAll.map((s) => s.hi || 0));
+
+    // -- sort keys -------------------------------------------------------
+    const SORT_KEY = {
+      name: (s) => (s.c.name || '').toLowerCase(),
+      revenue: (s) => -((simByCorridor[s.c.id] || {}).revenue_delta_pence || 0),
+      breach: (s) => (simByCorridor[s.c.id] && simByCorridor[s.c.id].breach ? -1 : 0),
+      journeys: (s) => -(s.journeys || 0),
+      fare: (s) => -(s.defFare ? s.defFare.price_pence : 0),
+      carbon: (s) => -(s.c.annual_carbon_saving_kg || 0),
+    };
+    const sortBy = SORT_KEY[S.masterSortBy] ? S.masterSortBy : 'name';
+    filtered.sort((a, b) => {
+      const av = SORT_KEY[sortBy](a), bv = SORT_KEY[sortBy](b);
+      if (typeof av === 'string') return av.localeCompare(bv);
+      return av - bv;
+    });
+
+    // -- rows -------------------------------------------------------------
+    const rows = filtered.map((s) => {
+      const c = s.c, r = simByCorridor[c.id] || null;
       const expanded = S.netExpanded === c.id;
       const fares = (c.key_fares || []).map((f) => ({
         label:f.label, code:f.ticket_code, desc:f.description,
@@ -4452,34 +5026,231 @@ class Component extends DCLogic {
         text:a.higher_ticket + ' £' + (a.higher_price_pence/100).toFixed(2)
            + ' > ' + a.lower_ticket + ' £' + (a.lower_price_pence/100).toFixed(2),
         explanation:a.explanation }));
-      const journeys = (c.odm_journeys_out != null || c.odm_journeys_back != null)
-        ? ((c.odm_journeys_out || 0) + (c.odm_journeys_back || 0)) : null;
+
+      // baseline default fare
+      const baseP = s.defFare ? s.defFare.price_pence : null;
+      const baseStr = baseP != null ? RFE.fmtMoney(baseP) : '\u2014';
+
+      // simulated row (fills in only when a sim is in flight)
+      let simStr = '\u2014', deltaStr = '', simColor = C.tx1, simWeight = 400;
+      let deltaColor = '#5f6773', edgeColor = 'transparent';
+      let verdictLabel = c.default_ticket_regulated ? 'REGULATED' : (c.default_ticket_regulated === false ? 'UNREG' : '\u2014');
+      let verdictColor = c.default_ticket_regulated ? '#a9c9b7' : '#7b8390';
+      let verdictBorder = c.default_ticket_regulated ? '#1d2a23' : '#1b1e22';
+      let verdictBg = 'transparent';
+      let breachReason = null, hasBreachReason = false;
+      if (simActive && r) {
+        if (r.new_price_pence != null) {
+          simStr = RFE.fmtMoney(r.new_price_pence);
+          simWeight = 600;
+          simColor = C.tx1;
+        }
+        if (r.delta_pence != null && r.delta_pence !== 0) {
+          const sign = r.delta_pence > 0 ? '+' : '\u2212';
+          deltaStr = sign + '\u00a3' + (Math.abs(r.delta_pence)/100).toFixed(2);
+          deltaColor = r.delta_pence > 0 ? '#c17f6e' : '#6f9e86';
+        }
+        if (r.breach) {
+          verdictLabel = 'BREACH'; verdictColor = '#c17f6e';
+          verdictBorder = '#3a1f1c'; verdictBg = '#150c0e';
+          edgeColor = '#c17f6e';
+          simColor = '#d3b9b3';
+          breachReason = r.breach_reason; hasBreachReason = !!r.breach_reason;
+        } else if (r.regulated && r.delta_pence <= 0) {
+          verdictLabel = 'CAP OK'; verdictColor = '#a9c9b7';
+        } else if (r.regulated) {
+          verdictLabel = 'REG OK'; verdictColor = '#a9c9b7';
+        } else {
+          verdictLabel = 'UNREG'; verdictColor = '#98a1ae';
+        }
+      }
+
+      const journeysStr = s.journeys != null
+        ? (s.journeys >= 1e6 ? (s.journeys/1e6).toFixed(2) + 'M' : (s.journeys/1e3).toFixed(0) + 'k')
+        : '\u2014';
+      const carbonPerJourney = c.carbon_saving_per_journey_kg;
+      const carbonStr = carbonPerJourney != null
+        ? carbonPerJourney.toFixed(1) + ' kg saved'
+        : '\u2014';
+      const carbonDetail = carbonPerJourney != null
+        ? ('rail ' + (c.rail_kgco2e_per_journey || 0).toFixed(1) + ' vs car '
+          + (c.car_kgco2e_per_journey || 0).toFixed(1) + ' kgCO\u2082e/journey · saves '
+          + carbonPerJourney.toFixed(1) + ' kg per shifted passenger'
+          + (c.annual_carbon_saving_kg != null
+              ? ' · fleet-scale ' + (c.annual_carbon_saving_kg >= 1000
+                  ? (c.annual_carbon_saving_kg/1000).toFixed(1) + ' t/period'
+                  : c.annual_carbon_saving_kg.toFixed(0) + ' kg/period')
+              : ''))
+        : '';
+
+      let revStr = '\u2014', revColor = '#7b8390', revWeight = 400;
+      if (simActive && r && r.revenue_delta_pence != null) {
+        const rp = r.revenue_delta_pence;
+        revStr = RFE.fmtBig ? RFE.fmtBig(rp) : ('\u00a3' + (rp/100).toFixed(0));
+        revColor = rp > 0 ? '#a9c9b7' : (rp < 0 ? '#c17f6e' : '#7b8390');
+        revWeight = 600;
+      }
+
+      const distanceStr = c.distance_km != null ? c.distance_km.toFixed(0) + ' km' : '';
+      const regChip = c.default_ticket_citation
+        ? 'regulation: ' + c.default_ticket_citation : '';
+      const regChipColor = c.default_ticket_regulated ? '#a9c9b7' : '#98a1ae';
+      const regChipBorder = c.default_ticket_regulated ? '#1d2a23' : '#1b1e22';
+
       return {
         id:c.id, name:c.name, sub:c.sub || '', toc:c.toc || '\u2014',
         od:c.origin_crs + ' \u2192 ' + c.dest_crs,
+        distanceStr,
         fares, faresLine: fares.map((f) => f.code + ' ' + f.priceStr).join(' \u00b7 ') || '\u2014',
-        trainsStr: c.train_count != null ? c.train_count.toLocaleString() : '\u2014',
-        journeysStr: journeys != null ? journeys.toLocaleString() : '\u2014',
+        baseStr, simStr, deltaStr, simColor, simWeight, deltaColor,
+        journeysStr, carbonStr,
+        revStr, revColor, revWeight,
+        verdictLabel, verdictColor, verdictBorder, verdictBg, edgeColor,
+        breachReason, hasBreachReason,
+        hasReg: !!regChip, regChip, regChipColor, regChipBorder,
+        hasCarbon: !!carbonDetail, carbonDetail,
+        // mini bars
+        fareL: s.lo != null ? (s.lo / fareMax) * 100 : 0,
+        fareW: s.lo != null ? Math.max(1.5, ((s.hi - s.lo) / fareMax) * 100) : 0,
+        fareTip: 'baseline ' + (s.lo != null ? (RFE.fmtMoney(s.lo) + ' \u2192 ' + RFE.fmtMoney(s.hi)) : 'no priced fares'),
+        volW: s.journeys != null ? Math.max(1.5, (s.journeys / volMax) * 100) : 0,
+        volColor: c.aberration_count > 0 ? '#8a6f3a' : '#41586f',
+        volumeTip: s.journeys != null ? (s.journeys.toLocaleString() + ' journeys per ODM period') : 'no ODM row for this pair',
+        aberrLine: c.aberration_count > 0 ? (c.aberration_count + ' aberr') : 'clean',
         scannedStr: c.fares_scanned.toLocaleString(),
-        aberrN: c.aberration_count,
-        aberrColor: c.aberration_count > 0 ? C.warn : C.ok,
-        aberrBorder: c.aberration_count > 0 ? '#3a3220' : '#1d2a23',
-        pendingN:c.pending_changes, approvedN:c.approved_changes,
-        hasPending:c.pending_changes > 0, hasApproved:c.approved_changes > 0,
-        expanded, chev: expanded ? '180deg' : '0deg',
-        hasAberrs: expanded && aberrs.length > 0,
-        aberrs,
+        hasAberrs: expanded && aberrs.length > 0, aberrs,
         rowNotes: c.notes || [], hasRowNotes: expanded && (c.notes || []).length > 0,
         rowBg: expanded ? '#101215' : 'transparent',
+        expanded,
+        pendingN:c.pending_changes, approvedN:c.approved_changes,
+        hasPending:c.pending_changes > 0, hasApproved:c.approved_changes > 0,
         onToggle:() => this.setState({ netExpanded: expanded ? null : c.id }),
         onOpen:() => { this.setState({ scopeKind:'corridor', netExpanded:null }); this.selectCorridor(c.id); },
       };
     });
-    return { ready:true, notReady:false, rows,
+
+    // -- KPIs across the filtered set ------------------------------------
+    const totalJourneys = filtered.reduce((a, s) => a + (s.journeys || 0), 0);
+    const totalAberrs = filtered.reduce((a, s) => a + (s.c.aberration_count || 0), 0);
+    const totalRegulated = filtered.reduce((a, s) => a + (s.c.default_ticket_regulated ? 1 : 0), 0);
+    const totalCarbon = filtered.reduce((a, s) => a + (s.c.annual_carbon_saving_kg || 0), 0);
+    const breachN = (sim && sim.corridors)
+      ? sim.corridors.filter((r) => r.breach).length : 0;
+    const revDelta = (sim && sim.corridors)
+      ? sim.corridors.reduce((a, r) => a + (r.revenue_delta_pence || 0), 0) : 0;
+    const kpis = [
+      { label:'routes in scope', value:filtered.length.toString(),
+        sub:(corridorsAll.length - filtered.length > 0 ? (corridorsAll.length - filtered.length) + ' filtered' : 'all curated corridors'),
+        color:'#dbe0e7' },
+      { label:'journeys / ODM period', value:totalJourneys > 0 ? (totalJourneys >= 1e6 ? (totalJourneys/1e6).toFixed(1) + 'M' : Math.round(totalJourneys/1e3) + 'k') : '\u2014',
+        sub:(ov.odm_period_label || 'ODM matrix'), color:'#adb6c4' },
+      { label:'regulated defaults', value:totalRegulated + ' / ' + filtered.length,
+        sub:'§1 walk-up rules · 0% freeze applies', color:totalRegulated > 0 ? '#a9c9b7' : '#7b8390' },
+      { label:'carbon saved / period', value:totalCarbon > 0 ? (totalCarbon >= 1000 ? (totalCarbon/1000).toFixed(1) + ' t' : Math.round(totalCarbon) + ' kg') : '\u2014',
+        sub:'modal-shift, ODM \u00d7 corridor factors', color:'#6f9e86' },
+      { label:'baseline structural aberrations', value:totalAberrs.toString(),
+        sub:totalAberrs > 0 ? 'inversions in the unchanged feed' : 'none detected',
+        color:totalAberrs > 0 ? '#c2a15c' : '#7b8390' },
+    ];
+
+    // -- TOC filter options ----------------------------------------------
+    const tocSet = {};
+    corridorsAll.forEach((s) => { if (s.c.toc) tocSet[s.c.toc.toUpperCase()] = true; });
+    const tocList = Object.keys(tocSet).sort();
+    const mkPill = (isActive, label) => ({
+      color: isActive ? '#0c0d0f' : '#98a1ae',
+      border: isActive ? '#adb6c4' : '#1b1e22',
+      bg: isActive ? '#adb6c4' : 'transparent',
+      weight: isActive ? 600 : 400,
+      label,
+    });
+    const tocOptions = [Object.assign(mkPill(!tocFilter, 'ALL'),
+      { onSelect:() => this.setState({ masterTocFilter:'' }) })]
+      .concat(tocList.map((t) => Object.assign(mkPill(tocFilter === t, t),
+        { onSelect:() => this.setState({ masterTocFilter: tocFilter === t ? '' : t }) })));
+
+    // -- sort options -----------------------------------------------------
+    const sortDefs = [
+      { id:'name', label:'A–Z' },
+      { id:'journeys', label:'journeys' },
+      { id:'fare', label:'fare' },
+      { id:'carbon', label:'carbon' },
+    ];
+    if (simActive) sortDefs.push({ id:'revenue', label:'|rev Δ|' }, { id:'breach', label:'breaches' });
+    const sortOptions = sortDefs.map((d) => Object.assign(mkPill(sortBy === d.id, d.label),
+      { onSelect:() => this.setState({ masterSortBy: d.id }) }));
+
+    // -- rounding options -------------------------------------------------
+    const roundDefs = [
+      { id:'near5', label:'near 5p' },
+      { id:'near10', label:'near 10p' },
+      { id:'down10', label:'down 10p' },
+      { id:'none', label:'exact' },
+    ];
+    const curRound = S.masterRounding || 'near5';
+    const roundOptions = roundDefs.map((d) => Object.assign(mkPill(curRound === d.id, d.label),
+      { onSelect:() => this.setState({ masterRounding:d.id }) }));
+
+    // -- presets: quick raise selections ---------------------------------
+    const presetDefs = [0, 3, 5, 10];
+    const presets = presetDefs.map((p) => Object.assign(mkPill(raisePct === p, (p === 0 ? 'baseline' : '+' + p + '%')),
+      { onSelect:() => this.setState({ masterRaisePct:p }) }));
+
+    // -- verdict card -----------------------------------------------------
+    const simLoading = simActive && !sim;
+    let verdictLabel = 'BASELINE', verdictHead = 'no scale-wide change', verdictSub = 'drag the slider to preview a network-wide raise.';
+    let verdictLabelColor = '#5f6773', verdictColorCard = '#adb6c4';
+    let verdictBg = '#090a0c', verdictBorder = '#15171b', simBorder = '#15171b';
+    if (simActive) {
+      if (simLoading) {
+        verdictLabel = 'RUNNING SIMULATION';
+        verdictHead = '\u2026';
+        verdictSub = 'server is applying the raise to each corridor and joining the regulation map.';
+        verdictLabelColor = '#7b8390';
+        simBorder = '#2a2e34';
+      } else if (sim && sim.error) {
+        verdictLabel = 'SIMULATION FAILED';
+        verdictHead = sim.error;
+        verdictSub = 'check /api/master/simulate; baseline shown below.';
+        verdictColorCard = '#c17f6e'; verdictBg = '#130c0f'; verdictBorder = '#2f201d';
+        simBorder = '#2f201d';
+      } else if (breachN > 0) {
+        verdictLabel = 'REGULATION BREACHES';
+        verdictHead = breachN + ' corridor' + (breachN === 1 ? '' : 's') + ' over cap';
+        verdictSub = 'regulated Standard-class fares are frozen at 1 Mar 2025 baseline (REGULATION.md §3). A raise on any of them breaches the 0% freeze.';
+        verdictColorCard = '#c17f6e'; verdictBg = '#130c0f'; verdictBorder = '#2f201d';
+        verdictLabelColor = '#8a5b53'; simBorder = '#2f201d';
+      } else {
+        verdictLabel = 'COMPLIANT PREVIEW';
+        verdictHead = (revDelta > 0 ? '+' : '') + '\u00a3' + Math.round(revDelta/100).toLocaleString() + ' rev Δ';
+        verdictSub = 'no regulated defaults were touched; individual corridor approval still gates the change.';
+        verdictColorCard = '#a9c9b7'; verdictBg = '#0b1210'; verdictBorder = '#1d2a23';
+        verdictLabelColor = '#4f6b5d'; simBorder = '#1d2a23';
+      }
+    }
+    const raiseColor = raisePct > 0 ? '#c17f6e' : (raisePct < 0 ? '#6f9e86' : '#dbe0e7');
+    const raiseStr = (raisePct > 0 ? '+' : '') + raisePct + '%';
+
+    return {
+      ready:true, notReady:false,
       statusLine: 'baseline snapshot ' + (ov.computed_at ? ('computed ' + ov.computed_at.slice(0, 19).replace('T', ' ')) : '\u2014')
         + (ov.odm_period_label ? (' \u00b7 ' + ov.odm_period_label) : '')
         + (ov.timetable_source ? (' \u00b7 ' + ov.timetable_source) : ''),
-      notes: ov.notes || [], hasNotes:(ov.notes || []).length > 0 };
+      kpis,
+      filter:S.masterFilter, hasFilter: !!S.masterFilter,
+      onFilterInput:(e) => this.setState({ masterFilter:e.target.value }),
+      onFilterClear:() => this.setState({ masterFilter:'' }),
+      tocOptions, sortOptions, roundOptions, presets,
+      raisePct, raiseStr, raiseColor,
+      onRaiseInput:(e) => { const v = Math.max(-10, Math.min(25, parseInt(e.target.value, 10) || 0)); this.setState({ masterRaisePct:v }); },
+      onReset:() => this.setState({ masterRaisePct:0 }),
+      simActive, simLoading, simBorder,
+      verdictLabel, verdictHead, verdictSub, verdictLabelColor,
+      verdictColor:verdictColorCard, verdictBg, verdictBorder,
+      rows, empty: rows.length === 0,
+      notes: (ov.notes || []).concat(sim && sim.notes ? sim.notes : []),
+      hasNotes: ((ov.notes || []).length + ((sim && sim.notes) || []).length) > 0,
+    };
   }
 
   /* Statistics — the corridor fact sheet (trains, volumes, distance, carbon,

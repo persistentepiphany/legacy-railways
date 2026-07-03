@@ -151,6 +151,10 @@
       _originNlc: af.representative_origin_nlc,
       _destNlc: af.representative_dest_nlc,
       _blastNlcs: af.blast_station_nlcs || [],
+      // Full count BEFORE the per-fare cap in affected.py; equals the shown
+      // list length when nothing was truncated. Used by the map/blast panels
+      // to honestly say "showing 2000 of 2470" instead of silently hiding.
+      _blastFullCount: af.blast_station_full_count || (af.blast_station_nlcs || []).length,
     };
   }
 
@@ -514,6 +518,20 @@
       } : null,
     };
 
+    // Blast-station truncation summary. Any fare with more stations than the
+    // per-fare cap has _blastFullCount > _blastNlcs.length — surface the
+    // shortfall so the map/blast panels can say "showing X of Y" honestly.
+    var blastTruncatedRows = 0, blastMissingStations = 0, blastFullTotal = 0, blastShownTotal = 0;
+    rows.forEach(function (r) {
+      var full = r._blastFullCount || 0, shown = (r._blastNlcs || []).length;
+      blastFullTotal += full; blastShownTotal += shown;
+      if (full > shown) { blastTruncatedRows++; blastMissingStations += (full - shown); }
+    });
+    var blastTrunc = blastTruncatedRows > 0
+      ? { rows: blastTruncatedRows, missing: blastMissingStations,
+          shown: blastShownTotal, full: blastFullTotal }
+      : null;
+
     return {
       rows: rows, counts: counts,
       verdict: verdict,
@@ -524,6 +542,7 @@
       breaches: breaches, complianceMeta: complianceMeta,
       contradictions: contradictions,
       stationStats: stationStats,
+      blastTruncation: blastTrunc,
       notes: report.notes || [],
       // Expose which analysis modules were populated so the UI can show
       // "module off" veils honestly (null block ≠ empty result).

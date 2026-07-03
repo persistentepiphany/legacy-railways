@@ -117,6 +117,9 @@
                      { kind: "cstats:" + origin + "-" + dest });
     },
     overview: function () { return api_get("/api/overview", { kind: "overview" }); },
+    masterSimulate: function (payload) {
+      return api_post("/api/master/simulate", payload, { kind: "master" });
+    },
     staging: function () { return api_get("/api/staging"); },
     propose: function (changeRequest) {
       return api_post("/api/staging/propose", changeRequest, { kind: "propose" });

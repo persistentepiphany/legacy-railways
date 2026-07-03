@@ -211,7 +211,7 @@ class RegulationCitationModel(BaseModel):
 class ComplianceVerdictModel(BaseModel):
     status: Literal["compliant", "breach", "not_regulated"]
     cap_price_2025_pence: int | None
-    new_price_pence: int
+    new_price_pence: int | None
     citation: RegulationCitationModel | None
     explanation: str
 
@@ -510,6 +510,16 @@ class OverviewCorridorModel(BaseModel):
     train_count: int | None = None
     odm_journeys_out: int | None = None
     odm_journeys_back: int | None = None
+    # Master-tab enrichments — cheap deterministic joins computed at warm-up.
+    distance_km: float | None = None
+    distance_method: str | None = None
+    rail_kgco2e_per_journey: float | None = None
+    car_kgco2e_per_journey: float | None = None
+    carbon_saving_per_journey_kg: float | None = None
+    annual_carbon_saving_kg: float | None = None
+    implied_yield_pence: int | None = None
+    default_ticket_regulated: bool | None = None
+    default_ticket_citation: str | None = None
     pending_changes: int = 0
     approved_changes: int = 0
     notes: list[str]
@@ -521,6 +531,49 @@ class OverviewModel(BaseModel):
     odm_period_label: str | None = None
     timetable_source: str | None = None
     corridors: list[OverviewCorridorModel]
+    notes: list[str]
+
+
+# --- Master tab (scale-wide raise simulation) -----------------------------
+
+
+class MasterSimulateRequest(BaseModel):
+    """Scale-wide fare-raise simulation. `raise_pct` is a fraction (0.05 = +5%);
+    negative values raise nothing (guarded at the endpoint). Filters are
+    applied server-side so client and server agree on which corridors are in
+    scope for the aggregates."""
+    raise_pct: float
+    toc_filter: str | None = None
+    rounding: Literal["near5", "near10", "down10", "none"] = "near5"
+
+
+class MasterCorridorSimModel(BaseModel):
+    id: str
+    name: str
+    toc: str | None
+    origin_crs: str
+    dest_crs: str
+    default_ticket: str | None
+    old_price_pence: int | None
+    new_price_pence: int | None
+    delta_pence: int | None
+    regulated: bool | None
+    breach: bool
+    breach_reason: str | None
+    journeys_per_period: int | None
+    revenue_delta_pence: int | None
+    carbon_delta_kg: float | None
+    citation: str | None
+
+
+class MasterSimulateResponse(BaseModel):
+    raise_pct: float
+    corridors: list[MasterCorridorSimModel]
+    breach_count: int
+    regulated_count: int
+    total_revenue_delta_pence: int
+    total_journeys: int
+    aggregate_carbon_delta_kg: float | None
     notes: list[str]
 
 
@@ -754,6 +807,9 @@ __all__ = [
     "ComplianceVerdictModel",
     "ContradictingPairModel",
     "CorridorStatsModel",
+    "MasterSimulateRequest",
+    "MasterSimulateResponse",
+    "MasterCorridorSimModel",
     "OverviewCorridorModel",
     "OverviewKeyFareModel",
     "OverviewModel",
