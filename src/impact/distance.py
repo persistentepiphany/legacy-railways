@@ -27,10 +27,12 @@ from __future__ import annotations
 import heapq
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from src.api.geo import StationCoord, load_station_coords  # pure, file-only
 from src.ingest.inspect import _cached
+
+if TYPE_CHECKING:
+    from src.api.geo import StationCoord
 from src.ingest.routeing import load_station_link_distances
 
 MILES_TO_KM = 1.609344
@@ -139,6 +141,10 @@ def flow_distance_km(
             )
 
     if msn_path is not None and msn_path.exists():
+        # Deferred: src.api.geo is pure/file-only, but importing it triggers
+        # src.api.__init__ -> main -> schemas -> src.impact.report (cycle).
+        from src.api.geo import load_station_coords
+
         coords = load_station_coords(msn_path)
         a = coords.get(origin_crs)
         b = coords.get(dest_crs)

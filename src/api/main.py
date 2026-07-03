@@ -204,8 +204,9 @@ def api_impact(
         None,
         description=(
             "Comma-separated analysis blocks to compute. Valid keys: "
-            "compliance, anomalies, revenue, splits, performance. Default: "
-            "compliance,anomalies,revenue (splits and performance are opt-in)."
+            "compliance, anomalies, revenue, revenue_odm, splits, performance, "
+            "demand, carbon (ESTIMATE blocks). Default: "
+            "compliance,anomalies,revenue; everything else is opt-in."
         ),
     ),
 ) -> ImpactReportModel:

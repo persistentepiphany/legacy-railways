@@ -225,6 +225,69 @@ class PerformanceBlockModel(BaseModel):
     result: PerformanceResultModel
 
 
+class DemandEstimateModel(BaseModel):
+    flow_id: str
+    ticket_code: str
+    flow_type: str
+    ticket_segment: str
+    direction: str
+    elasticity: float
+    elasticity_source: str
+    elasticity_derived: bool
+    price_base_pence: int
+    yield_basis: str
+    price_ratio: float
+    price_change_pct: float
+    gross_demand_change_pct: float
+    within_validity: bool
+    distance_km: float | None
+    distance_method: str | None
+    odm_journeys_per_period: int | None
+    eligible_base_journeys: int | None
+    gross_product_journeys: int | None
+    abstracted_journeys: int | None
+    net_new_journeys: int | None
+    notes: list[str]
+
+
+class DemandBlockModel(BaseModel):
+    estimates: list[DemandEstimateModel]
+    total_net_new_journeys: int | None
+    flows_with_volume: int
+    flows_percent_only: int
+    validity_warnings: int
+    eligible_share_assumption: float
+    notes: list[str]
+
+
+class CarbonEstimateModel(BaseModel):
+    flow_id: str
+    ticket_code: str
+    net_new_journeys: int
+    distance_km: float
+    distance_method: str
+    rail_kgco2e_per_pkm: float
+    car_kgco2e_per_pkm: float
+    carbon_saving_kg: float
+    notes: list[str]
+
+
+class CarbonBlockModel(BaseModel):
+    estimates: list[CarbonEstimateModel]
+    total_carbon_saving_kg: float | None
+    corridor_distance_km: float | None
+    corridor_distance_method: str | None
+    corridor_rail_kg_per_passenger: float | None
+    corridor_car_kg_per_passenger: float | None
+    corridor_saving_kg_per_passenger: float | None
+    rail_factor_kgco2e_per_pkm: float
+    rail_factor_description: str
+    car_factor_kgco2e_per_pkm: float
+    traction_electric_pct: float | None
+    traction_diesel_pct: float | None
+    notes: list[str]
+
+
 class ImpactReportModel(BaseModel):
     change: ChangeRequestModel
     canonical_affected: list[AffectedFareModel]
@@ -237,6 +300,8 @@ class ImpactReportModel(BaseModel):
     revenue_odm: ODMRevenueBlockModel | None = None
     splits: SplitOpportunityResultModel | None = None
     performance: PerformanceBlockModel | None = None
+    demand: DemandBlockModel | None = None
+    carbon: CarbonBlockModel | None = None
 
 
 # --- Staging ---------------------------------------------------------------

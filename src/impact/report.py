@@ -20,7 +20,9 @@ from dataclasses import dataclass
 
 from src.impact.affected import AffectedFare, AffectedSet, BlastRadiusPair, compute_affected_set
 from src.impact.change_request import ChangeRequest, validate_against_feed
+from src.impact.carbon import CarbonBlock, compute_carbon
 from src.impact.compliance import attach_compliance, build_corridor_regulation_map
+from src.impact.demand import DemandBlock, compute_demand
 from src.impact.feed_paths import FeedPaths
 from src.impact.inversions import FareInversion, detect_inversions
 from src.impact.odm import ODMRevenueBlock, compute_odm_revenue, load_odm_index
@@ -47,6 +49,7 @@ DEFAULT_PERF_DAYS = "WEEKDAY"
 # them. Adding a new module = add a key here + a block field + a branch.
 KNOWN_INCLUDE_KEYS: frozenset[str] = frozenset({
     "compliance", "anomalies", "revenue", "revenue_odm", "splits", "performance",
+    "demand", "carbon",
 })
 DEFAULT_INCLUDE: frozenset[str] = frozenset({
     "compliance", "anomalies", "revenue",
@@ -118,6 +121,8 @@ class ImpactReport:
     revenue_odm: ODMRevenueBlock | None = None
     splits: SplitOpportunityResult | None = None
     performance: PerformanceBlock | None = None
+    demand: DemandBlock | None = None      # ESTIMATE — PDFH-framework elasticity response
+    carbon: CarbonBlock | None = None      # ESTIMATE — modal-shift carbon from demand's net-new
 
 
 def _normalise_include(include: frozenset[str] | set[str] | None) -> frozenset[str]:
@@ -152,6 +157,11 @@ def compute_impact(
     Callers that want to inject a pre-built map (the LLM shell sharing one
     map across sibling changes) can pass it in."""
     requested = _normalise_include(include)
+    carbon_auto_added_demand = "carbon" in requested and "demand" not in requested
+    if carbon_auto_added_demand:
+        # Carbon multiplies the demand block's net-new journeys — it cannot
+        # exist without it. Auto-adding is the least-surprise resolution.
+        requested = requested | {"demand"}
 
     validation = validate_against_feed(change, feed_paths)
     if not validation.ok:
@@ -211,9 +221,16 @@ def compute_impact(
             per_pair_exposure_pence=per_pair_exposure(affected_set.canonical),
         )
 
+    # One ODM load shared by the revenue_odm and demand branches.
+    odm_index = None
+    if ({"revenue_odm", "demand"} & requested
+            and feed_paths.odm_csv is not None and feed_paths.odm_csv.exists()):
+        odm_index = load_odm_index(
+            feed_paths.odm_csv, loc=load_loc_meta(feed_paths.loc))
+
     revenue_odm_block: ODMRevenueBlock | None = None
     if "revenue_odm" in requested:
-        if feed_paths.odm_csv is None or not feed_paths.odm_csv.exists():
+        if odm_index is None:
             notes.append(
                 "revenue_odm block skipped: no ODM CSV at data/odm/odm.csv. "
                 "Drop an ORR-style origin-destination matrix release there to "
@@ -221,8 +238,6 @@ def compute_impact(
                 "via the `revenue` block."
             )
         else:
-            loc = load_loc_meta(feed_paths.loc)
-            odm_index = load_odm_index(feed_paths.odm_csv, loc=loc)
             revenue_odm_block = compute_odm_revenue(affected_set, odm_index)
 
     splits_block: SplitOpportunityResult | None = None
@@ -249,6 +264,22 @@ def compute_impact(
                 "(cluster NLCs with no member representative)."
             )
 
+    demand_block: DemandBlock | None = None
+    if "demand" in requested:
+        demand_block = compute_demand(affected_set, feed_paths, odm_index)
+        if carbon_auto_added_demand:
+            notes.append(
+                "demand block auto-added: carbon consumes the demand block's "
+                "net-new journeys and cannot be computed without it."
+            )
+
+    carbon_block: CarbonBlock | None = None
+    if "carbon" in requested and demand_block is not None:
+        c_origin_crs, c_dest_crs, crs_notes = _corridor_crses(change, feed_paths)
+        notes.extend(crs_notes)
+        carbon_block = compute_carbon(
+            demand_block, feed_paths, c_origin_crs, c_dest_crs)
+
     return ImpactReport(
         change=change,
         canonical_affected=affected_set.canonical,
@@ -261,6 +292,8 @@ def compute_impact(
         revenue_odm=revenue_odm_block,
         splits=splits_block,
         performance=performance_block,
+        demand=demand_block,
+        carbon=carbon_block,
     )
 
 
@@ -319,8 +352,10 @@ def _iso_minus_days(iso_today: str, n: int) -> str:
 
 __all__ = [
     "AnomaliesBlock",
+    "CarbonBlock",
     "ComplianceBlock",
     "DEFAULT_INCLUDE",
+    "DemandBlock",
     "ImpactReport",
     "KNOWN_INCLUDE_KEYS",
     "ODMRevenueBlock",
