@@ -47,6 +47,9 @@
   var _lastImpactRaw = null;
   var _resolveCache = new Map();
   var _resolveInflight = new Set();
+  // Merge point (visual-copilot session): {corridorId: adaptedCallings}.
+  // null = fetch in flight, false = typed miss (degrade to static path).
+  var _callingsCache = {};
 
   /* ---- utilities ------------------------------------------------------ */
   function sigOf(o) { return JSON.stringify(o); }
@@ -520,6 +523,24 @@
          register it so the map spine, edge skeleton and impact scoping
          (origin/dest NLC) treat it exactly like a curated corridor. */
       fetchRoute: function (o, d) { return A.route(o, d); },
+      /* Merge point (visual-copilot session). Sync surface, async underneath
+         (same contract as resolve): returns the adapted callings for a
+         corridor, kicking the fetch on first ask. null while loading,
+         false on a typed miss — callers degrade to the static path. */
+      corridorCallings: function (id) {
+        if (_callingsCache[id] !== undefined) return _callingsCache[id];
+        var c = null;
+        var list = window.RFE.CORRIDORS;
+        for (var i = 0; i < list.length; i++) if (list[i].id === id) { c = list[i]; break; }
+        if (!c || !c.path || c.path.length < 2) return false;
+        _callingsCache[id] = null;
+        A.corridorCallings(c.path[0], c.path[c.path.length - 1]).then(function (data) {
+          _callingsCache[id] = ADAPT.adaptCallings(data);
+          if (window.__rfeRoot) window.__rfeRoot.forceUpdate();
+        }).catch(function () { _callingsCache[id] = false; });
+        return null;
+      },
+      stationByNlc: function (nlc) { return _stationsByNlc[String(nlc)] || null; },
       addCustomCorridor: function (r) {
         var id = "custom-" + r.origin_crs + "-" + r.dest_crs;
         for (var i = 0; i < _corridors.length; i++) {

@@ -974,6 +974,13 @@ async def api_events(request: Request):
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+# --- Routers (merge point: visual-copilot-agent session) -------------------
+
+from src.api.corridor import router as corridor_router  # noqa: E402
+
+app.include_router(corridor_router)
+
+
 # --- 6. Static mount for the cockpit UI -----------------------------------
 
 _FRONTEND_LIVE = REPO_ROOT / "frontend" / "live"

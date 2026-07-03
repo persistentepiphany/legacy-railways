@@ -598,6 +598,26 @@
     };
   }
 
+  /* Merge point (visual-copilot session).
+     /api/corridor/callings → {spine, stations}. `spine` keeps only stations
+     a meaningful share of corridor trains call at (≥10% of through trains,
+     min 2) so one slow Birmingham-loop diversion doesn't zigzag the drawn
+     line; `stations` keeps the full union for the corridor strip. */
+  function adaptCallings(raw) {
+    if (!raw || !raw.found || !raw.callings || raw.callings.length < 2) return false;
+    var thr = Math.max(2, Math.round((raw.direct_trains || 0) * 0.1));
+    var spine = [];
+    raw.callings.forEach(function (cp) {
+      if (cp.trains_calling >= thr) spine.push(cp.crs);
+    });
+    return {
+      spine: spine,
+      stations: raw.callings,
+      directTrains: raw.direct_trains,
+      source: raw.source,
+    };
+  }
+
   window.RFE_ADAPT = {
     ticketName: ticketName,
     fmtMoney: fmtMoney,
@@ -609,6 +629,7 @@
     fmtPct: fmtPct,
     adaptImpact: adaptImpact,
     adaptResolve: adaptResolve,
+    adaptCallings: adaptCallings,
     adaptAffectedFare: adaptAffectedFare,
     adaptEscalation: adaptEscalation,
   };

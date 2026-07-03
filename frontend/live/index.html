@@ -1463,10 +1463,36 @@ class Component extends DCLogic {
       else if (this.state.mapFull) this.toggleMapFull();
     };
     window.addEventListener('keydown', this._onKey);
+    // meridian:* command bus (visual-copilot session) — thin adapters over
+    // EXISTING methods, so the copilot (or a console dispatch) drives the
+    // cockpit through the same code paths as a click. No new behavior here.
+    this._busHighlight = null;
+    const TABS = ['blast','compliance','anomalies','splits','performance','revenue','demand','carbon'];
+    const bus = {
+      'meridian:zoomToCorridor': (d) => { if (d.corridorId) this.flyToCorridor(d.corridorId); },
+      'meridian:zoomToStations': (d) => this.zoomToNlcs(d.nlcs || []),
+      'meridian:highlightStations': (d) => this.setBusHighlight(d.nlcs || [], d.pulse !== false),
+      'meridian:openTab': (d) => { if (TABS.indexOf(d.tab) >= 0) this.setState({ activeAnalysis:d.tab }); },
+      'meridian:runImpact': (d) => {
+        if (d.changeParams) this.setState((s) => ({ params:Object.assign({}, s.params, d.changeParams) }), () => this.runImpact());
+        else this.runImpact();
+      },
+      'meridian:openReport': () => this.openReport(),
+      'meridian:toggleModule': (d) => {
+        if (d.module && this.state.includes[d.module] !== undefined
+            && typeof d.on === 'boolean' && this.state.includes[d.module] !== d.on) this.setInclude(d.module);
+      },
+      'meridian:setStep': () => {} // flow-state is the IA session's; accept + ignore
+    };
+    this._busListeners = Object.keys(bus).map((k) => {
+      const h = (e) => { try { bus[k]((e && e.detail) || {}); } catch (err) { console.warn('bus handler failed', k, err); } };
+      window.addEventListener(k, h);
+      return [k, h];
+    });
     this._feedTimer = setInterval(() => this.tickFeed(), 2600);
     this._freshTimer = setInterval(() => { this.setState((s) => ({ feedFetchedSec: s.feedMode === 'live' ? (1 + Math.floor(Math.random()*3)) : s.feedFetchedSec + 3 })); }, 3000);
   }
-  componentWillUnmount() { clearInterval(this._feedTimer); clearInterval(this._freshTimer); clearTimeout(this._rt); if (this._onResize) window.removeEventListener('resize', this._onResize); if (this._onKey) window.removeEventListener('keydown', this._onKey); if (this._es) { this._es.close(); this._es = null; } }
+  componentWillUnmount() { clearInterval(this._feedTimer); clearInterval(this._freshTimer); clearTimeout(this._rt); clearTimeout(this._busHlTimer); if (this._onResize) window.removeEventListener('resize', this._onResize); if (this._onKey) window.removeEventListener('keydown', this._onKey); if (this._busListeners) { this._busListeners.forEach(([k, h]) => window.removeEventListener(k, h)); this._busListeners = null; } if (this._es) { this._es.close(); this._es = null; } }
   componentDidUpdate() {
     if (!this._impact) return;
     if (this.state.resultsCurrent && this.state.animEpoch !== this._lastAnimEpoch) {
@@ -1496,6 +1522,12 @@ class Component extends DCLogic {
         this._dramatic = false;
         this.flyTo({ z:1, x:0, y:0 }, 650);
         this.fireRadialWave();
+        // Money shot keeps the national frame — record the affected bbox as
+        // seen so slider recomputes on the same geography don't yank the camera.
+        this.zoomToAffected(0);
+      } else {
+        // Results landed with new geography: frame the affected set (1a).
+        this.zoomToAffected(750);
       }
     }
     if (this.state.selFlow !== this._lastSelFlow || this.state.animEpoch !== this._lastFareEpoch) {
@@ -2027,12 +2059,49 @@ class Component extends DCLogic {
   }
   flyToCorridor(id) {
     const pts = this.corridorPoints(id); if (!pts.length) return;
+    this.flyToPoints(pts, 22, 700);
+  }
+  flyToPoints(pts, pad, ms) {
+    if (!pts.length) return;
     let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
     pts.forEach((p) => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
     const B = this._camBase;
-    const pad = 22, w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
+    const w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
     const z = Math.max(B.zMin, Math.min(B.zMax, Math.min(B.w / w, B.h / h)));
-    this.flyTo({ z, x:(minX + maxX) / 2 - B.cx, y:(minY + maxY) / 2 - B.cy }, 700);
+    this.flyTo({ z, x:(minX + maxX) / 2 - B.cx, y:(minY + maxY) / 2 - B.cy }, ms || 700);
+  }
+  /* ---- visual-copilot session: zoom-to-fit + bus targets ---- */
+  affectedPoints() {
+    const RFE = window.RFE, imp = this._impact;
+    if (!RFE || !imp || !imp.stationStats) return [];
+    return Object.keys(imp.stationStats).map((crs) => RFE.ST[crs]).filter((s) => s && s.x != null);
+  }
+  // Frame the affected-station bbox when a NEW geography lands. Keyed on the
+  // bbox itself, so slider recomputes that reshape prices (not geography)
+  // never move the camera; ms=0 records the key without flying.
+  zoomToAffected(ms) {
+    if (!this.state.resultsCurrent) return;
+    const pts = this.affectedPoints(); if (pts.length < 2) return;
+    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    pts.forEach((p) => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+    const key = [minX, maxX, minY, maxY].map((v) => v.toFixed(1)).join('|') + ':' + pts.length;
+    if (key === this._zoomedImpactKey) return;
+    this._zoomedImpactKey = key;
+    if (ms) this.flyToPoints(pts, 26, ms);
+  }
+  zoomToNlcs(nlcs) {
+    const RFE = window.RFE; if (!RFE || !RFE.stationByNlc) return;
+    const pts = (nlcs || []).map((n) => RFE.stationByNlc(n)).filter((s) => s && s.x != null);
+    if (pts.length) this.flyToPoints(pts, 26, 750);
+  }
+  setBusHighlight(nlcs, pulse) {
+    const RFE = window.RFE; if (!RFE || !RFE.stationByNlc) return;
+    const set = {};
+    (nlcs || []).forEach((n) => { const s = RFE.stationByNlc(n); if (s && s.crs) set[s.crs] = true; });
+    this._busHighlight = Object.keys(set).length ? { set, pulse:!!pulse } : null;
+    clearTimeout(this._busHlTimer);
+    if (this._busHighlight) this._busHlTimer = setTimeout(() => { this._busHighlight = null; this.forceUpdate(); }, 6000);
+    this.forceUpdate();
   }
   // One expanding radial ring from the corridor centroid, appended
   // imperatively (React never learns about it) and removed on animation end.
@@ -2467,7 +2536,16 @@ class Component extends DCLogic {
     const maxD = 300;
     const reduce = this.props.reduceMotion;
     const corridor = RFE.CORRIDORS.find((c) => c.id === S.selCorridor);
-    const corridorSet = corridor ? corridor.path : [];
+    // Real timetable calling points when the corridor endpoint has answered
+    // (sync surface, async underneath); static path_crs otherwise — the
+    // spine never disappears while the fetch is in flight or on a miss.
+    const callings = (corridor && RFE.corridorCallings) ? RFE.corridorCallings(corridor.id) : null;
+    const corridorSet = (callings && callings.spine && callings.spine.length > 1)
+      ? callings.spine.filter((crs) => RFE.ST[crs])
+      : (corridor ? corridor.path : []);
+    // Results-present: the blast IS the picture — unaffected network recedes.
+    const resultsPresent = S.resultsCurrent && !!this._impact && this._impact.counts.total > 0;
+    const busHl = this._busHighlight;
     // Operator scope: light the whole TOC network in a dim accent.
     const tocSet = {};
     if (S.scopeKind === 'toc' && S.selToc && RFE.TOC_STATIONS) {
@@ -2545,17 +2623,24 @@ class Component extends DCLogic {
       const delay = affected ? Math.min(900, (dfh / maxD) * 900) : 0;
       const lit = S.resultsCurrent && affected;
       const r = (affected ? (lit ? 2.6 + Math.min(2.2, (stat.affected || 1) * 0.35) : 2.3) : (onCorridor ? 2 : (onToc ? 1.7 : (tier === 0 ? 1.5 : 1.1)))) * iz;
-      const glow = lit && bucket && bucket !== 'clean';
+      const glow = (lit && bucket && bucket !== 'clean') || (busLit && busHl.pulse);
       // Label eligibility per tier, then a spatial claim so labels never pile up.
       // Bus-only MSN entries ("… Bus", "… Bus Station") never earn a label
       // unless the impact actually touches them.
+      const busLit = !!(busHl && busHl.set[s.id]);
       const pri = labelPriority(s, affected, onCorridor);
       const isBus = /\bBUS\b/i.test(s.name);
       const eligible = (tier >= 2 && !(isBus && !affected)) || affected || endpointSet[s.id] || HUBS.indexOf(s.id) >= 0 || (tier >= 1 && onCorridor);
-      const showLabel = eligible && claim(s.x, s.y, pri <= 3 ? 13 : 34);
+      // Once results are in, only the story's cast keeps labels — a name
+      // floating over a near-invisible dot reads as a glitch.
+      const showLabel = eligible
+        && (!resultsPresent || affected || onCorridor || endpointSet[s.id])
+        && claim(s.x, s.y, pri <= 3 ? 13 : 34);
       return {
         cx:s.x, cy:s.y, r, fill:col,
-        opacity: lit ? 1 : (affected ? 0.78 : (onCorridor ? 0.95 : (onToc ? 0.7 : (tier > 0 ? 0.34 : 0.5)))),
+        opacity: (busLit || lit) ? 1 : (affected ? 0.78
+          : resultsPresent ? (endpointSet[s.id] ? 0.4 : onCorridor ? 0.3 : onToc ? 0.12 : 0.06)
+          : (onCorridor ? 0.95 : (onToc ? 0.7 : (tier > 0 ? 0.34 : 0.5)))),
         filter: glow ? 'drop-shadow(0 0 4px ' + col + ')' : 'none',
         halo: glow && !reduce, haloR: r + 3 * iz, haloW: 1.1 * iz,
         transition: reduce ? 'none' : ('fill 380ms ease ' + delay + 'ms, r 420ms cubic-bezier(.2,.8,.2,1) ' + delay + 'ms, opacity 320ms ease ' + delay + 'ms'),
@@ -2569,7 +2654,7 @@ class Component extends DCLogic {
         labelColor: affected ? '#dbe1e9' : (onCorridor ? '#aab3c2' : '#7d8694'),
         labelSize: (affected ? 9.4 : 8.4) * iz, labelWeight: affected ? 600 : 400,
         labelHalo: 2.6 * iz,
-        selRing: S.filterStation === s.id || S.stationDetail === s.id || (S.hoverNode === s.id && affected), ringR: r + 3.5 * iz, ringW: 1 * iz, ringColor:col,
+        selRing: busLit || S.filterStation === s.id || S.stationDetail === s.id || (S.hoverNode === s.id && affected), ringR: r + 3.5 * iz, ringW: 1 * iz, ringColor: busLit ? C.acHi : col,
         onClick:() => this.openStationDetail(s.id),
         onEnter:() => this.setState({ hoverNode:s.id }), onLeave:() => this.setState({ hoverNode:null })
       };
@@ -2586,7 +2671,7 @@ class Component extends DCLogic {
       return { x1:a.x, y1:a.y, x2:b.x, y2:b.y,
         stroke: hl ? C.acHi : (lit ? C.ac : (onSel ? C.acDim : '#323b4d')),
         width: (hl ? 1.6 : (onSel ? (lit ? 1.15 : 0.9) : 0.7)) * iz,
-        opacity: hl ? 1 : (onSel ? (lit ? 0.9 : 0.65) : 0.55),
+        opacity: hl ? 1 : (onSel ? (lit ? 0.9 : 0.65) : (resultsPresent && !lit ? 0.12 : 0.55)),
         transition: reduce ? 'none' : ('stroke 420ms ease ' + delay + 'ms, opacity 420ms ease ' + delay + 'ms, stroke-width 420ms ease ' + delay + 'ms') };
     });
 

@@ -83,6 +83,12 @@
       return api_get("/api/route?origin=" + encodeURIComponent(origin) +
                      "&dest=" + encodeURIComponent(dest));
     },
+    // Merge point (visual-copilot session): real timetable calling points
+    // for the selected corridor's map spine + corridor strip.
+    corridorCallings: function (origin, dest) {
+      return api_get("/api/corridor/callings?origin=" + encodeURIComponent(origin) +
+                     "&dest=" + encodeURIComponent(dest));
+    },
     // Working endpoints
     resolve: function (origin, dest, ticket, opts) {
       opts = opts || {};
