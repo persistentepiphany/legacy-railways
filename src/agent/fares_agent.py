@@ -73,8 +73,11 @@ agent = Agent(
 chat_proto = Protocol(spec=chat_protocol_spec)
 
 
-def _query_engine(text: str) -> str:
-    """Blocking POST to the copilot endpoint; run via asyncio.to_thread."""
+def _query_engine(text: str) -> tuple[str, str]:
+    """Blocking POST to the copilot endpoint; run via asyncio.to_thread.
+
+    Returns (answer_text, intent). Intent drives the follow-up menu; the
+    agent still relays the engine's answer_text verbatim (no LLM prose)."""
     req = urllib.request.Request(
         API_URL + "/api/copilot/query",
         data=json.dumps({"text": text[:500]}).encode(),
@@ -83,10 +86,74 @@ def _query_engine(text: str) -> str:
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
         body = json.loads(resp.read().decode())
-    return body.get("answer_text") or "The engine returned no answer."
+    return (
+        body.get("answer_text") or "The engine returned no answer.",
+        body.get("intent") or "",
+    )
 
 
-def _chat_text(text: str, end: bool = True) -> ChatMessage:
+# Suggested next questions, keyed by the intent the engine just answered.
+# Fixed English templates — no numbers, no computation. The point is to make
+# every reply a jumping-off point rather than a dead end.
+_FOLLOWUPS: dict[str, list[str]] = {
+    "resolve_fare": [
+        "why is it that price",
+        "run the impact",
+        "show the splits",
+        "compare with Leeds to Kings Cross",
+    ],
+    "explain_provenance": [
+        "run the impact",
+        "which fares breach the cap",
+        "show the splits",
+    ],
+    "run_impact": [
+        "which fares breach the cap",
+        "show the splits",
+        "open the report",
+    ],
+    "which_breach": [
+        "show the splits",
+        "open the report",
+        "why is it that price",
+    ],
+    "show_split": [
+        "run the impact",
+        "which fares breach the cap",
+        "why is it that price",
+    ],
+    "compare_fares": [
+        "why is it that price",
+        "run the impact",
+        "which fares breach the cap",
+    ],
+    "show_corridor": [
+        "fare from Manchester to London Euston",
+        "run the impact",
+        "which fares breach the cap",
+    ],
+    "open_report": [
+        "which fares breach the cap",
+        "show the splits",
+        "why is it that price",
+    ],
+}
+
+_FALLBACK_FOLLOWUPS = [
+    "fare from Manchester to London Euston",
+    "run the impact",
+    "which fares breach the cap",
+    "show the splits",
+]
+
+
+def _with_followups(answer: str, intent: str) -> str:
+    options = _FOLLOWUPS.get(intent, _FALLBACK_FOLLOWUPS)
+    menu = "\n".join(f"  {i}. {q}" for i, q in enumerate(options, 1))
+    return f"{answer}\n\nNext, you could ask:\n{menu}"
+
+
+def _chat_text(text: str, end: bool = False) -> ChatMessage:
     content: list = [TextContent(type="text", text=text)]
     if end:
         content.append(EndSessionContent(type="end-session"))
@@ -121,7 +188,7 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         return  # start-session / non-text content needs no reply
     ctx.logger.info(f"query from {sender[:16]}…: {text[:80]}")
     try:
-        answer = await asyncio.to_thread(_query_engine, text)
+        answer, intent = await asyncio.to_thread(_query_engine, text)
     except Exception as exc:  # engine down ≠ agent down — answer honestly
         ctx.logger.error(f"engine unreachable: {exc}")
         answer = (
@@ -129,7 +196,8 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
             "no numbers to give you — I never invent one. Please try again "
             "once the backend is up."
         )
-    await ctx.send(sender, _chat_text(answer))
+        intent = ""
+    await ctx.send(sender, _chat_text(_with_followups(answer, intent)))
 
 
 @chat_proto.on_message(ChatAcknowledgement)

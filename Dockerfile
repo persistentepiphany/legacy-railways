@@ -18,6 +18,11 @@ RUN mkdir -p /app/data \
     && tar -xzf /tmp/feed.tar.gz -C /app/data \
     && rm /tmp/feed.tar.gz \
     && ls -lh /app/data
+# The tarball ships the 9 RJFAF805 files + curated JSON metadata
+# (corridors.json, railcard_display.json, cluster_labels.json,
+# classification_corridor.json, easement_predicates.json,
+# carbon_oracle_template.json) so /api/overview lands 20 corridors on the
+# first request rather than degrading to zero rows.
 ENV FARES_DATA_DIR=/app/data
 ENV PYTHONUNBUFFERED=1
 

@@ -20,7 +20,8 @@ tests/
 docs/
 frontend/_archive/
 
-# Drop everything in data/ except the 9 RJFAF805 files the engine needs.
+# Drop everything in data/ except the 9 RJFAF805 files the engine needs and
+# the curated JSON metadata the API reads at startup (small, version-tracked).
 data/*
 !data/RJFAF805.FFL
 !data/RJFAF805.LOC
@@ -31,3 +32,9 @@ data/*
 !data/RJFAF805.RCM
 !data/RJFAF805.FRR
 !data/RJFAF805.TTY
+!data/corridors.json
+!data/railcard_display.json
+!data/cluster_labels.json
+!data/classification_corridor.json
+!data/easement_predicates.json
+!data/carbon_oracle_template.json

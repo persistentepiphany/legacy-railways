@@ -125,6 +125,20 @@
       }
       return false;
     });
+    // Pull the flow-record file:line from the affected_set_pick step so the
+    // map's per-station "why" tooltip can cite provenance without a second
+    // fetch. Corridor stations (fare's O/D) cite this directly; cluster
+    // stations cite the same flow line as the fan-out origin.
+    var flowFile = "", flowLineNo = "";
+    (af.provenance || []).some(function (p) {
+      if (p.step === "affected_set_pick") {
+        var m = /^(\S+)/.exec(String(p.source || ""));
+        if (m) flowFile = m[1];
+        flowLineNo = String((p.detail || {}).flow_line_no || "");
+        return true;
+      }
+      return false;
+    });
     return {
       // Key format must match RFE.parseKey ("O-D:code") — the delivered UI
       // feeds this straight into selectFlow → parseKey → resolve.
@@ -151,6 +165,8 @@
       _originNlc: af.representative_origin_nlc,
       _destNlc: af.representative_dest_nlc,
       _blastNlcs: af.blast_station_nlcs || [],
+      _flowFile: flowFile,
+      _flowLineNo: flowLineNo,
       // Full count BEFORE the per-fare cap in affected.py; equals the shown
       // list length when nothing was truncated. Used by the map/blast panels
       // to honestly say "showing 2000 of 2470" instead of silently hiding.
@@ -350,26 +366,49 @@
     // fare's blast_station_nlcs (individual station NLCs, group-expanded by
     // the backend) so the map lights the true blast radius, not just the
     // two representative endpoints.
+    //
+    // Each station also gets a `reason` derived from the fare's provenance:
+    //   'corridor' — station is the flow record's origin OR dest (the
+    //                 flow_lookup step names it directly);
+    //   'cluster'  — station is only present via LOC group / FSC cluster
+    //                 fan-out (blast_station_nlcs added it, not the flow's
+    //                 own O/D pair).
+    // 'corridor' always wins if any fare touches the station directly. The
+    // citation carries the flow file:line pulled from affected_set_pick, so
+    // the map tooltip cites provenance verbatim rather than fabricating text.
     var stationStats = {};
+    var upgradeReason = function (s, nextReason, cite) {
+      // Precedence: corridor > cluster. Never downgrade.
+      if (s.reason === "corridor") return;
+      if (nextReason === "corridor" || !s.reason) {
+        s.reason = nextReason;
+        s.reasonCite = cite;
+      }
+    };
     rows.forEach(function (r) {
       var seen = {};
+      var cite = { flowFile: r._flowFile, flowLineNo: r._flowLineNo,
+                   flowId: r.flowId, o: r.o, d: r.d, oName: r.oName, dName: r.dName };
       (r._blastNlcs || []).forEach(function (nlc) {
         var st = stationsByNlc[nlc];
         if (!st || !st.crs || seen[st.crs]) return;
         seen[st.crs] = true;
-        var s = stationStats[st.crs] = stationStats[st.crs] || { affected: 0, breach: 0, anomaly: 0, contradiction: 0, deltaP: 0 };
+        var s = stationStats[st.crs] = stationStats[st.crs] || { affected: 0, breach: 0, anomaly: 0, contradiction: 0, deltaP: 0, reason: null, reasonCite: null };
         s.affected++;
         if (r.bucket !== "clean") s[r.bucket] = (s[r.bucket] || 0) + 1;
         if (r.deltaP) s.deltaP += r.deltaP;
+        var onFlow = (nlc === r._originNlc || nlc === r._destNlc);
+        upgradeReason(s, onFlow ? "corridor" : "cluster", cite);
       });
       // Representative endpoints always count, even if outside the blast list.
       [r.o, r.d].forEach(function (crs) {
         if (seen[crs]) return;
         seen[crs] = true;
-        var s = stationStats[crs] = stationStats[crs] || { affected: 0, breach: 0, anomaly: 0, contradiction: 0, deltaP: 0 };
+        var s = stationStats[crs] = stationStats[crs] || { affected: 0, breach: 0, anomaly: 0, contradiction: 0, deltaP: 0, reason: null, reasonCite: null };
         s.affected++;
         if (r.bucket !== "clean") s[r.bucket] = (s[r.bucket] || 0) + 1;
         if (r.deltaP) s.deltaP += r.deltaP;
+        upgradeReason(s, "corridor", cite);
       });
     });
 
