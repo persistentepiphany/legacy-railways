@@ -30,6 +30,46 @@
      the map's position:fixed fullscreen mode */
   .rfe-dimable{transition:opacity .45s ease}
   .rfe-dim{opacity:.35;pointer-events:none}
+
+  /* PRINT / SAVE AS PDF
+     ----------------------------------------------------------------
+     By default the impact-report modal is a fixed-position card with
+     max-height:90vh and its body has overflow-y:auto, so the browser
+     print pipeline only captures whatever fits in that viewport-sized
+     scroll window. When the "Print" button runs `window.print()` the
+     `rfe-printing` class flips these constraints off, hides everything
+     outside the modal, and paginates the full report cleanly across
+     pages so Save-as-PDF captures every section. */
+  @media print {
+    html, body { background:#fbfbf9 !important; }
+    body.rfe-printing .rfe-app-frame > *:not(.report-overlay) { display:none !important; }
+    body.rfe-printing .rfe-app-frame { height:auto !important; overflow:visible !important; background:#fbfbf9 !important; }
+    body.rfe-printing .report-overlay {
+      position:static !important; inset:auto !important; z-index:auto !important;
+      background:transparent !important; padding:0 !important;
+      backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+      display:block !important;
+    }
+    body.rfe-printing .report-card {
+      max-width:none !important; max-height:none !important; width:100% !important;
+      overflow:visible !important; box-shadow:none !important; border-radius:0 !important;
+    }
+    body.rfe-printing .report-body {
+      overflow:visible !important; min-height:0 !important; max-height:none !important;
+    }
+    body.rfe-printing .report-print-only { display:block !important; }
+    /* Keep visual atoms together across page breaks. */
+    body.rfe-printing .report-card > div,
+    body.rfe-printing .report-body > div { page-break-inside:avoid; break-inside:avoid; }
+  }
+  /* When triggering the print, we also hide the modal's own Print/Close
+     button row on the printed page (they're not useful in a saved PDF).
+     Not display:none in the base rules so the modal still looks right
+     on screen while printing (the browser paints the source too). */
+  @media print {
+    body.rfe-printing .report-toolrow { display:none !important; }
+  }
+  .report-print-only { display:none; }
 </style>
 <script src="assets/gb-outline.js"></script>
 <script src="rfe.api.js"></script>
@@ -37,7 +77,7 @@
 <script src="fare-engine.js"></script>
 </helmet>
 
-<div style="height:100vh;display:flex;flex-direction:column;background:#08090b;color:#d8dde4;font-family:'Source Sans 3',system-ui,sans-serif;font-size:13px;line-height:1.35;overflow:hidden;letter-spacing:.1px;font-variant-numeric:tabular-nums">
+<div class="rfe-app-frame" style="height:100vh;display:flex;flex-direction:column;background:#08090b;color:#d8dde4;font-family:'Source Sans 3',system-ui,sans-serif;font-size:13px;line-height:1.35;overflow:hidden;letter-spacing:.1px;font-variant-numeric:tabular-nums">
 
   <!-- ============ TOP BAR ============ -->
   <header data-screen-label="Topbar" style="height:52px;flex:0 0 52px;display:flex;align-items:center;gap:0;border-bottom:1px solid #1a1c20;background:#0c0d0f;padding:0 14px 0 16px">
@@ -94,6 +134,12 @@
         <div style="font-size:11px;color:#98a1ae">Staging <span style="color:#6f9e86;font-weight:600">{{ staging.approved }}</span> approved · <span style="color:#c2a15c;font-weight:600">{{ staging.held }}</span> held · {{ staging.pending }} open</div>
       </div>
     </div>
+
+    <!-- Data I/O link -->
+    <a href="data.html" title="Downloads, uploads, route display" style="display:flex;align-items:center;gap:7px;padding:0 14px;height:100%;border-left:1px solid #1a1c20;color:#98a1ae;text-decoration:none">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a93a3" stroke-width="1.8"><path d="M4 4h16v6H4zM4 14h16v6H4z"></path><circle cx="8" cy="7" r=".9" fill="#adb6c4" stroke="none"></circle><circle cx="8" cy="17" r=".9" fill="#adb6c4" stroke="none"></circle></svg>
+      <div style="font-size:11px;letter-spacing:.8px;font-weight:600">DATA I/O</div>
+    </a>
   </header>
 
   <!-- recompute progress hairline -->
@@ -484,8 +530,11 @@
         <!-- product selector — dropdown OR inline draft. The dropdown's
              "Create new railcard…" swaps this whole card for a NAME input;
              cancel restores it. Every other AUTHOR panel control below
-             stays live so the impact preview updates as the analyst tweaks. -->
+             stays live so the impact preview updates as the analyst tweaks.
+             Suppressed for `raise_price` (isRailcardOnly=false): a scale-wide
+             fare rise has nothing to attach to a railcard. -->
         <sc-if value="{{ ui.isAddRailcard }}" hint-placeholder-val="{{ true }}">
+        <sc-if value="{{ ui.isRailcardOnly }}" hint-placeholder-val="{{ true }}">
         <sc-if value="{{ product.drafting }}" hint-placeholder-val="{{ false }}">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:7px">
@@ -531,6 +580,7 @@
             </div>
           </sc-if>
         </div>
+        </sc-if>
         </sc-if>
 
         <!-- discount slider -->
@@ -580,7 +630,8 @@
           </div>
         </div>
 
-        <!-- min fare floor -->
+        <!-- min fare floor — railcard-only; hidden when raising fares -->
+        <sc-if value="{{ ui.isRailcardOnly }}" hint-placeholder-val="{{ true }}">
         <div style="margin-bottom:2px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
             <div style="font-size:10.5px;color:#7b8390">Railcard min-fare floor</div>
@@ -589,6 +640,7 @@
           <input type="range" min="50" max="75" step="1" value="{{ change.minFloorPct }}" onInput="{{ change.onFloor }}" style="width:100%" />
           <div style="font-size:9.5px;color:#4f5762;margin-top:4px">Discounted fare cannot fall below this % of the protected fare.</div>
         </div>
+        </sc-if>
         </sc-if>
 
         <!-- % APPLY CAP form -->
@@ -1825,6 +1877,15 @@
               <div style="font-size:10.5px;color:#7b8390;margin-top:4px">No price is fabricated for unresolved fares — the chain below shows why the resolver stopped.</div>
             </div>
             </sc-if>
+            <sc-if value="{{ prov.loading }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom:3px;display:flex;align-items:center;gap:11px;padding:9px 11px;background:#0e1218;border:1px solid #1c2230;border-radius:8px">
+              <div style="width:16px;height:16px;border:2px solid #232a38;border-top-color:#8ba7d6;border-radius:50%;animation:rfe-spin .7s linear infinite;flex:0 0 auto"></div>
+              <div style="min-width:0">
+                <div style="font-size:12.5px;color:#c5cfe0;font-weight:600;line-height:1.2">Resolving fare via <span style="font-family:'Source Sans 3',sans-serif;color:#8ba7d6">/api/resolve</span>…</div>
+                <div style="font-size:10.5px;color:#7b8390;margin-top:3px;line-height:1.4">The deterministic engine is walking the chain — flow record, override, railcard, min-floor, rounding — for this fare.</div>
+              </div>
+            </div>
+            </sc-if>
 
             <div style="height:1px;background:#141519;margin:13px 0 12px"></div>
             <div style="font-size:10.5px;letter-spacing:.7px;color:#626b76;margin-bottom:11px">PROVENANCE CHAIN</div>
@@ -2053,20 +2114,20 @@
 
   <!-- ============ IMPACT REPORT OVERLAY ============ -->
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ false }}">
-    <div style="position:fixed;inset:0;z-index:60;background:rgba(8,9,11,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:28px">
-      <div style="width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;background:#fbfbf9;border-radius:18px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.5);color:#1c1c1e">
-        <div style="flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:26px 28px 20px">
+    <div class="report-overlay" style="position:fixed;inset:0;z-index:60;background:rgba(8,9,11,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:28px">
+      <div class="report-card" style="width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;background:#fbfbf9;border-radius:18px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.5);color:#1c1c1e">
+        <div class="report-toolrow" style="flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:26px 28px 20px">
           <div style="min-width:0">
             <div style="font-size:10.5px;letter-spacing:.8px;color:#a2a29c">IMPACT REPORT</div>
             <div style="font-size:22px;color:#1c1c1e;font-weight:600;margin-top:5px;letter-spacing:-.2px">{{ report.title }}</div>
             <div style="font-size:12.5px;color:#77776f;margin-top:5px">{{ report.params }}</div>
           </div>
           <div style="display:flex;gap:8px;flex:0 0 auto">
-            <div onClick="{{ report.onPrint }}" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#3a3a3c;border:1px solid #e2e2dd;border-radius:9px;padding:8px 13px;cursor:pointer" style-hover="background:#f1f1ed"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M6 14h12v8H6z"></path></svg>Print</div>
+            <div onClick="{{ report.onPrint }}" title="Opens the browser print dialog — pick 'Save as PDF' to download the full report" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#3a3a3c;border:1px solid #e2e2dd;border-radius:9px;padding:8px 13px;cursor:pointer" style-hover="background:#f1f1ed"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M6 14h12v8H6z"></path></svg>Print / Save PDF</div>
             <div onClick="{{ report.onClose }}" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid #e2e2dd;border-radius:9px;cursor:pointer;color:#77776f" style-hover="background:#f1f1ed"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"></path></svg></div>
           </div>
         </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:4px 28px 24px">
+        <div class="report-body" style="flex:1;min-height:0;overflow-y:auto;padding:4px 28px 24px">
           <div style="display:flex;gap:26px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid #e8e7e2;margin-bottom:22px">
             <div><div style="font-size:9.5px;letter-spacing:.5px;color:#a2a29c">SNAPSHOT</div><div style="font-size:12.5px;color:#3a3a3c;margin-top:3px">{{ report.snapshot }}</div></div>
             <div><div style="font-size:9.5px;letter-spacing:.5px;color:#a2a29c">GENERATED</div><div style="font-size:12.5px;color:#3a3a3c;margin-top:3px">{{ report.generated }}</div></div>
@@ -3532,7 +3593,22 @@ class Component extends DCLogic {
     const C = this.C, S = this.state, RFE = window.RFE, imp = this._dispImpact();
     if (!imp || !RFE) return { ready:false, onClose:() => this.closeReport(), exhibit:{ show:false } };
     const v = imp.verdict, rev = imp.revenue, withdraw = S.params.changeType === 'withdraw_product';
-    return { ready:true, onClose:() => this.closeReport(), onPrint:() => { try { window.print(); } catch (e) {} },
+    return { ready:true, onClose:() => this.closeReport(), onPrint:() => {
+        // Flip a body-level flag so the print CSS knows to hide the app
+        // chrome and unlock the modal's overflow/height caps — without
+        // this the browser only captures the visible viewport of the
+        // scrollable card. Cleanup runs on afterprint, with a defensive
+        // timeout fallback in case the browser doesn't fire it (some
+        // Chromium versions drop it when print is cancelled).
+        const cleanup = () => {
+          document.body.classList.remove('rfe-printing');
+          window.removeEventListener('afterprint', cleanup);
+        };
+        window.addEventListener('afterprint', cleanup);
+        document.body.classList.add('rfe-printing');
+        setTimeout(() => { try { window.print(); } catch (e) {} }, 30);
+        setTimeout(cleanup, 20000);
+      },
       exhibit: this.buildReportExhibit(imp),
       title: S.params.changeType === 'raise_price' ? ('Fare rise \u00b7 +' + S.params.discountPct + '%')
            : (withdraw ? 'Withdraw ' : 'Add ') + S.params.railcardName,
@@ -3779,7 +3855,11 @@ class Component extends DCLogic {
       // Panel header morphs when the analyst is inline-drafting a new card.
       authorHeader: S.newRailcardDraft ? '\u2461 AUTHOR NEW RAILCARD' : '\u2461 AUTHOR THE CHANGE',
       // Kind-of-change gates for the Author form swap. IDs match ChangeRequest.kind.
+      // `raise_price` reuses the add-railcard shell (discount slider becomes
+      // "Increase rate", rounding, scheme area) but skips railcard-only bits —
+      // there's no railcard to pick and no min-fare floor to raise against.
       isAddRailcard:  S.params.changeType === 'add_railcard' || S.params.changeType === 'raise_price',
+      isRailcardOnly: S.params.changeType === 'add_railcard',
       isApplyCap:     S.params.changeType === 'apply_cap',
       isAdjustFares:  S.params.changeType === 'adjust_fares',
       isWithdraw:     S.params.changeType === 'withdraw_product',
@@ -5473,6 +5553,12 @@ class Component extends DCLogic {
     // goes amber and the £/was/Δ row is replaced by the status headline.
     // The chain itself stays — it is the explanation of the miss.
     const noFare = !!res.noFare;
+    // Pending = the resolver hit /api/resolve async and hasn't come back yet;
+    // finalP is null and the sole step is the "loading provenance…" stub.
+    // Without a distinct loading state the price row shows "£—" and the
+    // badge lies "EXACT · FEED-DERIVED", so the panel looks broken rather
+    // than busy.
+    const loading = res.status === 'pending';
     const steps = res.steps.map((st, i) => {
       const term = st.terminal;
       const termColor = noFare ? C.warn : C.ok;
@@ -5514,9 +5600,14 @@ class Component extends DCLogic {
     const oLabel = selRow ? selRow.oName : ((RFE.ST[pk.o]||{}).name||pk.o);
     const dLabel = selRow ? selRow.dName : ((RFE.ST[pk.d]||{}).name||pk.d);
     return { selLabel:oLabel + ' → ' + dLabel, productName:(res.prod||{}).name||pk.code, scopeNote,
-      noFare, showPrice:!noFare, statusHeadline: res.statusHeadline || '',
-      badgeText: noFare ? 'UNRESOLVED' : 'EXACT · FEED-DERIVED',
-      badgeBg: noFare ? '#c2a15c' : '#6f9e86',
+      loading,
+      // While loading, suppress the price and no-fare blocks so the loading
+      // block below owns the region — otherwise the £— row and the
+      // "no fare" amber block both flash first and read as an error.
+      noFare: !loading && noFare, showPrice: !loading && !noFare,
+      statusHeadline: res.statusHeadline || '',
+      badgeText: loading ? 'COMPUTING…' : (noFare ? 'UNRESOLVED' : 'EXACT · FEED-DERIVED'),
+      badgeBg: loading ? '#3a4a6a' : (noFare ? '#c2a15c' : '#6f9e86'),
       finalStr:RFE.fmtMoney(res.finalP), beforeStr: base?RFE.fmtMoney(base.finalP):'—',
       deltaStr: deltaP?RFE.fmtDelta(deltaP):'no change', deltaColor: deltaP<0?C.down:(deltaP>0?C.up:C.tx2),
       steps, stepLabel: sel?sel.label:'', hasSource: !!(sel && sel.source), noSource: !(sel && sel.source),

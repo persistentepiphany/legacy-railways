@@ -1600,9 +1600,11 @@ async def api_events(request: Request):
 
 from src.api.corridor import router as corridor_router  # noqa: E402
 from src.api.copilot import router as copilot_router  # noqa: E402
+from src.api.exports_api import router as exports_router  # noqa: E402
 
 app.include_router(corridor_router)
 app.include_router(copilot_router)
+app.include_router(exports_router)
 
 
 # --- 6. Static mount for the cockpit UI -----------------------------------

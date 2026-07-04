@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MERIDIAN · Data I/O</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#08090b;height:100%;color:#d8dde4;font-family:'Source Sans 3',system-ui,sans-serif;font-size:13px;line-height:1.4;letter-spacing:.1px;font-variant-numeric:tabular-nums}
+  a{color:inherit;text-decoration:none}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#22252b;border-radius:5px}
+  ::-webkit-scrollbar-thumb:hover{background:#2f333a}
+  ::-webkit-scrollbar-track{background:transparent}
+  input,button,select{font-family:inherit}
+  input:focus,select:focus{outline:none}
+  @keyframes mrd-spin{to{transform:rotate(360deg)}}
+  @keyframes mrd-shimmer{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}
+
+  /* structural */
+  .app{min-height:100vh;display:flex;flex-direction:column;background:#08090b}
+  .topbar{height:52px;flex:0 0 52px;display:flex;align-items:center;gap:0;border-bottom:1px solid #1a1c20;background:#0c0d0f;padding:0 14px 0 16px}
+  .toolbar{height:42px;flex:0 0 42px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1a1c20;background:#0a0b0d;padding:0 12px}
+  .grid{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,1fr);gap:14px;padding:14px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+  .card{background:#0c0d0f;border:1px solid #1a1c20;border-radius:9px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .card>header{padding:11px 14px 10px;border-bottom:1px solid #1a1c20;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .card>header .label{font-size:10.5px;letter-spacing:1.1px;color:#626b76;font-weight:600}
+  .card>header .sub{font-size:10.5px;color:#5f6773}
+  .card>section{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .card.full{flex:1;min-height:0}
+
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border:1px solid #23262c;background:#101215;color:#c3cad3;font-size:11.5px;border-radius:6px;cursor:pointer;font-weight:500;letter-spacing:.2px}
+  .btn:hover{border-color:#2f333a;background:#16181c}
+  .btn.primary{background:linear-gradient(180deg,#0f1512,#0c0f0d);border-color:#24382e;color:#a9c9b7}
+  .btn.primary:hover{border-color:#35513f}
+  .btn.warn{border-color:#302222;color:#c17f6e}
+  .btn.warn:hover{border-color:#4c3128}
+  .btn.small{padding:4px 8px;font-size:10.5px}
+  .btn[disabled]{opacity:.4;pointer-events:none}
+
+  /* inputs */
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:10px;letter-spacing:.6px;color:#5f6773;text-transform:uppercase;font-weight:600}
+  .field .input,.input{display:flex;align-items:center;gap:6px;background:#090a0c;border:1px solid #1b1e22;border-radius:6px;padding:3px 3px 3px 10px}
+  .input input,.input select{flex:1;min-width:0;background:transparent;border:0;color:#d8dde4;font-size:12px;padding:6px 0}
+  .input select{cursor:pointer}
+
+  /* dropzone */
+  .drop{border:1.4px dashed #2a2e34;border-radius:8px;padding:22px;text-align:center;color:#7b8390;background:#090a0c;cursor:pointer;transition:border-color .2s,background .2s}
+  .drop:hover{border-color:#35513f;background:#0d1210}
+  .drop.hot{border-color:#6f9e86;background:#101613;color:#a9c9b7}
+  .drop.err{border-color:#4c3128;background:#150e0d;color:#c17f6e}
+
+  /* table */
+  .tbl{width:100%;border-collapse:collapse;font-family:'Source Sans 3',sans-serif;font-size:11px}
+  .tbl th,.tbl td{padding:5px 8px;text-align:left;border-bottom:1px solid #16181c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+  .tbl th{color:#8a93a3;font-weight:600;letter-spacing:.4px;font-size:10px;position:sticky;top:0;background:#0c0d0f;text-transform:uppercase}
+  .tbl tr:hover td{background:#101215}
+  .tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+  .tbl-wrap{overflow:auto;max-height:340px;border:1px solid #16181c;border-radius:7px;background:#0a0b0d}
+
+  /* chips */
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border:1px solid #23262c;border-radius:9px;font-size:10px;color:#8a93a3;background:#0a0b0d}
+  .chip .dot{width:5px;height:5px;border-radius:50%;background:#6f9e86}
+  .chip.warn .dot{background:#c17f6e}
+  .chip.amber .dot{background:#c2a15c}
+  .chip.info .dot{background:#7ba0c4}
+
+  /* status */
+  .status{font-size:10.5px;color:#7b8390;display:flex;align-items:center;gap:6px}
+  .status.err{color:#c17f6e}
+  .status.ok{color:#a9c9b7}
+  .spinner{width:9px;height:9px;border:1.5px solid #2f333a;border-top-color:#adb6c4;border-radius:50%;animation:mrd-spin .8s linear infinite}
+  .divider{height:1px;background:#16181c;margin:2px 0}
+  .kbd{font-family:'Source Sans 3',sans-serif;font-size:10px;color:#5f6773;border:1px solid #1b1e22;padding:1px 5px;border-radius:4px;background:#0a0b0d}
+
+  /* SVG frame */
+  .svg-frame{border:1px solid #1a1c20;border-radius:8px;background:#0c0d0f;overflow:auto;padding:6px}
+  .svg-frame svg{display:block;max-width:100%;height:auto}
+
+  /* toast-ish */
+  .banner{border-radius:6px;padding:8px 11px;font-size:11px;display:flex;align-items:center;gap:8px;border:1px solid #23262c;background:#0e1013;color:#c3cad3}
+  .banner.ok{border-color:#24382e;background:#0d1210;color:#a9c9b7}
+  .banner.warn{border-color:#4c3128;background:#150e0d;color:#c17f6e}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:11px;padding-right:18px;border-right:1px solid #1a1c20;height:100%">
+      <div style="width:24px;height:24px;border:1px solid #2f333a;border-radius:5px;display:flex;align-items:center;justify-content:center;position:relative">
+        <div style="width:9px;height:9px;border:1.5px solid #adb6c4;border-radius:50%"></div>
+        <div style="position:absolute;width:20px;height:1px;background:#2f333a;transform:rotate(38deg)"></div>
+      </div>
+      <div style="line-height:1">
+        <div style="font-weight:600;font-size:13.5px;letter-spacing:1.4px;color:#f0f2f6">MERIDIAN</div>
+        <div style="font-size:9.5px;letter-spacing:.6px;color:#626b76;margin-top:2px;text-transform:uppercase">Data I/O · Feed Inspector</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:9px;padding:0 16px;height:100%;border-right:1px solid #1a1c20">
+      <div style="width:6px;height:6px;border-radius:50%;background:#6f9e86;box-shadow:0 0 6px #6f9e86"></div>
+      <div style="line-height:1.25">
+        <div style="font-size:10px;color:#626b76;letter-spacing:.4px">ACTIVE SNAPSHOT</div>
+        <div id="snap-label" style="font-size:11.5px;color:#adb6c4">loading…</div>
+      </div>
+    </div>
+
+    <div style="flex:1"></div>
+
+    <a href="index.html" style="display:flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-left:1px solid #1a1c20;color:#98a1ae">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a93a3" stroke-width="1.8"><path d="M15 18 9 12l6-6"></path></svg>
+      <div style="font-size:11px;letter-spacing:.8px;font-weight:600">COCKPIT</div>
+    </a>
+  </header>
+
+  <!-- ============ TOOLBAR ============ -->
+  <div class="toolbar">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="width:22px;height:22px;border-radius:6px;background:#101215;border:1px solid #1b1e22;display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#8a93a3" stroke-width="1.8"><path d="M4 4h16v6H4zM4 14h16v6H4z"/><circle cx="8" cy="7" r=".8" fill="#adb6c4" stroke="none"/><circle cx="8" cy="17" r=".8" fill="#adb6c4" stroke="none"/></svg>
+      </div>
+      <span style="font-size:12px;color:#c8cfd7;font-weight:600">Data I/O Console</span>
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#454c56" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+      <span style="font-size:11.5px;color:#8b93a0">Downloads · Uploads · Route Display</span>
+    </div>
+    <div style="flex:1"></div>
+    <span class="chip"><span class="dot"></span>deterministic</span>
+    <span class="chip info"><span class="dot"></span>read-only baseline</span>
+  </div>
+
+  <!-- ============ MAIN GRID ============ -->
+  <div class="grid">
+
+    <!-- LEFT COLUMN -->
+    <div class="col">
+
+      <!-- EXPORT REPORTS -->
+      <div class="card">
+        <header>
+          <div>
+            <div class="label">① EXPORT REPORTS</div>
+            <div class="sub">Download the current baseline &amp; staging state as CSV or XLSX</div>
+          </div>
+          <span class="chip"><span class="dot"></span>same-source as the JSON API</span>
+        </header>
+        <section>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" onclick="downloadUrl('/api/export/corridors.csv','corridors.csv')">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#a9c9b7" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+              corridors · CSV
+            </button>
+            <button class="btn" onclick="downloadUrl('/api/export/corridors.xlsx','corridors.xlsx')">
+              corridors · XLSX
+            </button>
+            <button class="btn primary" onclick="downloadUrl('/api/export/staging.csv','staging.csv')">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#a9c9b7" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+              staging queue · CSV
+            </button>
+            <button class="btn" onclick="downloadUrl('/api/export/staging.xlsx','staging.xlsx')">
+              staging queue · XLSX
+            </button>
+          </div>
+
+          <div class="divider"></div>
+          <div style="font-size:10.5px;color:#5f6773;letter-spacing:.4px;text-transform:uppercase;font-weight:600">FARES FOR A CORRIDOR</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px">
+            <div class="field">
+              <label>origin NLC</label>
+              <div class="input"><input id="fares-o" placeholder="0438" maxlength="4" value="0438"></div>
+            </div>
+            <div class="field">
+              <label>dest NLC</label>
+              <div class="input"><input id="fares-d" placeholder="1444" maxlength="4" value="1444"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;justify-content:flex-end">
+              <button class="btn primary" onclick="downloadFares('csv')">.CSV</button>
+            </div>
+            <div style="display:flex;flex-direction:column;justify-content:flex-end">
+              <button class="btn" onclick="downloadFares('xlsx')">.XLSX</button>
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:#5f6773">Pre-baked demo corridors: <button class="btn small" onclick="setFares('0438','1444')">Manchester → Euston</button> <button class="btn small" onclick="setFares('7207','1444')">Edinburgh → Euston</button> <button class="btn small" onclick="setFares('5527','1444')">Leeds → Euston</button></div>
+
+          <div class="divider"></div>
+          <div style="font-size:10.5px;color:#5f6773;letter-spacing:.4px;text-transform:uppercase;font-weight:600">SLICE AN ON-DISK FEED FILE</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px">
+            <div class="field">
+              <label>suffix</label>
+              <div class="input"><select id="feed-suffix"></select></div>
+            </div>
+            <div class="field">
+              <label>row cap</label>
+              <div class="input"><input id="feed-limit" type="number" min="1" max="20000" value="500"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;justify-content:flex-end">
+              <button class="btn primary" onclick="downloadFeed('csv')">.CSV</button>
+            </div>
+            <div style="display:flex;flex-direction:column;justify-content:flex-end">
+              <button class="btn" onclick="downloadFeed('xlsx')">.XLSX</button>
+            </div>
+          </div>
+          <div id="export-status" class="status" style="min-height:14px"></div>
+        </section>
+      </div>
+
+      <!-- ROUTE DISPLAY -->
+      <div class="card">
+        <header>
+          <div>
+            <div class="label">② ROUTE DISPLAY</div>
+            <div class="sub">Deterministic corridor route from the RSPS5046 timetable</div>
+          </div>
+          <span class="chip amber"><span class="dot"></span>timetable-derived</span>
+        </header>
+        <section>
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px">
+            <div class="field">
+              <label>origin CRS</label>
+              <div class="input"><input id="route-o" placeholder="MAN" maxlength="3" value="MAN"></div>
+            </div>
+            <div class="field">
+              <label>dest CRS</label>
+              <div class="input"><input id="route-d" placeholder="EUS" maxlength="3" value="EUS"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;justify-content:flex-end">
+              <button class="btn primary" onclick="loadRoute()">render</button>
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:#5f6773">
+            Try:
+            <button class="btn small" onclick="setRoute('MAN','EUS')">MAN → EUS</button>
+            <button class="btn small" onclick="setRoute('EDB','KGX')">EDB → KGX</button>
+            <button class="btn small" onclick="setRoute('BRI','PAD')">BRI → PAD</button>
+            <button class="btn small" onclick="setRoute('LDS','KGX')">LDS → KGX</button>
+          </div>
+          <div id="route-status" class="status" style="min-height:14px"></div>
+          <div id="route-svg" class="svg-frame" style="min-height:180px;display:flex;align-items:center;justify-content:center">
+            <div style="color:#5f6773;font-size:11px">Enter O/D CRS and press render.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn small" onclick="downloadRoute()">download SVG</button>
+            <a class="btn small" id="route-open" href="#" target="_blank" rel="noreferrer">open raw</a>
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col">
+
+      <!-- UPLOAD & INSPECT -->
+      <div class="card full">
+        <header>
+          <div>
+            <div class="label">③ UPLOAD &amp; INSPECT FEED FILE</div>
+            <div class="sub">Parse any RDG DTD file (.FFL/.LOC/.FSC/.NFO/.TTY/.RLC/.DIS/.RCM/.FRR) into readable rows</div>
+          </div>
+          <span class="chip warn"><span class="dot"></span>never touches the baseline graph</span>
+        </header>
+        <section>
+          <div id="drop" class="drop">
+            <div style="font-size:22px;line-height:1;margin-bottom:8px;color:#6f9e86">⤒</div>
+            <div style="font-size:12px;color:#c3cad3;font-weight:600">Drop a feed file here, or click to select</div>
+            <div style="font-size:10.5px;color:#5f6773;margin-top:4px">
+              Latin-1 text, fixed-width RDG records. Cap: 50&nbsp;MB.
+            </div>
+            <input id="file-input" type="file" style="display:none">
+          </div>
+          <div id="upload-status" class="status" style="min-height:14px"></div>
+
+          <div id="upload-result" style="display:none;flex-direction:column;gap:10px">
+            <div id="upload-summary" class="banner ok"></div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn primary" id="dl-parsed-csv">download parsed · CSV</button>
+              <button class="btn" id="dl-parsed-xlsx">download parsed · XLSX</button>
+              <button class="btn small" onclick="clearUpload()">clear</button>
+              <div style="flex:1"></div>
+              <button class="btn small" id="show-records" onclick="showTab('records')">records</button>
+              <button class="btn small" id="show-rejects" onclick="showTab('rejects')">rejects</button>
+            </div>
+
+            <div id="records-view" class="tbl-wrap"></div>
+            <div id="rejects-view" class="tbl-wrap" style="display:none"></div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* Vanilla client. Same aesthetic + deterministic guarantees as the main
+   cockpit — every action here is either an idempotent GET (a download) or
+   an in-memory POST (upload), never a mutation on the baseline graph. */
+
+const API = ''; // same-origin
+let lastUpload = null;   // { file, suffix, limit }
+
+async function j(path, opts) {
+  const r = await fetch(API + path, opts);
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { const b = await r.json(); msg = b.detail || msg; } catch {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Snapshot label + suffix list                                       */
+/* ------------------------------------------------------------------ */
+
+(async () => {
+  try {
+    const s = await j('/api/snapshot');
+    document.getElementById('snap-label').textContent =
+      `${s.id || '—'} · ${s.date || '—'} · ${s.records || 0} recs`;
+  } catch (e) {
+    document.getElementById('snap-label').textContent = 'unavailable';
+  }
+  try {
+    const s = await j('/api/inspect/suffixes');
+    const sel = document.getElementById('feed-suffix');
+    for (const suf of s.supported) {
+      const opt = document.createElement('option');
+      opt.value = suf; opt.textContent = suf;
+      sel.appendChild(opt);
+    }
+    sel.value = '.TTY';
+  } catch {}
+})();
+
+/* ------------------------------------------------------------------ */
+/*  Downloads                                                          */
+/* ------------------------------------------------------------------ */
+
+function downloadUrl(url, fallbackName) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fallbackName || '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setStatus('export-status', `requested ${url}`, 'ok');
+}
+
+function setStatus(id, msg, kind) {
+  const el = document.getElementById(id);
+  el.className = 'status ' + (kind === 'err' ? 'err' : kind === 'ok' ? 'ok' : '');
+  el.textContent = msg;
+}
+
+function setFares(o, d) {
+  document.getElementById('fares-o').value = o;
+  document.getElementById('fares-d').value = d;
+}
+function downloadFares(fmt) {
+  const o = document.getElementById('fares-o').value.trim().toUpperCase();
+  const d = document.getElementById('fares-d').value.trim().toUpperCase();
+  if (o.length !== 4 || d.length !== 4) {
+    setStatus('export-status', 'origin and dest must be 4-char NLCs', 'err');
+    return;
+  }
+  downloadUrl(`/api/export/fares.${fmt}?origin_nlc=${o}&dest_nlc=${d}`,
+    `fares-${o}-${d}.${fmt}`);
+}
+function downloadFeed(fmt) {
+  const suf = document.getElementById('feed-suffix').value;
+  const lim = document.getElementById('feed-limit').value || '500';
+  downloadUrl(`/api/export/feed.${fmt}?suffix=${encodeURIComponent(suf)}&limit=${lim}`,
+    `feed${suf.replace('.', '-').toLowerCase()}.${fmt}`);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Route display                                                      */
+/* ------------------------------------------------------------------ */
+
+function setRoute(o, d) {
+  document.getElementById('route-o').value = o;
+  document.getElementById('route-d').value = d;
+  loadRoute();
+}
+
+async function loadRoute() {
+  const o = document.getElementById('route-o').value.trim().toUpperCase();
+  const d = document.getElementById('route-d').value.trim().toUpperCase();
+  if (o.length !== 3 || d.length !== 3) {
+    setStatus('route-status', 'origin and dest must be 3-char CRS codes', 'err');
+    return;
+  }
+  const url = `/api/route/svg?origin=${o}&dest=${d}`;
+  document.getElementById('route-open').href = url;
+  const frame = document.getElementById('route-svg');
+  frame.innerHTML = '<div class="spinner"></div>';
+  setStatus('route-status', `fetching route for ${o} → ${d}…`);
+  try {
+    const r = await fetch(API + url);
+    if (!r.ok) throw new Error(await r.text());
+    const svg = await r.text();
+    frame.innerHTML = svg;
+    setStatus('route-status', `rendered · ${o} → ${d}`, 'ok');
+  } catch (e) {
+    frame.innerHTML = '<div style="color:#c17f6e;font-size:11px">' + escapeHtml(e.message) + '</div>';
+    setStatus('route-status', 'route unavailable', 'err');
+  }
+}
+
+function downloadRoute() {
+  const o = document.getElementById('route-o').value.trim().toUpperCase();
+  const d = document.getElementById('route-d').value.trim().toUpperCase();
+  downloadUrl(`/api/route/svg?origin=${o}&dest=${d}`, `route-${o}-${d}.svg`);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Upload + inspect                                                   */
+/* ------------------------------------------------------------------ */
+
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file-input');
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('hot'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('hot'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  drop.classList.remove('hot');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+async function handleFile(file) {
+  lastUpload = { file };
+  document.getElementById('upload-result').style.display = 'none';
+  setStatus('upload-status', `parsing ${file.name} (${(file.size/1024).toFixed(1)} kB)…`);
+  drop.classList.remove('err');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('limit', '5000');
+  try {
+    const r = await fetch(API + '/api/inspect/parse', { method: 'POST', body: fd });
+    if (!r.ok) {
+      let msg;
+      try { msg = (await r.json()).detail || r.statusText; } catch { msg = r.statusText; }
+      throw new Error(msg);
+    }
+    const data = await r.json();
+    lastUpload.suffix = data.suffix;
+    lastUpload.limit = 20000;
+    renderUpload(data);
+    setStatus('upload-status', '', 'ok');
+  } catch (e) {
+    drop.classList.add('err');
+    setStatus('upload-status', 'parse failed: ' + e.message, 'err');
+  }
+}
+
+function renderUpload(data) {
+  document.getElementById('upload-result').style.display = 'flex';
+
+  const rate = data.total_lines
+    ? Math.round((data.parsed_count / Math.max(1, data.parsed_count + data.reject_count)) * 100)
+    : 0;
+  const banner = document.getElementById('upload-summary');
+  banner.className = 'banner ' + (data.reject_count === 0 ? 'ok' : 'warn');
+  banner.innerHTML =
+    `<b>${escapeHtml(data.filename || '(uploaded)')}</b>` +
+    ` — suffix <span class="kbd">${escapeHtml(data.suffix)}</span> · ` +
+    `${data.parsed_count.toLocaleString()} parsed, ` +
+    `${data.reject_count.toLocaleString()} rejected, ` +
+    `${data.total_lines.toLocaleString()} lines seen (${rate}% clean)`;
+
+  const cols = collectColumns(data.records);
+  document.getElementById('records-view').innerHTML =
+    renderTable(cols, data.records, data.records_truncated ? 'showing first 200' : '');
+  document.getElementById('rejects-view').innerHTML =
+    renderTable(['line_no', 'reason', 'raw'], data.rejects,
+      data.rejects_truncated ? 'showing first 200' : '');
+
+  document.getElementById('dl-parsed-csv').onclick = () =>
+    downloadParsed('csv', data.suffix);
+  document.getElementById('dl-parsed-xlsx').onclick = () =>
+    downloadParsed('xlsx', data.suffix);
+
+  // Try to auto-render a route strip when the parse contains O/D NLCs.
+  maybeAutoRoute(data);
+  showTab('records');
+}
+
+async function downloadParsed(fmt, suffix) {
+  if (!lastUpload || !lastUpload.file) return;
+  const fd = new FormData();
+  fd.append('file', lastUpload.file);
+  fd.append('suffix', suffix || lastUpload.suffix || '');
+  fd.append('limit', String(lastUpload.limit || 20000));
+  setStatus('upload-status', `building ${fmt.toUpperCase()}…`);
+  try {
+    const r = await fetch(API + `/api/inspect/parse.${fmt}`, { method: 'POST', body: fd });
+    if (!r.ok) {
+      let msg;
+      try { msg = (await r.json()).detail || r.statusText; } catch { msg = r.statusText; }
+      throw new Error(msg);
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (lastUpload.file.name || 'upload') + '.' + fmt;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus('upload-status', `downloaded ${fmt.toUpperCase()}`, 'ok');
+  } catch (e) {
+    setStatus('upload-status', `download failed: ${e.message}`, 'err');
+  }
+}
+
+function collectColumns(rows) {
+  const seen = new Set();
+  for (const row of rows) for (const k of Object.keys(row || {})) seen.add(k);
+  // put the kind + line first if present
+  const cols = [...seen];
+  cols.sort((a, b) => {
+    const rank = (x) => x === '_KIND' ? -2 : x === '_LINE' ? -1 : 0;
+    return rank(a) - rank(b);
+  });
+  return cols;
+}
+
+function renderTable(cols, rows, caption) {
+  if (!rows || rows.length === 0) {
+    return '<div style="padding:12px;color:#5f6773;font-size:11px">no rows</div>';
+  }
+  const head = '<tr>' + cols.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>';
+  const body = rows.map(row =>
+    '<tr>' + cols.map(c => {
+      const v = row[c];
+      return `<td title="${escapeHtml(String(v ?? ''))}">${escapeHtml(String(v ?? ''))}</td>`;
+    }).join('') + '</tr>'
+  ).join('');
+  const cap = caption
+    ? `<div style="padding:5px 9px;color:#5f6773;font-size:10.5px;border-bottom:1px solid #16181c">${escapeHtml(caption)}</div>`
+    : '';
+  return cap + `<table class="tbl"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+
+function showTab(name) {
+  document.getElementById('records-view').style.display = name === 'records' ? 'block' : 'none';
+  document.getElementById('rejects-view').style.display = name === 'rejects' ? 'block' : 'none';
+  for (const t of ['records', 'rejects']) {
+    const btn = document.getElementById('show-' + t);
+    btn.classList.toggle('primary', t === name);
+  }
+}
+
+function clearUpload() {
+  lastUpload = null;
+  fileInput.value = '';
+  document.getElementById('upload-result').style.display = 'none';
+  setStatus('upload-status', '');
+}
+
+function maybeAutoRoute(data) {
+  // Only auto-populate the route inputs; don't override the user's manual pick.
+  // We look for a common origin/dest CRS pair inside a parsed .FFL header,
+  // or the first two distinct CRSes in a .LOC parse.
+  const rec = data.records || [];
+  if (rec.length === 0) return;
+  const suffix = (data.suffix || '').toUpperCase();
+  if (suffix === '.LOC') {
+    const crses = [];
+    for (const r of rec) {
+      const c = (r.CRS || '').trim();
+      if (c && c.length === 3 && !crses.includes(c)) crses.push(c);
+      if (crses.length === 2) break;
+    }
+    if (crses.length === 2) {
+      document.getElementById('route-o').value = crses[0];
+      document.getElementById('route-d').value = crses[1];
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+// Kick a first route render for the default MAN → EUS pair.
+window.addEventListener('load', () => { loadRoute().catch(() => {}); });
+</script>
+</body>
+</html>
